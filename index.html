@@ -1,0 +1,4549 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Diário de Trader — registro diário de operações">
+  <meta name="theme-color" content="#0f172a">
+  <title>Diário de Trader</title>
+  <style>
+:root,
+[data-theme="light"] {
+  --bg: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-input: #f8fafc;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --text-subtle: #94a3b8;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-light: #dbeafe;
+  --danger: #dc2626;
+  --danger-bg: #fef2f2;
+  --warning: #d97706;
+  --warning-bg: #fffbeb;
+  --success: #16a34a;
+  --success-bg: #f0fdf4;
+  --shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(15, 23, 42, 0.04);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+[data-theme="dark"] {
+  --bg: #0f172a;
+  --bg-card: #1e293b;
+  --bg-input: #0f172a;
+  --border: #334155;
+  --border-strong: #475569;
+  --text: #f1f5f9;
+  --text-muted: #94a3b8;
+  --text-subtle: #64748b;
+  --primary: #3b82f6;
+  --primary-hover: #60a5fa;
+  --primary-light: #1e3a5f;
+  --danger: #f87171;
+  --danger-bg: #450a0a;
+  --warning: #fbbf24;
+  --warning-bg: #451a03;
+  --success: #4ade80;
+  --success-bg: #052e16;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+#app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 24px 48px;
+}
+
+.app-body {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.main-content { min-width: 0; }
+
+/* Editing banner */
+.editing-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  background: var(--warning-bg);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.btn-sm { padding: 6px 12px; font-size: 0.85rem; }
+.btn-block { width: 100%; margin-top: 12px; }
+.btn-icon { padding: 6px 12px; font-size: 1.25rem; line-height: 1; }
+
+/* Calendar */
+.calendar-card { padding: 16px; position: sticky; top: 24px; }
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.calendar-month {
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: center;
+  flex: 1;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.cal-weekday {
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 4px 0;
+}
+
+.cal-day {
+  aspect-ratio: 1;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  position: relative;
+  padding: 0;
+}
+
+.cal-day--empty { pointer-events: none; }
+
+.cal-day--clickable {
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.cal-day--clickable:hover {
+  background: var(--bg);
+}
+
+.cal-day--today .cal-day-num {
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.cal-day--today {
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+
+.cal-day--selected {
+  background: var(--primary) !important;
+  color: #fff;
+}
+
+.cal-day--selected .cal-day-num { color: #fff; }
+.cal-day--selected .cal-day-dot { background: #fff; }
+
+.cal-day--future {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.cal-day-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+
+.cal-day--verde .cal-day-dot { background: var(--success); }
+.cal-day--amarelo .cal-day-dot { background: var(--warning); }
+.cal-day--vermelho .cal-day-dot { background: var(--danger); }
+
+.cal-day--selected.cal-day--verde .cal-day-dot,
+.cal-day--selected.cal-day--amarelo .cal-day-dot,
+.cal-day--selected.cal-day--vermelho .cal-day-dot { background: #fff; }
+
+.calendar-legend {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-top: 12px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.calendar-legend span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.legend-today { box-shadow: inset 0 0 0 2px var(--primary); background: transparent; }
+.legend-filled { background: var(--primary); }
+
+/* Header */
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  gap: 16px;
+}
+
+.header h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.header-date {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  margin-top: 4px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow);
+}
+
+.tab {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tab:hover { color: var(--text); background: var(--bg); }
+
+.tab.active {
+  background: var(--primary);
+  color: #fff;
+}
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* Cards */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+
+.card h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.card-hint {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin: -8px 0 16px;
+}
+
+/* Chips */
+.chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  padding: 8px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-input);
+  color: var(--text);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.chip:hover { border-color: var(--primary); color: var(--primary); }
+
+.chip.selected {
+  background: var(--primary-light);
+  border-color: var(--primary);
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.chip-estrategia {
+  border-radius: var(--radius-sm);
+  white-space: normal;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 140px;
+}
+
+.chip-estrategia strong { font-size: 0.95rem; }
+.chip-estrategia small { font-size: 0.75rem; color: var(--text-muted); font-weight: 400; }
+.chip-estrategia.selected small { color: var(--primary); }
+
+/* Disposição — blocos por contexto */
+.context-block {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 16px;
+  background: var(--bg-input);
+}
+
+.context-header {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.context-header h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.context-header p {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.disposicao-item {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.disposicao-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.disposicao-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+  line-height: 1.35;
+}
+
+.disposicao-hint {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  line-height: 1.45;
+}
+
+.option-group-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.option-group-stack .option-btn {
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  white-space: normal;
+}
+
+.disposicao-nota {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.85rem;
+  resize: vertical;
+  min-height: 56px;
+}
+
+.disposicao-nota:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+@media (min-width: 640px) {
+  .option-group-stack {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .option-group-stack .option-btn {
+    width: auto;
+    flex: 1;
+    min-width: 140px;
+    text-align: center;
+  }
+}
+
+/* Questions (legacy) */
+.question-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.question-row:last-child { border-bottom: none; }
+
+.question-label {
+  font-size: 0.9rem;
+  flex: 1;
+  min-width: 200px;
+}
+
+.option-group {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.option-btn {
+  padding: 8px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.option-btn:hover { border-color: var(--border-strong); color: var(--text); }
+
+.option-btn.selected {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  font-weight: 500;
+}
+
+/* Semáforo */
+.semaforo {
+  margin-top: 20px;
+  padding: 20px 24px;
+  border-radius: var(--radius);
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--bg-input);
+  transition: all 0.3s;
+}
+
+.semaforo-score {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.semaforo-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-right: 8px;
+}
+
+.semaforo-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.semaforo-max {
+  font-size: 1rem;
+  color: var(--text-muted);
+}
+
+.semaforo-msg {
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-align: right;
+}
+
+.semaforo.vermelho {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+}
+.semaforo.vermelho .semaforo-value,
+.semaforo.vermelho .semaforo-msg { color: var(--danger); }
+
+.semaforo.amarelo {
+  border-color: var(--warning);
+  background: var(--warning-bg);
+}
+.semaforo.amarelo .semaforo-value,
+.semaforo.amarelo .semaforo-msg { color: var(--warning); }
+
+.semaforo.verde {
+  border-color: var(--success);
+  background: var(--success-bg);
+}
+.semaforo.verde .semaforo-value,
+.semaforo.verde .semaforo-msg { color: var(--success); }
+
+/* Chart upload */
+.chart-upload {
+  margin-top: 4px;
+  width: 100%;
+}
+
+.chart-dropzone {
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius);
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--bg-input);
+  transition: border-color 0.15s, background 0.15s;
+  min-height: 160px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.chart-dropzone:hover,
+.chart-dropzone:focus {
+  border-color: var(--primary);
+  outline: none;
+}
+
+.chart-dropzone.dragover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+
+.chart-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  pointer-events: none;
+}
+
+.chart-placeholder small { font-size: 0.8rem; color: var(--text-subtle); }
+.chart-icon { font-size: 2rem; }
+
+.chart-dropzone--has-image {
+  padding: 8px;
+  cursor: default;
+  align-items: center;
+  min-height: auto;
+  border-style: solid;
+  background: var(--bg-input);
+}
+
+.chart-preview-frame {
+  width: 700px;
+  height: 350px;
+  max-width: 100%;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chart-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform-origin: center center;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+}
+
+.chart-preview.chart-preview--fill {
+  object-fit: cover;
+}
+
+.chart-zoom-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.chart-zoom-row label { white-space: nowrap; }
+
+.chart-zoom-row input[type="range"] {
+  flex: 1;
+  min-width: 140px;
+  accent-color: var(--primary);
+}
+
+.chart-zoom-value {
+  min-width: 44px;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+}
+
+.chart-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  justify-content: flex-end;
+}
+
+.hidden { display: none !important; }
+
+.detail-chart { margin-top: 16px; }
+.detail-chart strong { display: block; margin-bottom: 8px; font-size: 0.9rem; }
+
+.detail-chart-img {
+  max-width: 100%;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  cursor: zoom-in;
+}
+
+/* Trades */
+.trade-accordion {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.trade-summary {
+  padding: 16px 20px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  font-size: 1rem;
+  list-style: none;
+  user-select: none;
+}
+
+.trade-summary::-webkit-details-marker { display: none; }
+
+.trade-summary::before {
+  content: '▶';
+  margin-right: 10px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+  display: inline-block;
+}
+
+.trade-accordion[open] .trade-summary::before {
+  transform: rotate(90deg);
+}
+
+.trade-badge {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-subtle);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bg);
+}
+
+.trade-badge.filled {
+  color: var(--success);
+  background: var(--success-bg);
+}
+
+.trade-body {
+  padding: 0 20px 20px;
+  border-top: 1px solid var(--border);
+}
+
+/* Form fields */
+.field { margin-bottom: 16px; }
+
+.field label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 160px;
+  gap: 16px;
+}
+
+.field-sm { }
+
+input[type="text"],
+input[type="number"],
+input[type="month"],
+select,
+textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.9rem;
+  transition: border-color 0.15s;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+textarea { resize: vertical; min-height: 80px; }
+
+.outro-input { margin-top: 8px; }
+.outro-input.hidden { display: none; }
+
+/* Nota buttons */
+.nota-group {
+  display: flex;
+  gap: 8px;
+}
+
+.nota-btn {
+  width: 52px;
+  height: 52px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  font-size: 1.25rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--text-muted);
+}
+
+.nota-btn:hover { border-color: var(--border-strong); }
+
+.nota-btn.selected {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+/* Score day */
+.score-day {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.score-day-auto {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.score-day-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.score-day-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* Save bar */
+.save-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 16px 0;
+}
+
+.save-status {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+/* Buttons */
+.btn {
+  padding: 10px 18px;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+}
+
+.btn-primary:hover { background: var(--primary-hover); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.btn-ghost:hover {
+  background: var(--bg-card);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.btn-danger { color: var(--danger) !important; border-color: var(--danger) !important; }
+.btn-danger:hover { background: var(--danger-bg) !important; }
+
+/* Modals */
+body.modal-open { overflow: hidden; }
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal-overlay[hidden] { display: none !important; }
+
+.modal-panel {
+  border-radius: var(--radius);
+  padding: 0;
+  background: var(--bg-card);
+  color: var(--text);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 640px;
+  width: 100%;
+  max-height: 85vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-lg { max-width: 720px; }
+
+.modal-xl {
+  max-width: min(96vw, 1200px);
+  width: 100%;
+}
+
+/* Histórico: rolagem vertical única em todo o conteúdo */
+.modal-panel.modal-history {
+  display: block;
+  max-height: 94vh;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.modal-panel.modal-history .modal-header {
+  position: static;
+  border-bottom: 1px solid var(--border);
+}
+
+.history-gallery-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 16px 24px 8px;
+  color: var(--text-muted);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+/* History panel */
+.history-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+}
+
+.history-select {
+  padding: 8px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.9rem;
+  min-width: 180px;
+}
+
+.history-custom-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.history-custom-range.hidden {
+  display: none !important;
+}
+
+.history-custom-range input[type="date"] {
+  padding: 8px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+.history-range-sep {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.history-period-label {
+  padding: 12px 24px 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.stats-grid--history {
+  grid-template-columns: repeat(3, 1fr);
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.history-gallery-wrap {
+  padding: 0 24px 32px;
+}
+
+.history-gallery-track {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 0;
+}
+
+.history-day-card {
+  width: 100%;
+  max-width: 100%;
+  flex: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: stretch;
+}
+
+.history-day-card--empty {
+  opacity: 0.85;
+  display: block;
+}
+
+.history-day-chart {
+  background: var(--bg-card);
+  border-bottom: none;
+  border-right: 1px solid var(--border);
+  min-height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+}
+
+.history-card-img {
+  width: 100%;
+  height: auto;
+  max-height: 420px;
+  object-fit: contain;
+  background: var(--bg-input);
+  display: block;
+  border-radius: var(--radius-sm);
+}
+
+.history-card-no-img {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  padding: 24px;
+  font-size: 0.85rem;
+}
+
+.history-card-no-img span { font-size: 2rem; opacity: 0.5; }
+
+.history-day-body {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.history-day-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.history-day-head h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.status-pill {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+}
+
+.status-pill.verde { color: var(--success); border-color: var(--success); background: var(--success-bg); }
+.status-pill.amarelo { color: var(--warning); border-color: var(--warning); background: var(--warning-bg); }
+.status-pill.vermelho { color: var(--danger); border-color: var(--danger); background: var(--danger-bg); }
+
+.history-day-line {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.history-day-trades {
+  list-style: none;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: 4px 0;
+  padding: 0;
+}
+
+.history-day-trades li {
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.history-day-trades li:last-child { border-bottom: none; }
+
+.history-card-empty { font-style: italic; }
+
+.history-day-comment {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-top: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.history-open-day { margin-top: auto; align-self: flex-start; }
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.modal-header h2 { font-size: 1.2rem; }
+
+.modal-filters {
+  display: flex;
+  gap: 12px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-filters input,
+.modal-filters select { flex: 1; }
+
+/* Stats */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.stat-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  text-align: center;
+}
+
+.stat-value {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  display: block;
+}
+
+/* History list */
+.history-list {
+  overflow-y: auto;
+  flex: 1;
+  padding: 8px;
+}
+
+.history-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.history-item:hover { background: var(--bg); }
+
+.history-meta {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.history-item-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-subtle);
+}
+
+.status-dot.vermelho { background: var(--danger); }
+.status-dot.amarelo { background: var(--warning); }
+.status-dot.verde { background: var(--success); }
+
+/* Detail */
+.detail-content { padding: 20px 24px; overflow-y: auto; }
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+}
+
+.detail-trade {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  margin-bottom: 10px;
+  font-size: 0.9rem;
+}
+
+.detail-trade h4 {
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+}
+
+.detail-trade p { color: var(--text-muted); margin-bottom: 4px; }
+
+.detail-comment {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+/* Export */
+.export-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 24px;
+}
+
+.export-hint {
+  padding: 0 24px 20px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.export-backup-section {
+  padding: 0 24px 16px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 16px;
+}
+
+.export-backup-status {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+  margin-bottom: 10px;
+}
+
+.export-backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.export-backup-hint {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.export-pdf-section {
+  padding: 0 24px 16px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 20px;
+}
+
+.export-section-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.export-pdf-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.export-pdf-row label {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.export-pdf-date {
+  flex: 1;
+  min-width: 140px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.export-pdf-hint {
+  margin-top: 10px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.empty-msg {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 32px;
+  font-size: 0.9rem;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .app-body {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-sidebar { order: -1; }
+
+  .calendar-card { position: static; }
+}
+
+@media (max-width: 900px) {
+  .history-day-card {
+    grid-template-columns: 1fr;
+  }
+
+  .history-day-chart {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    min-height: 180px;
+  }
+
+  .history-card-img {
+    max-height: 280px;
+  }
+}
+
+@media (max-width: 700px) {
+  .chart-preview-frame {
+    width: 100%;
+    max-width: 700px;
+    height: 300px;
+  }
+
+  .history-toolbar { flex-direction: column; align-items: stretch; }
+  .history-select { width: 100%; }
+  .history-custom-range { flex-wrap: wrap; }
+  .stats-grid--history { grid-template-columns: repeat(2, 1fr); }
+  .history-gallery-wrap { padding: 0 16px 24px; }
+  #app { padding: 16px; }
+  .question-row { flex-direction: column; align-items: flex-start; }
+  .option-group { width: 100%; }
+  .option-btn { flex: 1; text-align: center; padding: 8px 6px; font-size: 0.8rem; }
+  .field-row { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .semaforo { flex-direction: column; text-align: center; }
+  .semaforo-msg { text-align: center; }
+  .score-day { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .detail-grid { grid-template-columns: 1fr; }
+}
+
+
+/* Banner de status de sincronização */
+.sync-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  margin-bottom: 12px;
+  background: var(--primary-light);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+.sync-banner.error {
+  background: var(--danger-bg);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.sync-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
+  flex-shrink: 0;
+}
+.sync-banner.error .sync-dot { background: var(--danger); }
+
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header class="header">
+      <div class="header-left">
+        <h1>Diário de Trader</h1>
+        <p class="header-date" id="headerDate"></p>
+      </div>
+      <div class="header-actions">
+        <button type="button" class="btn btn-ghost" id="btnTheme" title="Tema claro">☀️</button>
+        <button type="button" class="btn btn-ghost" id="btnHistory">Histórico</button>
+        <button type="button" class="btn btn-ghost" id="btnExport">Exportar</button>
+      </div>
+    </header>
+
+    <div id="syncBanner" class="sync-banner" style="display:none">
+      <span class="sync-dot"></span>
+      <span id="syncMsg">Conectando...</span>
+    </div>
+
+    <div id="editingBanner" class="editing-banner hidden">
+      <span>Editando: <strong id="editingDateLabel"></strong></span>
+      <button type="button" class="btn btn-ghost btn-sm" id="btnBannerToday">Ir para hoje</button>
+    </div>
+
+    <div class="app-body">
+      <aside class="calendar-sidebar">
+        <div class="card calendar-card">
+          <div class="calendar-nav">
+            <button type="button" class="btn btn-ghost btn-icon" id="btnCalPrev" aria-label="Mês anterior">‹</button>
+            <h2 class="calendar-month" id="calendarMonthLabel"></h2>
+            <button type="button" class="btn btn-ghost btn-icon" id="btnCalNext" aria-label="Próximo mês">›</button>
+          </div>
+          <div class="calendar-grid" id="calendarGrid"></div>
+          <div class="calendar-legend">
+            <span><i class="legend-dot legend-today"></i> Hoje</span>
+            <span><i class="legend-dot legend-filled"></i> Preenchido</span>
+          </div>
+          <button type="button" class="btn btn-primary btn-block" id="btnGoToday">Ir para hoje</button>
+        </div>
+      </aside>
+
+      <div class="main-content">
+        <nav class="tabs" role="tablist">
+          <button type="button" class="tab active" data-tab="pre" role="tab">Pré-trade</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="btnSync" title="Sincronizar agora" style="margin-left:auto">🔄 Sync</button>
+          <button type="button" class="tab" data-tab="pos" role="tab">Pós-trade</button>
+        </nav>
+
+        <main>
+          <!-- PRÉ-TRADE -->
+          <section id="tab-pre" class="tab-panel active">
+            <div class="card">
+              <h2>Disposição para operar</h2>
+              <p class="card-hint">Avalie cada condição antes de entrar no mercado. Responda todas para ver o semáforo.</p>
+              <div id="disposicaoContextos"></div>
+              <div class="semaforo" id="semaforo">
+                <div class="semaforo-score">
+                  <span class="semaforo-label">Score</span>
+                  <span class="semaforo-value" id="scoreValue">—</span>
+                  <span class="semaforo-max">/ 16</span>
+                </div>
+                <p class="semaforo-msg" id="semaforoMsg">Responda todas as condições acima</p>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>Plano de Trader</h2>
+              <p class="card-hint">Estratégias liberadas no micro ciclo atual</p>
+              <div class="chip-group chip-group-multi" id="estrategias"></div>
+            </div>
+
+            <div class="card">
+              <h2>Rotina e preparação pré-trade</h2>
+              <p class="card-hint">O que fez antes de operar e comentários pertinentes</p>
+              <textarea id="comentarioPreTrade" rows="5"
+                placeholder="Ex.: análise do gráfico, leitura de contexto, revisão do plano, alongamento, meditação..."></textarea>
+            </div>
+          </section>
+
+          <!-- PÓS-TRADE -->
+          <section id="tab-pos" class="tab-panel">
+            <div class="card">
+              <h2>Print do gráfico do dia</h2>
+              <p class="card-hint">Cole ou selecione o print. Use <strong>Preencher quadro</strong> para ocupar todo o espaço (700×350). Ajuste com Ampliação se precisar.</p>
+              <div class="chart-upload" id="chartUpload">
+                <input type="file" id="chartFileInput" accept="image/*" hidden>
+                <div class="chart-dropzone" id="chartDropzone" tabindex="0">
+                  <div class="chart-placeholder" id="chartPlaceholder">
+                    <span class="chart-icon">📈</span>
+                    <span>Clique, cole (Ctrl+V) ou arraste o print aqui</span>
+                    <small>PNG, JPG ou print da tela</small>
+                  </div>
+                  <div class="chart-preview-frame hidden" id="chartPreviewFrame">
+                    <img id="chartPreview" class="chart-preview" alt="Gráfico do dia">
+                  </div>
+                </div>
+                <div class="chart-zoom-row hidden" id="chartZoomRow">
+                  <label for="chartZoomRange">Ampliação</label>
+                  <input type="range" id="chartZoomRange" min="50" max="500" step="5" value="100">
+                  <span class="chart-zoom-value" id="chartZoomValue">100%</span>
+                  <button type="button" class="btn btn-ghost btn-sm" id="btnChartFit">Preencher quadro</button>
+                </div>
+                <div class="chart-actions hidden" id="chartActions">
+                  <button type="button" class="btn btn-ghost" id="btnChartReplace">Trocar imagem</button>
+                  <button type="button" class="btn btn-ghost btn-danger" id="btnChartRemove">Remover</button>
+                </div>
+              </div>
+            </div>
+            <div id="tradesContainer"></div>
+
+            <div class="card">
+              <h2>Comentário geral sobre o dia</h2>
+              <textarea id="comentarioGeral" rows="5" placeholder="Reflexões, aprendizados, observações gerais..."></textarea>
+            </div>
+
+            <div class="save-bar">
+              <span class="save-status" id="saveStatus">Pronto</span>
+              <button type="button" class="btn btn-primary" id="btnSave">Salvar dia</button>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <!-- Modal Histórico -->
+    <div id="historyModal" class="modal-overlay" hidden>
+      <div class="modal-panel modal-xl modal-history" role="dialog" aria-modal="true" aria-labelledby="historyTitle">
+        <div class="modal-header">
+          <h2 id="historyTitle">Histórico</h2>
+          <button type="button" class="btn btn-ghost modal-close" aria-label="Fechar">✕</button>
+        </div>
+        <div class="history-toolbar">
+          <select id="historyPreset" class="history-select">
+            <option value="last-session">Última sessão de trading</option>
+            <option value="last-week">Últimos 7 dias</option>
+            <option value="last-month">Últimos 30 dias</option>
+            <option value="custom">Período personalizado</option>
+          </select>
+          <div id="historyCustomRange" class="history-custom-range hidden">
+            <label class="sr-only" for="historyDateFrom">De</label>
+            <input type="date" id="historyDateFrom">
+            <span class="history-range-sep">até</span>
+            <label class="sr-only" for="historyDateTo">Até</label>
+            <input type="date" id="historyDateTo">
+          </div>
+          <select id="filterEstrategia" class="history-select">
+            <option value="">Todas estratégias</option>
+          </select>
+          <button type="button" class="btn btn-primary" id="btnHistoryApply">Atualizar</button>
+        </div>
+        <p class="history-period-label" id="historyPeriodLabel"></p>
+        <div class="stats-grid stats-grid--history" id="statsGrid"></div>
+        <h3 class="history-gallery-title">Dias do período</h3>
+        <div class="history-gallery-wrap" id="historyGallery"></div>
+      </div>
+    </div>
+
+    <!-- Modal Exportar -->
+    <div id="exportModal" class="modal-overlay" hidden>
+      <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
+        <div class="modal-header">
+          <h2 id="exportTitle">Exportar dados</h2>
+          <button type="button" class="btn btn-ghost modal-close" aria-label="Fechar">✕</button>
+        </div>
+        <div class="export-options">
+          <button type="button" class="btn btn-primary" id="btnBackupCSV">Atualizar backup CSV</button>
+          <button type="button" class="btn btn-ghost" id="btnExportCSV">Exportar CSV completo</button>
+          <button type="button" class="btn btn-ghost" id="btnRestoreBackupCsv">Restaurar backup CSV</button>
+          <button type="button" class="btn btn-primary" id="btnBackupJSON">Atualizar backup JSON</button>
+          <button type="button" class="btn btn-ghost" id="btnExportJSON">Exportar JSON completo</button>
+          <button type="button" class="btn btn-ghost" id="btnRestoreBackupJson">Restaurar backup JSON</button>
+          <button type="button" class="btn btn-ghost" id="btnImportJSON">Importar outro JSON</button>
+          <input type="file" id="importFile" accept=".json" hidden>
+          <input type="file" id="backupCsvFile" accept=".csv" hidden>
+          <input type="file" id="backupJsonFile" accept=".json" hidden>
+        </div>
+        <div class="export-backup-section">
+          <h3 class="export-section-title">Backup CSV</h3>
+          <p class="export-backup-status" id="backupCsvStatus"></p>
+          <div class="export-backup-actions">
+            <button type="button" class="btn btn-ghost btn-sm" id="btnLinkBackupCsv">Vincular arquivo CSV</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="btnUnlinkBackupCsv">Desvincular CSV</button>
+          </div>
+          <p class="export-backup-hint">Arquivo <strong>diario-trader-backup.csv</strong> — ideal para planilha. Não inclui prints dos gráficos.</p>
+        </div>
+        <div class="export-backup-section">
+          <h3 class="export-section-title">Backup JSON</h3>
+          <p class="export-backup-status" id="backupJsonStatus"></p>
+          <div class="export-backup-actions">
+            <button type="button" class="btn btn-ghost btn-sm" id="btnLinkBackupJson">Vincular arquivo JSON</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="btnUnlinkBackupJson">Desvincular JSON</button>
+          </div>
+          <p class="export-backup-hint">Arquivo <strong>diario-trader-backup.json</strong> — backup completo com prints dos gráficos.</p>
+        </div>
+        <div class="export-pdf-section">
+          <h3 class="export-section-title">Exportar dia em PDF</h3>
+          <div class="export-pdf-row">
+            <label for="exportPdfDate">Dia</label>
+            <input type="date" id="exportPdfDate" class="export-pdf-date">
+            <button type="button" class="btn btn-primary" id="btnExportPDF">Exportar PDF</button>
+          </div>
+          <p class="export-pdf-hint">Gera um relatório completo do dia selecionado (disposição, trades, gráfico e comentários).</p>
+        </div>
+        <p class="export-hint">Recomendado: atualize o backup CSV ou JSON ao final de cada dia de trading.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+const CONFIG = {
+  estrategias: [
+    { id: 'PCR', label: 'PCR', desc: 'Padrão Climática de Reversão' },
+    { id: 'CCE', label: 'CCE', desc: 'Contra climática de exaustão' },
+    { id: 'LK', label: 'LK', desc: 'Last Kiss' },
+    { id: 'FD', label: 'FD', desc: 'Falha dupla' },
+    { id: 'PC', label: 'PC', desc: 'Padrão Climática' },
+    { id: 'CCLK', label: 'CCLK', desc: 'Contra climática em contexto Last Kiss' }
+  ],
+
+  disposicaoContextos: [
+    {
+      id: 'mental',
+      title: 'Estado mental e emocional',
+      desc: 'Condições no momento de entrar no trade',
+      questions: [
+        {
+          id: 'estadoEmocional',
+          label: 'Estado emocional no momento de entrar no trade',
+          hint: 'Avalie como você se sente agora antes de iniciar a janela.',
+          options: [
+            { label: 'Inseguro', value: 0 },
+            { label: 'Neutro/controlado', value: 1 },
+            { label: 'Agitado', value: 2 }
+          ]
+        },
+        {
+          id: 'foco',
+          label: 'Nível de foco e concentração',
+          hint: 'Considere distrações, fadiga mental e capacidade de seguir o plano.',
+          options: [
+            { label: 'Baixo', value: 0 },
+            { label: 'Médio', value: 1 },
+            { label: 'Alto', value: 2 }
+          ]
+        },
+        {
+          id: 'pensamentos',
+          label: 'Pensamentos intrusivos ou preocupações',
+          hint: 'Observe se algo fora do mercado está ocupando sua mente.',
+          options: [
+            { label: 'Estou abalado', value: 0 },
+            { label: 'Algo me preocupa mas consigo operar', value: 1 },
+            { label: 'Totalmente presente', value: 2 }
+          ]
+        }
+      ]
+    },
+    {
+      id: 'fisico',
+      title: 'Preparação física',
+      desc: 'Condição corporal antes da sessão',
+      questions: [
+        {
+          id: 'sono',
+          label: 'Como foi meu sono desta noite?',
+          hint: 'Considere horas dormidas e qualidade percebida ao acordar.',
+          options: [
+            { label: 'Fraco', value: 0 },
+            { label: 'Razoável', value: 1 },
+            { label: 'Bom', value: 2 }
+          ]
+        }
+      ]
+    },
+    {
+      id: 'operacional',
+      title: 'Contexto operacional',
+      desc: 'Preparação prática para a sessão de trading',
+      questions: [
+        {
+          id: 'tradeOntem',
+          label: 'Como foi meu trade de ontem?',
+          hint: 'Reflita sobre o resultado e como isso pode influenciar hoje.',
+          options: [
+            { label: 'Loss', value: 0 },
+            { label: 'Break even', value: 1 },
+            { label: 'Gain', value: 2 }
+          ]
+        },
+        {
+          id: 'tempo',
+          label: 'Tempo disponível para operar',
+          hint: 'Avalie se terá tempo de acompanhar as operações com calma.',
+          options: [
+            { label: 'Apertada', value: 0 },
+            { label: 'Parcial', value: 1 },
+            { label: 'Sessão completa', value: 2 }
+          ]
+        },
+        {
+          id: 'planoClareza',
+          label: 'Clareza do plano de trade',
+          hint: 'Você sabe quais setups vai operar e em quais condições?',
+          options: [
+            { label: 'Sem plano claro', value: 0 },
+            { label: 'Parcialmente definido', value: 1 },
+            { label: 'Plano definido', value: 2 }
+          ]
+        },
+        {
+          id: 'paciencia',
+          label: 'Nível de paciência percebida',
+          hint: 'Perceba se está ansioso para entrar ou disposto a esperar.',
+          options: [
+            { label: 'Baixa', value: 0 },
+            { label: 'Normal', value: 1 },
+            { label: 'Alta', value: 2 }
+          ]
+        }
+      ]
+    }
+  ],
+
+  disposicaoScoreMax: 16,
+
+  notas: ['A', 'B', 'C'],
+
+  falhas: [
+    'Entrei antes do setup',
+    'Stop mal posicionado',
+    'Não respeitei o plano',
+    'Overtrade',
+    'Saí antecipada',
+    'Saí tarde demais',
+    'Tamanho de posição inadequado',
+    'Não esperei confirmação',
+    'Operou fora do plano',
+    'Outro'
+  ],
+
+  conducoes: [
+    'Excelente',
+    'Boa',
+    'Razoável',
+    'Fraca',
+    'Péssima'
+  ],
+
+  aspectosPositivos: [
+    'Respeitei o stop',
+    'Esperei confirmação',
+    'Gestão de risco adequada',
+    'Segui o plano',
+    'Disciplina emocional',
+    'Boa leitura de contexto',
+    'Paciência na entrada',
+    'Outro'
+  ],
+
+  numTrades: 3
+};
+
+function getAllDisposicaoQuestions() {
+  return CONFIG.disposicaoContextos.flatMap((c) => c.questions);
+}
+
+  </script>
+  <script>
+// ── Supabase config ──────────────────────────────────────────
+const SUPABASE_URL = 'https://xwglwypaossvukgexlcm.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3Z2x3eXBhb3NzdnVrZ2V4bGNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3NDM3MjQsImV4cCI6MjA5ODMxOTcyNH0.ZRcOCENuMEoydmvmvOZo9xVbYjhtFOgQr3oWa__paQw';
+
+function sbHeaders(extra = {}) {
+  return {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_KEY,
+    'Authorization': 'Bearer ' + SUPABASE_KEY,
+    'Prefer': 'return=representation',
+    ...extra
+  };
+}
+
+async function sbFetch(path, options = {}) {
+  const res = await fetch(SUPABASE_URL + path, options);
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error('Supabase error ' + res.status + ': ' + err);
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+// ── Settings ─────────────────────────────────────────────────
+async function getSetting(key) {
+  const data = await sbFetch('/rest/v1/settings?key=eq.' + encodeURIComponent(key) + '&select=value', {
+    headers: sbHeaders()
+  });
+  return data && data.length ? data[0].value : null;
+}
+
+async function setSetting(key, value) {
+  // Para FileSystemFileHandle (não serializável para JSON), ignorar silenciosamente
+  if (value && typeof value === 'object' && value.kind === 'file') return value;
+  const strValue = typeof value === 'string' ? value : JSON.stringify(value);
+  await sbFetch('/rest/v1/settings', {
+    method: 'POST',
+    headers: sbHeaders({ 'Prefer': 'resolution=merge-duplicates,return=representation' }),
+    body: JSON.stringify({ key, value: strValue })
+  });
+  return value;
+}
+
+async function deleteSetting(key) {
+  await sbFetch('/rest/v1/settings?key=eq.' + encodeURIComponent(key), {
+    method: 'DELETE',
+    headers: sbHeaders()
+  });
+}
+
+const CSV_BACKUP_AT_KEY  = 'csvBackupAt';
+const JSON_BACKUP_AT_KEY = 'jsonBackupAt';
+
+async function getLastCsvBackupAt()     { return getSetting(CSV_BACKUP_AT_KEY); }
+async function setLastCsvBackupAt(iso)  { return setSetting(CSV_BACKUP_AT_KEY, iso); }
+async function getLastJsonBackupAt()    { return getSetting(JSON_BACKUP_AT_KEY); }
+async function setLastJsonBackupAt(iso) { return setSetting(JSON_BACKUP_AT_KEY, iso); }
+
+// ── Diários ──────────────────────────────────────────────────
+async function getDiario(id) {
+  const data = await sbFetch('/rest/v1/diarios?id=eq.' + encodeURIComponent(id) + '&select=payload', {
+    headers: sbHeaders()
+  });
+  if (!data || !data.length) return null;
+  return data[0].payload;
+}
+
+async function saveDiario(record) {
+  const payload = { ...record };
+  await sbFetch('/rest/v1/diarios', {
+    method: 'POST',
+    headers: sbHeaders({ 'Prefer': 'resolution=merge-duplicates,return=representation' }),
+    body: JSON.stringify({
+      id: record.id,
+      data: record.data,
+      payload,
+      atualizado_em: new Date().toISOString()
+    })
+  });
+  return record;
+}
+
+async function getAllDiarios() {
+  const data = await sbFetch('/rest/v1/diarios?select=payload&order=data.desc', {
+    headers: sbHeaders()
+  });
+  if (!data) return [];
+  return data.map(r => r.payload).sort((a, b) => b.data.localeCompare(a.data));
+}
+
+async function deleteDiario(id) {
+  await sbFetch('/rest/v1/diarios?id=eq.' + encodeURIComponent(id), {
+    method: 'DELETE',
+    headers: sbHeaders()
+  });
+}
+
+async function importDiarios(records) {
+  const rows = records.map(r => ({
+    id: r.id,
+    data: r.data,
+    payload: r,
+    atualizado_em: r.atualizadoEm || new Date().toISOString()
+  }));
+  // Envia em lotes de 50 para não estourar limite da API
+  for (let i = 0; i < rows.length; i += 50) {
+    const batch = rows.slice(i, i + 50);
+    await sbFetch('/rest/v1/diarios', {
+      method: 'POST',
+      headers: sbHeaders({ 'Prefer': 'resolution=merge-duplicates,return=representation' }),
+      body: JSON.stringify(batch)
+    });
+  }
+  return records.length;
+}
+
+// ── Helpers de data ──────────────────────────────────────────
+function formatDateId(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function parseDateId(dateId) {
+  const [y, m, d] = dateId.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function addDaysToDateId(dateId, delta) {
+  const date = parseDateId(dateId);
+  date.setDate(date.getDate() + delta);
+  return formatDateId(date);
+}
+
+function previousDayId(dateId) {
+  return addDaysToDateId(dateId, -1);
+}
+
+function getDiarioDate(d) {
+  return d?.data || d?.id || '';
+}
+
+function emptyProntidao() {
+  const prontidao = {};
+  getAllDisposicaoQuestions().forEach((q) => {
+    prontidao[q.id] = { valor: null, nota: '' };
+  });
+  return prontidao;
+}
+
+function normalizeProntidao(prontidao) {
+  const empty = emptyProntidao();
+  if (!prontidao || typeof prontidao !== 'object') return empty;
+
+  getAllDisposicaoQuestions().forEach((q) => {
+    const entry = prontidao[q.id];
+    if (entry === undefined || entry === null) return;
+    if (typeof entry === 'number') {
+      empty[q.id].valor = entry;
+    } else if (typeof entry === 'object') {
+      empty[q.id].valor = entry.valor ?? entry.value ?? null;
+      empty[q.id].nota  = entry.nota || '';
+    }
+  });
+
+  return empty;
+}
+
+function diarioHasContent(d) {
+  if (!d) return false;
+  return !!(
+    d.comentarioPreTrade ||
+    d.comentarioGeral    ||
+    d.graficoDia         ||
+    (d.planoEstrategias && d.planoEstrategias.length) ||
+    prontidaoHasAnswers(d.prontidao) ||
+    (d.trades || []).some(isTradeFilled)
+  );
+}
+
+function todayId() {
+  return formatDateId(new Date());
+}
+
+function formatDateBR(dateStr) {
+  const [y, m, d] = dateStr.split('-');
+  const dias = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+  const date = new Date(+y, +m - 1, +d);
+  return `${d}/${m}/${y} (${dias[date.getDay()]})`;
+}
+
+function formatDateShort(dateStr) {
+  const [y, m, d] = dateStr.split('-');
+  const dias = ['dom','seg','ter','qua','qui','sex','sáb'];
+  const date = new Date(+y, +m - 1, +d);
+  return `${d}/${m}/${y} (${dias[date.getDay()]})`;
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function emptyDiario(id = todayId()) {
+  return {
+    id,
+    data: id,
+    prontidao: emptyProntidao(),
+    scoreProntidao: null,
+    statusOperacao: null,
+    planoEstrategias: [],
+    trades: Array.from({ length: CONFIG.numTrades }, (_, i) => ({
+      numero: i + 1,
+      estrategia: '',
+      pontos: null,
+      nota: '',
+      falha: '',
+      falhaOutro: '',
+      conducao: '',
+      aspectoPositivo: '',
+      aspectoOutro: '',
+      comentario: ''
+    })),
+    graficoDia: null,
+    graficoZoom: 100,
+    graficoFillMode: null,
+    comentarioPreTrade: '',
+    comentarioGeral: '',
+    criadoEm: new Date().toISOString(),
+    atualizadoEm: new Date().toISOString()
+  };
+}
+
+  </script>
+  <script>
+function getProntidaoValor(prontidao, key) {
+  if (!prontidao || !prontidao[key]) return null;
+  const entry = prontidao[key];
+  if (typeof entry === 'object' && entry !== null) {
+    const v = entry.valor;
+    return v !== undefined && v !== null && v !== '' ? Number(v) : null;
+  }
+  if (typeof entry === 'number') return entry;
+  return null;
+}
+
+function calcScoreProntidao(prontidao) {
+  const keys = getAllDisposicaoQuestions().map((q) => q.id);
+  let total = 0;
+  let answered = 0;
+
+  for (const key of keys) {
+    const val = getProntidaoValor(prontidao, key);
+    if (val !== null) {
+      total += val;
+      answered++;
+    }
+  }
+
+  const max = CONFIG.disposicaoScoreMax;
+  if (answered < keys.length) {
+    return { score: null, status: null, answered, total: keys.length, max };
+  }
+
+  return { score: total, status: getStatusOperacao(total), answered, total: keys.length, max };
+}
+
+function getStatusOperacao(score) {
+  if (score <= 6) return 'vermelho';
+  if (score <= 10) return 'amarelo';
+  return 'verde';
+}
+
+function getStatusLabel(status) {
+  switch (status) {
+    case 'vermelho': return 'Não operar hoje';
+    case 'amarelo': return 'Operar com muita cautela';
+    case 'verde': return 'Pode operar';
+    default: return 'Responda todas as condições';
+  }
+}
+
+function calcPontuacaoDia(trades) {
+  const notaMap = { A: 3, B: 2, C: 1 };
+  const filled = trades.filter((t) => t.nota);
+  if (filled.length === 0) return null;
+  const sum = filled.reduce((acc, t) => acc + (notaMap[t.nota] || 0), 0);
+  return Math.round((sum / filled.length) * 10) / 10;
+}
+
+function isTradeFilled(trade) {
+  return trade.estrategia || trade.pontos !== null && trade.pontos !== '' || trade.nota;
+}
+
+function prontidaoHasAnswers(prontidao) {
+  return getAllDisposicaoQuestions().some((q) => getProntidaoValor(prontidao, q.id) !== null);
+}
+
+  </script>
+  <script>
+function getCsvHeaders() {
+  const dispIds = getAllDisposicaoQuestions().map((q) => q.id);
+  const dispHeaders = dispIds.flatMap((id) => [`${id}_valor`, `${id}_nota`]);
+  return [
+    'data', 'score_disposicao', 'status_operacao',
+    'plano_estrategias', 'comentario_pre_trade', 'comentario_geral',
+    ...dispHeaders,
+    'trade_num', 'estrategia', 'pontos', 'nota', 'falha', 'conducao',
+    'aspecto_positivo', 'comentario_trade'
+  ];
+}
+
+function diariosToDataRows(diarios, headers = getCsvHeaders()) {
+  const dispIds = getAllDisposicaoQuestions().map((q) => q.id);
+  const rows = [];
+
+  for (const d of diarios) {
+    const base = [
+      d.data,
+      d.scoreProntidao ?? '',
+      d.statusOperacao ?? '',
+      (d.planoEstrategias || []).join('|'),
+      d.comentarioPreTrade ?? '',
+      d.comentarioGeral ?? ''
+    ];
+
+    const pront = dispIds.flatMap((id) => {
+      const entry = d.prontidao?.[id];
+      if (typeof entry === 'object' && entry !== null) {
+        return [entry.valor ?? '', entry.nota ?? ''];
+      }
+      if (typeof entry === 'number') return [entry, ''];
+      return ['', ''];
+    });
+
+    const filledTrades = (d.trades || []).filter(isTradeFilled);
+    if (filledTrades.length === 0) {
+      rows.push([...base, ...pront, '', '', '', '', '', '', '', '']);
+    } else {
+      for (const t of filledTrades) {
+        rows.push([
+          ...base,
+          ...pront,
+          t.numero,
+          t.estrategia,
+          t.pontos ?? '',
+          t.nota,
+          t.falha === 'Outro' ? (t.falhaOutro || 'Outro') : (t.falha || ''),
+          t.conducao,
+          t.aspectoPositivo === 'Outro' ? (t.aspectoOutro || 'Outro') : (t.aspectoPositivo || ''),
+          t.comentario || ''
+        ]);
+      }
+    }
+  }
+
+  return rows;
+}
+
+function rowsToCSV(headers, dataRows) {
+  const lines = [headers, ...dataRows].map((row) => row.map((cell) => csvEscape(cell)).join(';'));
+  return '\uFEFF' + lines.join('\n');
+}
+
+function diariosToCSV(diarios) {
+  const headers = getCsvHeaders();
+  return rowsToCSV(headers, diariosToDataRows(diarios, headers));
+}
+
+function csvEscape(str) {
+  if (!str) return '';
+  const s = String(str).replace(/"/g, '""');
+  return s.includes(';') || s.includes('"') || s.includes('\n') ? `"${s}"` : s;
+}
+
+function downloadFile(content, filename, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function exportCSV() {
+  const diarios = await getAllDiarios();
+  const csv = diariosToCSV(diarios.filter(diarioHasContent));
+  downloadFile(csv, `diario-trader-${todayId()}.csv`, 'text/csv;charset=utf-8');
+}
+
+function parseCSVLine(line, delimiter = ';') {
+  const fields = [];
+  let field = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"' && line[i + 1] === '"') {
+        field += '"';
+        i += 1;
+      } else if (ch === '"') {
+        inQuotes = false;
+      } else {
+        field += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === delimiter) {
+      fields.push(field);
+      field = '';
+    } else {
+      field += ch;
+    }
+  }
+
+  fields.push(field);
+  return fields;
+}
+
+function parseCSV(text) {
+  const raw = String(text || '').replace(/^\uFEFF/, '');
+  const rows = [];
+  let line = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+    if (ch === '"') inQuotes = !inQuotes;
+    if (ch === '\n' && !inQuotes) {
+      if (line.length) rows.push(parseCSVLine(line));
+      line = '';
+      continue;
+    }
+    if (ch === '\r' && !inQuotes) continue;
+    line += ch;
+  }
+
+  if (line.length) rows.push(parseCSVLine(line));
+  if (!rows.length) return { headers: [], rows: [] };
+
+  return { headers: rows[0], rows: rows.slice(1) };
+}
+
+function mapRowToHeaders(row, fromHeaders, toHeaders) {
+  return toHeaders.map((header) => {
+    const idx = fromHeaders.indexOf(header);
+    return idx >= 0 ? (row[idx] ?? '') : '';
+  });
+}
+
+function mergeBackupCsv(existingText, newDiarios) {
+  const headers = getCsvHeaders();
+  const newRows = diariosToDataRows(newDiarios, headers);
+  if (!existingText?.trim()) return rowsToCSV(headers, newRows);
+
+  const parsed = parseCSV(existingText);
+  if (!parsed.headers.length || parsed.headers.indexOf('data') < 0) {
+    throw new Error('Arquivo CSV de backup inválido.');
+  }
+
+  const dateIdx = parsed.headers.indexOf('data');
+  const datesToUpdate = new Set(newDiarios.map((d) => d.data));
+  const keptRows = parsed.rows
+    .filter((row) => !datesToUpdate.has(row[dateIdx]))
+    .map((row) => mapRowToHeaders(row, parsed.headers, headers));
+
+  return rowsToCSV(headers, [...keptRows, ...newRows]);
+}
+
+function supportsFileSystemAccess() {
+  return typeof window.showSaveFilePicker === 'function';
+}
+
+async function ensureFileHandlePermission(handle) {
+  if (!handle) return false;
+  const current = await handle.queryPermission({ mode: 'readwrite' });
+  if (current === 'granted') return true;
+  const requested = await handle.requestPermission({ mode: 'readwrite' });
+  return requested === 'granted';
+}
+
+async function readFileHandle(handle) {
+  const file = await handle.getFile();
+  return file.text();
+}
+
+async function writeFileHandle(handle, content) {
+  const writable = await handle.createWritable();
+  await writable.write(content);
+  await writable.close();
+}
+
+async function flushPendingSave() {
+  if (typeof saveTimer !== 'undefined' && saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    await saveCurrent();
+  }
+}
+
+async function getDiariosForIncrementalBackup(getLastBackupAt) {
+  await flushPendingSave();
+  const all = (await getAllDiarios()).filter(diarioHasContent);
+  const lastAt = await getLastBackupAt();
+  if (!lastAt) return { diarios: all, isFirst: true };
+
+  const changed = all.filter((d) => d.atualizadoEm && d.atualizadoEm > lastAt);
+  return { diarios: changed, isFirst: false };
+}
+
+function pickBackupFile(inputId) {
+  return new Promise((resolve, reject) => {
+    const input = document.getElementById(inputId);
+    if (!input) {
+      reject(new Error('Seletor de arquivo indisponível.'));
+      return;
+    }
+
+    input.value = '';
+    input.onchange = () => {
+      const file = input.files?.[0] || null;
+      input.onchange = null;
+      resolve(file);
+    };
+    input.click();
+  });
+}
+
+async function runIncrementalBackup({
+  getLastBackupAt,
+  setLastBackupAt,
+  handleKey,
+  fileNameKey,
+  fileInputId,
+  suggestedName,
+  pickerDescription,
+  acceptMime,
+  acceptExt,
+  mergeContent,
+  fallbackFilename,
+  fallbackMime,
+  refreshStatus
+}) {
+  const { diarios, isFirst } = await getDiariosForIncrementalBackup(getLastBackupAt);
+
+  if (!isFirst && diarios.length === 0) {
+    return { updated: 0, days: [], message: 'Nenhum dado novo ou alterado desde o último backup.' };
+  }
+
+  let existingText = null;
+  let handle = null;
+  let usedDownloadFallback = false;
+  const fileTypes = [{ description: pickerDescription, accept: { [acceptMime]: [acceptExt] } }];
+
+  if (supportsFileSystemAccess()) {
+    const storedHandle = await getSetting(handleKey);
+    if (storedHandle && await ensureFileHandlePermission(storedHandle)) {
+      handle = storedHandle;
+      try {
+        existingText = await readFileHandle(handle);
+      } catch {
+        existingText = null;
+      }
+    } else if (isFirst) {
+      handle = await window.showSaveFilePicker({ suggestedName, types: fileTypes });
+      await setSetting(handleKey, handle);
+    } else {
+      [handle] = await window.showOpenFilePicker({ types: fileTypes, multiple: false });
+      await setSetting(handleKey, handle);
+      existingText = await readFileHandle(handle);
+    }
+  } else if (!isFirst) {
+    const file = await pickBackupFile(fileInputId);
+    if (!file) return { updated: 0, days: [], cancelled: true };
+    existingText = await file.text();
+    usedDownloadFallback = true;
+  }
+
+  const content = mergeContent(existingText, diarios);
+
+  if (handle && await ensureFileHandlePermission(handle)) {
+    await writeFileHandle(handle, content);
+  } else {
+    downloadFile(content, fallbackFilename, fallbackMime);
+    usedDownloadFallback = true;
+  }
+
+  await setLastBackupAt(new Date().toISOString());
+  if (refreshStatus) await refreshStatus();
+
+  const days = [...new Set(diarios.map((d) => getDiarioDate(d)))];
+  return {
+    updated: diarios.length,
+    days,
+    isFirst,
+    usedDownloadFallback,
+    message: isFirst
+      ? `Backup criado com ${days.length} dia(s).`
+      : `Backup atualizado com ${days.length} dia(s) novo(s) ou alterado(s).`
+  };
+}
+
+function formatBackupStatusElement(elementId, label, lastAt, fileName, isFirstMessage) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+
+  if (!lastAt) {
+    el.textContent = fileName
+      ? `${label}: arquivo vinculado (${fileName}). Nenhum backup feito ainda.`
+      : isFirstMessage;
+    return;
+  }
+
+  const when = new Date(lastAt).toLocaleString('pt-BR');
+  el.textContent = fileName
+    ? `${label}: último backup ${when} · ${fileName}`
+    : `${label}: último backup ${when}`;
+}
+
+async function refreshBackupCsvStatus() {
+  const lastAt = await getLastCsvBackupAt();
+  const handle = await getSetting('csvBackupHandle');
+  const storedName = await getSetting('csvBackupFileName');
+  const fileName = handle?.name || storedName || null;
+  formatBackupStatusElement(
+    'backupCsvStatus',
+    'CSV',
+    lastAt,
+    fileName,
+    'Nenhum backup CSV feito ainda. O primeiro backup exporta todos os dias registrados.'
+  );
+}
+
+async function refreshBackupJsonStatus() {
+  const lastAt = await getLastJsonBackupAt();
+  const handle = await getSetting('jsonBackupHandle');
+  const storedName = await getSetting('jsonBackupFileName');
+  const fileName = handle?.name || storedName || null;
+  formatBackupStatusElement(
+    'backupJsonStatus',
+    'JSON',
+    lastAt,
+    fileName,
+    'Nenhum backup JSON feito ainda. O primeiro backup exporta todos os dias registrados (com prints).'
+  );
+}
+
+async function refreshBackupStatuses() {
+  await refreshBackupCsvStatus();
+  await refreshBackupJsonStatus();
+}
+
+async function backupCSV() {
+  return runIncrementalBackup({
+    getLastBackupAt: getLastCsvBackupAt,
+    setLastBackupAt: setLastCsvBackupAt,
+    handleKey: 'csvBackupHandle',
+    fileNameKey: 'csvBackupFileName',
+    fileInputId: 'backupCsvFile',
+    suggestedName: 'diario-trader-backup.csv',
+    pickerDescription: 'CSV',
+    acceptMime: 'text/csv',
+    acceptExt: '.csv',
+    mergeContent: mergeBackupCsv,
+    fallbackFilename: 'diario-trader-backup.csv',
+    fallbackMime: 'text/csv;charset=utf-8',
+    refreshStatus: refreshBackupCsvStatus
+  });
+}
+
+async function backupJSON() {
+  return runIncrementalBackup({
+    getLastBackupAt: getLastJsonBackupAt,
+    setLastBackupAt: setLastJsonBackupAt,
+    handleKey: 'jsonBackupHandle',
+    fileNameKey: 'jsonBackupFileName',
+    fileInputId: 'backupJsonFile',
+    suggestedName: 'diario-trader-backup.json',
+    pickerDescription: 'JSON',
+    acceptMime: 'application/json',
+    acceptExt: '.json',
+    mergeContent: mergeBackupJson,
+    fallbackFilename: 'diario-trader-backup.json',
+    fallbackMime: 'application/json',
+    refreshStatus: refreshBackupJsonStatus
+  });
+}
+async function linkBackupCsvFile() {
+  if (supportsFileSystemAccess()) {
+    const [handle] = await window.showOpenFilePicker({
+      types: [{ description: 'CSV', accept: { 'text/csv': ['.csv'] } }],
+      multiple: false
+    });
+    await setSetting('csvBackupHandle', handle);
+    await refreshBackupCsvStatus();
+    return handle.name;
+  }
+
+  const file = await pickBackupFile('backupCsvFile');
+  if (!file) return null;
+  await setSetting('csvBackupFileName', file.name);
+  await refreshBackupCsvStatus();
+  return file.name;
+}
+
+async function unlinkBackupCsvFile() {
+  await deleteSetting('csvBackupHandle');
+  await deleteSetting('csvBackupFileName');
+  await refreshBackupCsvStatus();
+}
+
+async function linkBackupJsonFile() {
+  if (supportsFileSystemAccess()) {
+    const [handle] = await window.showOpenFilePicker({
+      types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
+      multiple: false
+    });
+    await setSetting('jsonBackupHandle', handle);
+    await refreshBackupJsonStatus();
+    return handle.name;
+  }
+
+  const file = await pickBackupFile('backupJsonFile');
+  if (!file) return null;
+  await setSetting('jsonBackupFileName', file.name);
+  await refreshBackupJsonStatus();
+  return file.name;
+}
+
+async function unlinkBackupJsonFile() {
+  await deleteSetting('jsonBackupHandle');
+  await deleteSetting('jsonBackupFileName');
+  await refreshBackupJsonStatus();
+}
+
+function prepareDiariosForBackup(diarios) {
+  return diarios.map((d) => ({
+    ...d,
+    prontidao: normalizeProntidao(d.prontidao)
+  }));
+}
+
+function mergeBackupJson(existingText, newDiarios) {
+  const prepared = prepareDiariosForBackup(newDiarios);
+  if (!existingText?.trim()) {
+    return JSON.stringify({ exportadoEm: new Date().toISOString(), diarios: prepared }, null, 2);
+  }
+
+  const data = JSON.parse(existingText);
+  const existing = data.diarios || data;
+  if (!Array.isArray(existing)) throw new Error('Arquivo JSON de backup inválido.');
+
+  const datesToUpdate = new Set(prepared.map((d) => getDiarioDate(d)));
+  const kept = existing.filter((d) => !datesToUpdate.has(getDiarioDate(d)));
+  const merged = [...kept, ...prepared].sort((a, b) => getDiarioDate(b).localeCompare(getDiarioDate(a)));
+
+  return JSON.stringify({
+    exportadoEm: new Date().toISOString(),
+    diarios: merged
+  }, null, 2);
+}
+
+async function exportJSON() {
+  await flushPendingSave();
+  const diarios = prepareDiariosForBackup((await getAllDiarios()).filter(diarioHasContent));
+  const json = JSON.stringify({ exportadoEm: new Date().toISOString(), diarios }, null, 2);
+  downloadFile(json, `diario-trader-backup-${todayId()}.json`, 'application/json');
+}
+
+async function importJSON(fileOrText) {
+  const text = typeof fileOrText === 'string' ? fileOrText : await fileOrText.text();
+  const data = JSON.parse(text);
+  const records = data.diarios || data;
+  if (!Array.isArray(records)) throw new Error('Formato inválido');
+  records.forEach((r) => {
+    r.prontidao = normalizeProntidao(r.prontidao);
+  });
+  await importDiarios(records);
+  return records.length;
+}
+
+async function restoreBackupJson({ preferLinked = true } = {}) {
+  if (preferLinked) {
+    const handle = await getSetting('jsonBackupHandle');
+    if (handle && await ensureFileHandlePermission(handle)) {
+      const text = await readFileHandle(handle);
+      const count = await importJSON(text);
+      return { count, source: handle.name };
+    }
+  }
+
+  const file = await pickBackupFile('backupJsonFile');
+  if (!file) return { cancelled: true, count: 0 };
+  const count = await importJSON(file);
+  return { count, source: file.name };
+}
+
+function parseOptionalNumber(value) {
+  if (value === '' || value === null || value === undefined) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function restoreSelectValue(value, options, outroKey) {
+  const text = String(value || '').trim();
+  if (!text) return { value: '', outro: '' };
+  if (options.includes(text)) return { value: text, outro: '' };
+  return { value: outroKey, outro: text };
+}
+
+function csvRowsToDiarios(parsed) {
+  const { headers, rows } = parsed;
+  if (!headers.length || headers.indexOf('data') < 0) {
+    throw new Error('Arquivo CSV de backup inválido.');
+  }
+
+  const currentHeaders = getCsvHeaders();
+  const normalizedRows = rows.map((row) => mapRowToHeaders(row, headers, currentHeaders));
+  const headerIndex = Object.fromEntries(currentHeaders.map((h, i) => [h, i]));
+  const get = (row, key) => row[headerIndex[key]] ?? '';
+
+  const byDate = new Map();
+
+  for (const row of normalizedRows) {
+    const dateId = get(row, 'data').trim();
+    if (!dateId) continue;
+
+    if (!byDate.has(dateId)) {
+      const prontidao = emptyProntidao();
+      getAllDisposicaoQuestions().forEach((q) => {
+        const valRaw = get(row, `${q.id}_valor`);
+        prontidao[q.id] = {
+          valor: valRaw === '' ? null : Number(valRaw),
+          nota: get(row, `${q.id}_nota`) || ''
+        };
+      });
+
+      const diario = emptyDiario(dateId);
+      diario.prontidao = normalizeProntidao(prontidao);
+      diario.scoreProntidao = parseOptionalNumber(get(row, 'score_disposicao'));
+      diario.statusOperacao = get(row, 'status_operacao') || null;
+      diario.planoEstrategias = get(row, 'plano_estrategias')
+        ? get(row, 'plano_estrategias').split('|').filter(Boolean)
+        : [];
+      diario.comentarioPreTrade = get(row, 'comentario_pre_trade') || '';
+      diario.comentarioGeral = get(row, 'comentario_geral') || '';
+      diario.trades = [];
+      byDate.set(dateId, diario);
+    }
+
+    const tradeNumRaw = get(row, 'trade_num');
+    if (tradeNumRaw === '') continue;
+
+    const numero = Number(tradeNumRaw);
+    if (!Number.isFinite(numero)) continue;
+
+    const diario = byDate.get(dateId);
+    const falha = restoreSelectValue(get(row, 'falha'), CONFIG.falhas, 'Outro');
+    const aspecto = restoreSelectValue(get(row, 'aspecto_positivo'), CONFIG.aspectosPositivos, 'Outro');
+
+    diario.trades.push({
+      numero,
+      estrategia: get(row, 'estrategia') || '',
+      pontos: parseOptionalNumber(get(row, 'pontos')),
+      nota: get(row, 'nota') || '',
+      falha: falha.value,
+      falhaOutro: falha.outro,
+      conducao: get(row, 'conducao') || '',
+      aspectoPositivo: aspecto.value,
+      aspectoOutro: aspecto.outro,
+      comentario: get(row, 'comentario_trade') || ''
+    });
+  }
+
+  const diarios = [];
+
+  for (const diario of byDate.values()) {
+    const tradesMap = new Map(diario.trades.map((t) => [t.numero, t]));
+    diario.trades = Array.from({ length: CONFIG.numTrades }, (_, i) => {
+      const num = i + 1;
+      return tradesMap.get(num) || {
+        numero: num,
+        estrategia: '',
+        pontos: null,
+        nota: '',
+        falha: '',
+        falhaOutro: '',
+        conducao: '',
+        aspectoPositivo: '',
+        aspectoOutro: '',
+        comentario: ''
+      };
+    });
+
+    if (diario.scoreProntidao === null || !diario.statusOperacao) {
+      const result = calcScoreProntidao(diario.prontidao);
+      if (result.score !== null) {
+        diario.scoreProntidao = result.score;
+        diario.statusOperacao = result.status;
+      }
+    }
+
+    diario.atualizadoEm = new Date().toISOString();
+    diarios.push(diario);
+  }
+
+  return diarios.sort((a, b) => b.data.localeCompare(a.data));
+}
+
+async function importCSV(fileOrText) {
+  const text = typeof fileOrText === 'string' ? fileOrText : await fileOrText.text();
+  const diarios = csvRowsToDiarios(parseCSV(text));
+  if (!diarios.length) throw new Error('Nenhum dia encontrado no arquivo CSV.');
+  await importDiarios(diarios);
+  return diarios.length;
+}
+
+async function restoreBackupCsv({ preferLinked = true } = {}) {
+  if (preferLinked) {
+    const handle = await getSetting('csvBackupHandle');
+    if (handle && await ensureFileHandlePermission(handle)) {
+      const text = await readFileHandle(handle);
+      const count = await importCSV(text);
+      return { count, source: handle.name };
+    }
+  }
+
+  const file = await pickBackupFile('backupCsvFile');
+  if (!file) return { cancelled: true, count: 0 };
+  const count = await importCSV(file);
+  return { count, source: file.name };
+}
+
+function calcStats(diarios, periodFrom, periodTo) {
+  const withScore = diarios.filter((d) => d.scoreProntidao !== null);
+  const allTrades = diarios.flatMap((d) => (d.trades || []).filter(isTradeFilled));
+
+  const estrategiaCount = {};
+  for (const t of allTrades) {
+    if (t.estrategia) estrategiaCount[t.estrategia] = (estrategiaCount[t.estrategia] || 0) + 1;
+  }
+
+  const topEstrategia = Object.entries(estrategiaCount).sort((a, b) => b[1] - a[1])[0];
+
+  const notaMap = { A: 0, B: 0, C: 0 };
+  for (const t of allTrades) {
+    if (t.nota) notaMap[t.nota]++;
+  }
+
+  const totalPontos = allTrades.reduce((s, t) => s + (Number(t.pontos) || 0), 0);
+
+  const semaforo = { verde: 0, amarelo: 0, vermelho: 0 };
+  for (const d of diarios) {
+    if (d.statusOperacao && semaforo[d.statusOperacao] !== undefined) {
+      semaforo[d.statusOperacao]++;
+    }
+  }
+
+  let totalDias = diarios.length;
+  if (periodFrom && periodTo) {
+    totalDias = 0;
+    let cursor = periodFrom;
+    while (cursor <= periodTo) {
+      totalDias++;
+      cursor = addDaysToDateId(cursor, 1);
+    }
+  }
+
+  const diasComTrades = diarios.filter((d) => (d.trades || []).some(isTradeFilled)).length;
+  const mediaPontosDia = diasComTrades
+    ? (totalPontos / diasComTrades).toFixed(1)
+    : '—';
+
+  return {
+    totalDias,
+    diasComRegistro: diarios.filter(diarioHasContent).length,
+    diasComProntidao: withScore.length,
+    scoreMedio: withScore.length
+      ? (withScore.reduce((s, d) => s + d.scoreProntidao, 0) / withScore.length).toFixed(1)
+      : '—',
+    totalTrades: allTrades.length,
+    totalPontos,
+    mediaPontosDia,
+    topEstrategia: topEstrategia ? `${topEstrategia[0]} (${topEstrategia[1]}x)` : '—',
+    notas: notaMap,
+    semaforo
+  };
+}
+
+const PDF_PAGE_W = 595.28;
+const PDF_PAGE_H = 841.89;
+const PDF_MARGIN = 48;
+const PDF_CONTENT_W = PDF_PAGE_W - PDF_MARGIN * 2;
+const PDF_LINE_H = 13;
+const PDF_WRAP_CHARS = 92;
+
+function downloadBlob(bytes, filename, mime) {
+  const blob = new Blob([bytes], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function encodeLatin1(str) {
+  const buf = new Uint8Array(str.length);
+  for (let i = 0; i < str.length; i++) {
+    const code = str.charCodeAt(i);
+    buf[i] = code > 255 ? 63 : code;
+  }
+  return buf;
+}
+
+// Mapeamento Unicode -> WinAnsiEncoding (PDF / Windows-1252)
+const UNICODE_TO_WIN_ANSI = {
+  0x20AC: 0x80, 0x201A: 0x82, 0x0192: 0x83, 0x201E: 0x84, 0x2026: 0x85, 0x2020: 0x86,
+  0x2021: 0x87, 0x02C6: 0x88, 0x2030: 0x89, 0x0160: 0x8A, 0x2039: 0x8B, 0x0152: 0x8C,
+  0x017D: 0x8E, 0x2018: 0x91, 0x2019: 0x92, 0x201C: 0x93, 0x201D: 0x94, 0x2022: 0x95,
+  0x2013: 0x96, 0x2014: 0x97, 0x02DC: 0x98, 0x2122: 0x99, 0x0161: 0x9A, 0x203A: 0x9B,
+  0x0153: 0x9C, 0x017E: 0x9E, 0x0178: 0x9F
+};
+
+function unicodeToWinAnsiByte(code) {
+  if (code === 0x2014 || code === 0x2013) return 0x2D;
+  if (code === 0x2022) return 0x2D;
+  if (code <= 0x7F) return code;
+  if (code >= 0xA0 && code <= 0xFF) return code;
+  if (UNICODE_TO_WIN_ANSI[code] !== undefined) return UNICODE_TO_WIN_ANSI[code];
+  return 0x3F;
+}
+
+function pdfLiteralString(str) {
+  const bytes = [];
+  for (let i = 0; i < str.length; i++) {
+    const byte = unicodeToWinAnsiByte(str.charCodeAt(i));
+    if (byte === 0x5C) bytes.push(0x5C, 0x5C);
+    else if (byte === 0x28) bytes.push(0x5C, 0x28);
+    else if (byte === 0x29) bytes.push(0x5C, 0x29);
+    else if (byte === 0x0D) bytes.push(0x5C, 0x72);
+    else if (byte === 0x0A) bytes.push(0x5C, 0x6E);
+    else if (byte === 0x09) bytes.push(0x5C, 0x74);
+    else if (byte === 0x08) bytes.push(0x5C, 0x62);
+    else if (byte === 0x0C) bytes.push(0x5C, 0x66);
+    else if (byte < 0x20 || byte === 0x7F) continue;
+    else bytes.push(byte);
+  }
+
+  const out = new Uint8Array(bytes.length + 2);
+  out[0] = 0x28;
+  out.set(bytes, 1);
+  out[out.length - 1] = 0x29;
+  return out;
+}
+
+function concatBytes(parts) {
+  const total = parts.reduce((sum, part) => sum + part.length, 0);
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const part of parts) {
+    out.set(part, offset);
+    offset += part.length;
+  }
+  return out;
+}
+
+function buildPdfTextLine(size, x, y, text) {
+  return concatBytes([
+    encodeLatin1(`BT /F1 ${size} Tf ${x.toFixed(2)} ${y.toFixed(2)} Td `),
+    pdfLiteralString(text),
+    encodeLatin1(' Tj ET')
+  ]);
+}
+
+const PDF_TO_UNICODE_CMAP = `/CIDInit /ProcSet findresource begin
+12 dict begin
+begincmap
+/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def
+/CMapName /Adobe-Identity-UCS def
+/CMapType 2 def
+1 begincodespacerange
+<00> <FF>
+endcodespacerange
+1 beginbfrange
+<20> <7E> <0020>
+endbfrange
+${[
+  ['<80>', '<80>', '<20AC>'], ['<82>', '<82>', '<201A>'], ['<83>', '<83>', '<0192>'],
+  ['<84>', '<84>', '<201E>'], ['<85>', '<85>', '<2026>'], ['<86>', '<86>', '<2020>'],
+  ['<87>', '<87>', '<2021>'], ['<88>', '<88>', '<02C6>'], ['<89>', '<89>', '<2030>'],
+  ['<8A>', '<8A>', '<0160>'], ['<8B>', '<8B>', '<2039>'], ['<8C>', '<8C>', '<0152>'],
+  ['<8E>', '<8E>', '<017D>'], ['<91>', '<91>', '<2018>'], ['<92>', '<92>', '<2019>'],
+  ['<93>', '<93>', '<201C>'], ['<94>', '<94>', '<201D>'], ['<95>', '<95>', '<2022>'],
+  ['<96>', '<96>', '<2013>'], ['<97>', '<97>', '<2014>'], ['<98>', '<98>', '<02DC>'],
+  ['<99>', '<99>', '<2122>'], ['<9A>', '<9A>', '<0161>'], ['<9B>', '<9B>', '<203A>'],
+  ['<9C>', '<9C>', '<0153>'], ['<9E>', '<9E>', '<017E>'], ['<9F>', '<9F>', '<0178>'],
+  ['<A0>', '<BF>', '<00A0>'], ['<C0>', '<FF>', '<00C0>']
+].map(([start, end, unicodeStart]) => `${start} ${end} ${unicodeStart}`).join('\n')}
+endbfrange
+endcmap
+CMapName currentdict /CMap defineresource pop
+end
+end`;
+
+function concatChunks(chunks) {
+  const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return out;
+}
+
+function pdfEscapeText(str) {
+  return String(str)
+    .replace(/\u2014/g, '-')
+    .replace(/\u2022/g, '-');
+}
+
+function wrapPdfText(text, maxChars = PDF_WRAP_CHARS) {
+  if (!text) return [];
+  const lines = [];
+  for (const paragraph of String(text).split(/\r?\n/)) {
+    const words = paragraph.trim() ? paragraph.trim().split(/\s+/) : [''];
+    let line = '';
+    for (const word of words) {
+      const next = line ? `${line} ${word}` : word;
+      if (next.length > maxChars && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = next;
+      }
+    }
+    if (line) lines.push(line);
+    if (!paragraph.trim()) lines.push('');
+  }
+  return lines.length ? lines : [''];
+}
+
+function getDisposicaoAnswerLabel(questionId, value) {
+  if (value === null || value === undefined) return '—';
+  const question = getAllDisposicaoQuestions().find((q) => q.id === questionId);
+  const option = question?.options.find((o) => o.value === value);
+  return option?.label ?? String(value);
+}
+
+function loadImageElement(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Não foi possível carregar a imagem do gráfico.'));
+    img.src = src;
+  });
+}
+
+async function dataUrlToJpegBytes(dataUrl) {
+  const img = await loadImageElement(dataUrl);
+  const canvas = document.createElement('canvas');
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0);
+  const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+  const base64 = jpegDataUrl.split(',')[1];
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return { bytes, width: canvas.width, height: canvas.height };
+}
+
+class PdfDayReport {
+  constructor() {
+    this.pages = [[]];
+    this.pageIndex = 0;
+    this.y = PDF_PAGE_H - PDF_MARGIN;
+    this.images = [];
+  }
+
+  get currentPage() {
+    return this.pages[this.pageIndex];
+  }
+
+  ensureSpace(height) {
+    if (this.y - height < PDF_MARGIN) {
+      this.pageIndex += 1;
+      this.pages[this.pageIndex] = [];
+      this.y = PDF_PAGE_H - PDF_MARGIN;
+    }
+  }
+
+  drawText(text, size, options = {}) {
+    const indent = options.indent || 0;
+    const gap = options.gap ?? PDF_LINE_H;
+    const lines = options.wrap === false ? [text] : wrapPdfText(pdfEscapeText(text));
+    for (const line of lines) {
+      this.ensureSpace(gap);
+      const x = PDF_MARGIN + indent;
+      this.currentPage.push(buildPdfTextLine(size, x, this.y, line));
+      this.y -= gap;
+    }
+  }
+
+  addTitle(text) {
+    this.drawText(text, 16, { gap: 22 });
+    this.y -= 4;
+  }
+
+  addHeading(text) {
+    this.y -= 6;
+    this.drawText(text, 12, { gap: 18 });
+  }
+
+  addLine(text, indent = 0) {
+    this.drawText(text, 10, { indent });
+  }
+
+  addSpacer(height = 8) {
+    this.y -= height;
+  }
+
+  addImage(jpegBytes, widthPx, heightPx) {
+    const maxW = PDF_CONTENT_W;
+    const maxH = 220;
+    let displayW = maxW;
+    let displayH = (heightPx / widthPx) * displayW;
+    if (displayH > maxH) {
+      displayH = maxH;
+      displayW = (widthPx / heightPx) * displayH;
+    }
+
+    this.ensureSpace(displayH + 12);
+    const imageName = `Im${this.images.length + 1}`;
+    this.images.push({
+      name: imageName,
+      bytes: jpegBytes,
+      width: widthPx,
+      height: heightPx,
+      pageIndex: this.pageIndex
+    });
+    const x = PDF_MARGIN;
+    const y = this.y - displayH;
+    this.currentPage.push('q');
+    this.currentPage.push(encodeLatin1(
+      `${displayW.toFixed(2)} 0 0 ${displayH.toFixed(2)} ${x.toFixed(2)} ${y.toFixed(2)} cm`
+    ));
+    this.currentPage.push(encodeLatin1(`/${imageName} Do`));
+    this.currentPage.push(encodeLatin1('Q'));
+    this.y = y - 12;
+  }
+
+  buildFile() {
+    const chunks = [encodeLatin1('%PDF-1.4\n')];
+    const offsets = [0];
+    let objNum = 0;
+
+    const addObject = (parts) => {
+      objNum += 1;
+      offsets[objNum] = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+      chunks.push(encodeLatin1(`${objNum} 0 obj\n`));
+      for (const part of parts) {
+        if (part instanceof Uint8Array) chunks.push(part);
+        else chunks.push(encodeLatin1(part));
+      }
+      chunks.push(encodeLatin1('endobj\n'));
+      return objNum;
+    };
+
+    const toUnicodeId = addObject([
+      `<< /Length ${PDF_TO_UNICODE_CMAP.length} >>\nstream\n${PDF_TO_UNICODE_CMAP}endstream`
+    ]);
+
+    const fontId = addObject([
+      `<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding /ToUnicode ${toUnicodeId} 0 R >>`
+    ]);
+
+    const imageObjIds = this.images.map((image) => addObject([
+      `<< /Type /XObject /Subtype /Image /Width ${image.width} /Height ${image.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${image.bytes.length} >>\nstream\n`,
+      image.bytes,
+      '\nendstream'
+    ]));
+
+    const contentObjIds = this.pages.map((pageOps) => {
+      const streamBytes = concatBytes(
+        pageOps.flatMap((op) => [
+          op instanceof Uint8Array ? op : encodeLatin1(String(op)),
+          encodeLatin1('\n')
+        ])
+      );
+      return addObject([
+        `<< /Length ${streamBytes.length} >>\nstream\n`,
+        streamBytes,
+        encodeLatin1('endstream')
+      ]);
+    });
+
+    const pagesRef = 'PAGES_REF';
+    const pageObjIds = this.pages.map((pageOps, pageIdx) => {
+      const pageImages = this.images
+        .map((image, imageIdx) => ({ image, imageIdx }))
+        .filter(({ image }) => image.pageIndex === pageIdx);
+      const xobjPart = pageImages.length
+        ? `/XObject << ${pageImages.map(({ image, imageIdx }) => `/${image.name} ${imageObjIds[imageIdx]} 0 R`).join(' ')} >>`
+        : '';
+      return addObject([
+        `<< /Type /Page /Parent ${pagesRef} /MediaBox [0 0 ${PDF_PAGE_W} ${PDF_PAGE_H}] `,
+        `/Resources << /Font << /F1 ${fontId} 0 R >> ${xobjPart} >> /Contents ${contentObjIds[pageIdx]} 0 R >>`
+      ]);
+    });
+
+    const kids = pageObjIds.map((id) => `${id} 0 R`).join(' ');
+    const pagesId = addObject([`<< /Type /Pages /Kids [${kids}] /Count ${pageObjIds.length} >>`]);
+
+    for (let c = 0; c < chunks.length; c++) {
+      const text = new TextDecoder('latin1').decode(chunks[c]);
+      if (text.includes(pagesRef)) {
+        chunks[c] = encodeLatin1(text.replaceAll(pagesRef, `${pagesId} 0 R`));
+      }
+    }
+
+    const catalogId = addObject([`<< /Type /Catalog /Pages ${pagesId} 0 R >>`]);
+
+    const xrefPos = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+    let xref = `xref\n0 ${objNum + 1}\n0000000000 65535 f \n`;
+    for (let i = 1; i <= objNum; i++) {
+      xref += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
+    }
+    xref += `trailer\n<< /Size ${objNum + 1} /Root ${catalogId} 0 R >>\nstartxref\n${xrefPos}\n%%EOF`;
+    chunks.push(encodeLatin1(xref));
+
+    return concatChunks(chunks);
+  }
+}
+
+async function buildDayPdf(diario) {
+  const pdf = new PdfDayReport();
+  const dateId = getDiarioDate(diario);
+
+  pdf.addTitle('Diário de Trader');
+  pdf.addLine(formatDateBR(dateId));
+  pdf.addSpacer(6);
+
+  pdf.addHeading('Disposição para operar');
+  const statusLabel = diario.statusOperacao ? getStatusLabel(diario.statusOperacao) : '—';
+  pdf.addLine(`Score: ${diario.scoreProntidao ?? '—'}/16 · ${statusLabel}`);
+
+  const prontidao = normalizeProntidao(diario.prontidao);
+  for (const ctx of CONFIG.disposicaoContextos) {
+    pdf.addLine(ctx.title, 8);
+    for (const q of ctx.questions) {
+      const entry = prontidao[q.id] || { valor: null, nota: '' };
+      const answer = getDisposicaoAnswerLabel(q.id, entry.valor);
+      pdf.addLine(`• ${q.label}: ${answer}`, 12);
+      if (entry.nota?.trim()) {
+        pdf.addLine(`  Nota: ${entry.nota.trim()}`, 16);
+      }
+    }
+  }
+
+  pdf.addHeading('Plano de trader');
+  pdf.addLine((diario.planoEstrategias || []).join(', ') || '—');
+
+  if (diario.comentarioPreTrade?.trim()) {
+    pdf.addHeading('Rotina e preparação pré-trade');
+    pdf.addLine(diario.comentarioPreTrade.trim());
+  }
+
+  if (diario.graficoDia) {
+    pdf.addHeading('Gráfico do dia');
+    const image = await dataUrlToJpegBytes(diario.graficoDia);
+    pdf.addImage(image.bytes, image.width, image.height);
+  }
+
+  const trades = (diario.trades || []).filter(isTradeFilled);
+  pdf.addHeading('Trades');
+  if (!trades.length) {
+    pdf.addLine('Nenhum trade registrado.');
+  } else {
+    trades.forEach((trade) => {
+      pdf.addLine(`Trade ${trade.numero}`, 8);
+      pdf.addLine(`Estratégia: ${trade.estrategia || '—'}`, 12);
+      pdf.addLine(`Pontos: ${trade.pontos ?? '—'} · Nota: ${trade.nota || '—'}`, 12);
+      if (trade.falha) {
+        const falha = trade.falha === 'Outro' ? (trade.falhaOutro || 'Outro') : trade.falha;
+        pdf.addLine(`Falha: ${falha}`, 12);
+      }
+      if (trade.conducao) pdf.addLine(`Condução: ${trade.conducao}`, 12);
+      if (trade.aspectoPositivo) {
+        const aspecto = trade.aspectoPositivo === 'Outro'
+          ? (trade.aspectoOutro || 'Outro')
+          : trade.aspectoPositivo;
+        pdf.addLine(`Aspecto positivo: ${aspecto}`, 12);
+      }
+      if (trade.comentario?.trim()) pdf.addLine(`Comentário: ${trade.comentario.trim()}`, 12);
+      pdf.addSpacer(4);
+    });
+  }
+
+  if (diario.comentarioGeral?.trim()) {
+    pdf.addHeading('Comentário geral sobre o dia');
+    pdf.addLine(diario.comentarioGeral.trim());
+  }
+
+  const exportedAt = new Date().toLocaleString('pt-BR');
+  pdf.addSpacer(10);
+  pdf.addLine(`Exportado em ${exportedAt}`, 0);
+
+  return pdf.buildFile();
+}
+
+async function resolveDiarioForExport(dateId) {
+  if (currentDiario && getDiarioDate(currentDiario) === dateId) {
+    collectFormData();
+    return { ...currentDiario };
+  }
+  const stored = await getDiario(dateId);
+  return stored || null;
+}
+
+async function exportDayPDF() {
+  const dateInput = document.getElementById('exportPdfDate');
+  const dateId = dateInput?.value;
+  if (!dateId) {
+    alert('Selecione um dia para exportar.');
+    return;
+  }
+
+  const btn = document.getElementById('btnExportPDF');
+  const originalLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Gerando PDF...';
+
+  try {
+    const diario = await resolveDiarioForExport(dateId);
+    if (!diario || !diarioHasContent(diario)) {
+      alert('Não há dados registrados para este dia.');
+      return;
+    }
+
+    const pdfBytes = await buildDayPdf(diario);
+    downloadBlob(pdfBytes, `diario-trader-${dateId}.pdf`, 'application/pdf');
+  } catch (err) {
+    console.error(err);
+    alert('Erro ao gerar PDF: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+  }
+}
+
+  </script>
+  <script>
+function openModal(id) {
+  const overlay = document.getElementById(id);
+  if (!overlay) return;
+  overlay.removeAttribute('hidden');
+  document.body.classList.add('modal-open');
+}
+
+function closeModal(target) {
+  const overlay = typeof target === 'string'
+    ? document.getElementById(target)
+    : target.closest('.modal-overlay');
+
+  if (!overlay) return;
+  overlay.setAttribute('hidden', '');
+
+  const anyOpen = document.querySelector('.modal-overlay:not([hidden])');
+  if (!anyOpen) document.body.classList.remove('modal-open');
+}
+
+function initModals() {
+  document.querySelectorAll('.modal-close').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      closeModal(btn);
+    });
+  });
+
+  document.querySelectorAll('.modal-overlay').forEach((overlay) => {
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeModal(overlay);
+    });
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    document.querySelectorAll('.modal-overlay:not([hidden])').forEach((o) => closeModal(o));
+  });
+}
+
+  </script>
+  <script>
+const MESES = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+];
+
+const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+let selectedDateId = null;
+let viewYear = null;
+let viewMonth = null;
+let filledDates = new Set();
+let statusByDate = {};
+
+async function refreshCalendarDates() {
+  const all = await getAllDiarios();
+  filledDates = new Set();
+  statusByDate = {};
+  for (const d of all) {
+    if (diarioHasContent(d)) {
+      const date = getDiarioDate(d);
+      filledDates.add(date);
+      if (d.statusOperacao) statusByDate[date] = d.statusOperacao;
+    }
+  }
+  renderCalendar();
+}
+
+async function flushSave() {
+  if (typeof saveTimer !== 'undefined' && saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    await saveCurrent();
+  }
+}
+
+async function loadDay(dateId) {
+  await flushSave();
+
+  let diario = await getDiario(dateId);
+  if (!diario) diario = emptyDiario(dateId);
+
+  selectedDateId = dateId;
+  const [y, m] = dateId.split('-').map(Number);
+  viewYear = y;
+  viewMonth = m - 1;
+
+  populateForm(diario);
+  updateEditingBanner();
+  renderCalendar();
+  setSaveStatus('Pronto');
+}
+
+function updateEditingBanner() {
+  const banner = document.getElementById('editingBanner');
+  const today = todayId();
+  if (selectedDateId === today) {
+    banner.classList.add('hidden');
+    return;
+  }
+  banner.classList.remove('hidden');
+  document.getElementById('editingDateLabel').textContent = formatDateBR(selectedDateId);
+}
+
+function renderCalendar() {
+  const grid = document.getElementById('calendarGrid');
+  const label = document.getElementById('calendarMonthLabel');
+  if (!grid || viewYear === null) return;
+
+  label.textContent = `${MESES[viewMonth]} ${viewYear}`;
+
+  const firstDay = new Date(viewYear, viewMonth, 1);
+  const startOffset = firstDay.getDay();
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const today = todayId();
+
+  let html = DIAS_SEMANA.map((d) => `<div class="cal-weekday">${d}</div>`).join('');
+
+  for (let i = 0; i < startOffset; i++) {
+    html += '<div class="cal-day cal-day--empty"></div>';
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateId = formatDateId(new Date(viewYear, viewMonth, day));
+    const isFuture = dateId > today;
+    const isToday = dateId === today;
+    const isSelected = dateId === selectedDateId;
+    const hasEntry = filledDates.has(dateId);
+    const status = statusByDate[dateId];
+
+    const classes = [
+      'cal-day',
+      isFuture ? 'cal-day--future' : 'cal-day--clickable',
+      isToday ? 'cal-day--today' : '',
+      isSelected ? 'cal-day--selected' : '',
+      hasEntry ? 'cal-day--filled' : '',
+      status ? `cal-day--${status}` : ''
+    ].filter(Boolean).join(' ');
+
+    html += `
+      <button type="button" class="${classes}" data-date="${dateId}"
+        ${isFuture ? 'disabled' : ''} aria-label="${day} de ${MESES[viewMonth]}">
+        <span class="cal-day-num">${day}</span>
+        ${hasEntry ? '<span class="cal-day-dot"></span>' : ''}
+      </button>
+    `;
+  }
+
+  grid.innerHTML = html;
+
+  grid.querySelectorAll('.cal-day--clickable').forEach((btn) => {
+    btn.addEventListener('click', () => loadDay(btn.dataset.date));
+  });
+}
+
+function changeMonth(delta) {
+  viewMonth += delta;
+  if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+  if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+  renderCalendar();
+}
+
+function initCalendar() {
+  const today = todayId();
+  selectedDateId = today;
+  const [y, m] = today.split('-').map(Number);
+  viewYear = y;
+  viewMonth = m - 1;
+
+  document.getElementById('btnCalPrev').addEventListener('click', () => changeMonth(-1));
+  document.getElementById('btnCalNext').addEventListener('click', () => changeMonth(1));
+  document.getElementById('btnGoToday').addEventListener('click', () => loadDay(todayId()));
+  document.getElementById('btnBannerToday').addEventListener('click', () => loadDay(todayId()));
+
+  refreshCalendarDates();
+}
+
+  </script>
+  <script>
+function normalizeDateRange(from, to) {
+  if (!from || !to) return { from: null, to: null };
+  if (from > to) return { from: to, to: from };
+  return { from, to };
+}
+
+function getLastTradingSessionRange(allDiarios) {
+  const withContent = allDiarios.filter(diarioHasContent);
+  if (!withContent.length) return { from: null, to: null };
+
+  const contentIds = new Set(withContent.map((d) => getDiarioDate(d)));
+  let endDate = [...contentIds].sort().pop();
+  let startDate = endDate;
+
+  while (contentIds.has(previousDayId(startDate))) {
+    startDate = previousDayId(startDate);
+  }
+
+  return { from: startDate, to: endDate };
+}
+
+function getPeriodRange(preset, allDiarios, customFrom, customTo) {
+  const today = todayId();
+
+  switch (preset) {
+    case 'last-session':
+      return getLastTradingSessionRange(allDiarios);
+    case 'last-week':
+      return { from: addDaysToDateId(today, -6), to: today };
+    case 'last-month':
+      return { from: addDaysToDateId(today, -29), to: today };
+    case 'custom': {
+      if (!customFrom || !customTo) {
+        return { from: null, to: null, needsDates: true };
+      }
+      return normalizeDateRange(customFrom, customTo);
+    }
+    default:
+      return getLastTradingSessionRange(allDiarios);
+  }
+}
+
+function filterDiariosInRange(allDiarios, from, to) {
+  return allDiarios.filter((d) => {
+    const date = getDiarioDate(d);
+    return date && date >= from && date <= to;
+  });
+}
+
+function buildDiarioMap(diarios) {
+  const map = new Map();
+  diarios.forEach((d) => {
+    const date = getDiarioDate(d);
+    if (date) map.set(date, d);
+  });
+  return map;
+}
+
+function formatPeriodLabel(from, to, preset) {
+  if (!from || !to) return 'Nenhum período com registros';
+  const presetLabels = {
+    'last-session': 'Última sessão de trading',
+    'last-week': 'Últimos 7 dias',
+    'last-month': 'Últimos 30 dias',
+    custom: 'Período personalizado'
+  };
+  const [fy, fm, fd] = from.split('-');
+  const [ty, tm, td] = to.split('-');
+  const range = from === to
+    ? `${fd}/${fm}/${fy}`
+    : `${fd}/${fm}/${fy} — ${td}/${tm}/${ty}`;
+  return `${presetLabels[preset] || 'Período'} · ${range}`;
+}
+
+function renderStatsGrid(stats) {
+  const grid = document.getElementById('statsGrid');
+  grid.innerHTML = `
+    <div class="stat-card"><span class="stat-value">${stats.totalDias}</span><span class="stat-label">Dias no período</span></div>
+    <div class="stat-card"><span class="stat-value">${stats.diasComRegistro}</span><span class="stat-label">Dias com registro</span></div>
+    <div class="stat-card"><span class="stat-value">${stats.scoreMedio}</span><span class="stat-label">Score médio disposição</span></div>
+    <div class="stat-card"><span class="stat-value">${stats.totalTrades}</span><span class="stat-label">Trades</span></div>
+    <div class="stat-card"><span class="stat-value">${stats.totalPontos}</span><span class="stat-label">Pontos totais</span></div>
+    <div class="stat-card"><span class="stat-value">${stats.mediaPontosDia}</span><span class="stat-label">Média pts/dia</span></div>
+    <div class="stat-card"><span class="stat-value">${stats.topEstrategia}</span><span class="stat-label">Estratégia + usada</span></div>
+    <div class="stat-card"><span class="stat-value">A:${stats.notas.A} B:${stats.notas.B} C:${stats.notas.C}</span><span class="stat-label">Notas</span></div>
+    <div class="stat-card"><span class="stat-value">${stats.semaforo.verde}/${stats.semaforo.amarelo}/${stats.semaforo.vermelho}</span><span class="stat-label">Verde / Amarelo / Vermelho</span></div>
+  `;
+}
+
+function createChartElement(d, dateId) {
+  const chartWrap = document.createElement('div');
+  chartWrap.className = 'history-day-chart';
+
+  if (d?.graficoDia) {
+    const img = document.createElement('img');
+    img.className = 'history-card-img';
+    img.alt = `Gráfico ${formatDateShort(dateId)}`;
+    img.loading = 'lazy';
+    img.src = d.graficoDia;
+    chartWrap.appendChild(img);
+  } else {
+    chartWrap.innerHTML = d
+      ? '<div class="history-card-no-img"><span>📈</span><small>Sem print do gráfico</small></div>'
+      : '<div class="history-card-no-img"><span>—</span><small>Sem registro</small></div>';
+  }
+
+  return chartWrap;
+}
+
+function createDayCard(d, dateId) {
+  const article = document.createElement('article');
+  article.className = d && diarioHasContent(d)
+    ? 'history-day-card'
+    : 'history-day-card history-day-card--empty';
+
+  article.appendChild(createChartElement(d, dateId));
+
+  const body = document.createElement('div');
+  body.className = 'history-day-body';
+
+  if (d && diarioHasContent(d)) {
+    const trades = (d.trades || []).filter(isTradeFilled);
+    const pts = trades.reduce((s, t) => s + (Number(t.pontos) || 0), 0);
+    const statusClass = d.statusOperacao || 'neutro';
+    const statusLabel = d.statusOperacao ? getStatusLabel(d.statusOperacao) : '—';
+
+    const head = document.createElement('div');
+    head.className = 'history-day-head';
+    head.innerHTML = `
+      <h3>${formatDateShort(getDiarioDate(d))}</h3>
+      <span class="status-pill ${statusClass}">${d.scoreProntidao ?? '—'}</span>
+    `;
+    body.appendChild(head);
+
+    const lines = [
+      ['Disposição', `${d.scoreProntidao ?? '—'}/16 · ${escapeHtml(statusLabel)}`],
+      ['Plano', (d.planoEstrategias || []).join(', ') || '—'],
+      ['Resumo', `${trades.length} trade(s) · ${pts} pts`]
+    ];
+
+    lines.forEach(([label, value]) => {
+      const p = document.createElement('p');
+      p.className = 'history-day-line';
+      p.innerHTML = `<strong>${label}:</strong> ${value}`;
+      body.appendChild(p);
+    });
+
+    const ul = document.createElement('ul');
+    ul.className = 'history-day-trades';
+    if (trades.length) {
+      trades.forEach((t) => {
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>T${t.numero}</strong> ${t.estrategia || '—'} · ${t.pontos ?? 0} pts · Nota ${t.nota || '—'}`;
+        ul.appendChild(li);
+      });
+    } else {
+      const li = document.createElement('li');
+      li.className = 'history-card-empty';
+      li.textContent = 'Nenhum trade registrado';
+      ul.appendChild(li);
+    }
+    body.appendChild(ul);
+
+    if (d.comentarioPreTrade) {
+      const pre = document.createElement('p');
+      pre.className = 'history-day-comment';
+      pre.textContent = `Pré: ${d.comentarioPreTrade}`;
+      body.appendChild(pre);
+    }
+
+    if (d.comentarioGeral) {
+      const comment = document.createElement('p');
+      comment.className = 'history-day-comment';
+      comment.textContent = d.comentarioGeral;
+      body.appendChild(comment);
+    }
+  } else {
+    const h3 = document.createElement('h3');
+    h3.textContent = formatDateShort(dateId);
+    body.appendChild(h3);
+
+    const p = document.createElement('p');
+    p.className = 'history-day-line';
+    p.textContent = 'Nenhum dado neste dia.';
+    body.appendChild(p);
+  }
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn btn-ghost btn-sm history-open-day';
+  btn.dataset.id = getDiarioDate(d) || dateId;
+  btn.textContent = d && diarioHasContent(d) ? 'Abrir / editar dia' : 'Criar registro';
+  body.appendChild(btn);
+
+  article.appendChild(body);
+  return article;
+}
+
+function renderHistoryGallery(allInRange, from, to) {
+  const gallery = document.getElementById('historyGallery');
+  gallery.innerHTML = '';
+
+  const daysInPeriod = [];
+  let cursor = from;
+  while (cursor <= to) {
+    daysInPeriod.push(cursor);
+    cursor = addDaysToDateId(cursor, 1);
+  }
+
+  if (daysInPeriod.length === 0) {
+    gallery.innerHTML = '<p class="empty-msg">Selecione um período válido.</p>';
+    return;
+  }
+
+  const diarioMap = buildDiarioMap(allInRange);
+  const track = document.createElement('div');
+  track.className = 'history-gallery-track';
+
+  daysInPeriod.forEach((dateId) => {
+    track.appendChild(createDayCard(diarioMap.get(dateId), dateId));
+  });
+
+  gallery.appendChild(track);
+
+  gallery.querySelectorAll('.history-open-day').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      await loadDay(btn.dataset.id);
+      closeModal('historyModal');
+    });
+  });
+}
+
+function showHistoryEmpty(message) {
+  document.getElementById('historyGallery').innerHTML = `<p class="empty-msg">${message}</p>`;
+}
+
+async function renderHistory() {
+  const all = await getAllDiarios();
+  const preset = document.getElementById('historyPreset').value;
+  const estrategia = document.getElementById('filterEstrategia').value;
+  const customFrom = document.getElementById('historyDateFrom').value;
+  const customTo = document.getElementById('historyDateTo').value;
+
+  const range = getPeriodRange(preset, all, customFrom, customTo);
+  const { from, to, needsDates } = range;
+
+  if (needsDates) {
+    document.getElementById('historyPeriodLabel').textContent =
+      'Período personalizado · selecione a data inicial e final';
+    renderStatsGrid({
+      totalDias: 0, diasComRegistro: 0, scoreMedio: '—', totalTrades: 0,
+      totalPontos: 0, mediaPontosDia: '—', topEstrategia: '—',
+      notas: { A: 0, B: 0, C: 0 }, semaforo: { verde: 0, amarelo: 0, vermelho: 0 }
+    });
+    showHistoryEmpty('Escolha as datas e clique em Atualizar.');
+    return;
+  }
+
+  if (!from || !to) {
+    document.getElementById('historyPeriodLabel').textContent = 'Nenhum período com registros';
+    renderStatsGrid({
+      totalDias: 0, diasComRegistro: 0, scoreMedio: '—', totalTrades: 0,
+      totalPontos: 0, mediaPontosDia: '—', topEstrategia: '—',
+      notas: { A: 0, B: 0, C: 0 }, semaforo: { verde: 0, amarelo: 0, vermelho: 0 }
+    });
+    showHistoryEmpty('Nenhum registro encontrado. Preencha o diário para ver o histórico.');
+    return;
+  }
+
+  const allInRange = filterDiariosInRange(all, from, to);
+  let filtered = allInRange;
+
+  if (estrategia) {
+    filtered = allInRange.filter((d) =>
+      (d.trades || []).some((t) => t.estrategia === estrategia) ||
+      (d.planoEstrategias || []).includes(estrategia)
+    );
+  }
+
+  const withContent = allInRange.filter(diarioHasContent);
+
+  document.getElementById('historyPeriodLabel').textContent = formatPeriodLabel(from, to, preset);
+
+  const stats = calcStats(estrategia ? filtered : withContent, from, to);
+  renderStatsGrid(stats);
+  renderHistoryGallery(allInRange, from, to);
+
+  if (withContent.length === 0) {
+    const label = document.getElementById('historyPeriodLabel');
+    label.textContent += ' · nenhum dia com registro no período';
+  }
+}
+
+function setCustomPeriodDefaults() {
+  const today = todayId();
+  const fromInput = document.getElementById('historyDateFrom');
+  const toInput = document.getElementById('historyDateTo');
+  if (!fromInput.value) fromInput.value = addDaysToDateId(today, -29);
+  if (!toInput.value) toInput.value = today;
+}
+
+function onCustomDateChange() {
+  document.getElementById('historyPreset').value = 'custom';
+  toggleCustomRange();
+  renderHistory();
+}
+
+function toggleCustomRange() {
+  const isCustom = document.getElementById('historyPreset').value === 'custom';
+  const rangeEl = document.getElementById('historyCustomRange');
+  rangeEl.classList.toggle('hidden', !isCustom);
+  rangeEl.setAttribute('aria-hidden', String(!isCustom));
+}
+
+async function openHistory() {
+  const all = await getAllDiarios();
+  const session = getLastTradingSessionRange(all);
+  const today = todayId();
+
+  document.getElementById('historyPreset').value = 'last-session';
+  document.getElementById('historyDateFrom').value = session.from || addDaysToDateId(today, -29);
+  document.getElementById('historyDateTo').value = session.to || today;
+  document.getElementById('filterEstrategia').value = '';
+
+  toggleCustomRange();
+  await renderHistory();
+  openModal('historyModal');
+}
+
+function initHistory() {
+  const filterEstrategia = document.getElementById('filterEstrategia');
+  CONFIG.estrategias.forEach((s) => {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = s.label;
+    filterEstrategia.appendChild(opt);
+  });
+
+  document.getElementById('historyPreset').addEventListener('change', () => {
+    if (document.getElementById('historyPreset').value === 'custom') {
+      setCustomPeriodDefaults();
+    }
+    toggleCustomRange();
+    renderHistory();
+  });
+
+  document.getElementById('filterEstrategia').addEventListener('change', renderHistory);
+  document.getElementById('historyDateFrom').addEventListener('change', onCustomDateChange);
+  document.getElementById('historyDateTo').addEventListener('change', onCustomDateChange);
+  document.getElementById('historyDateFrom').addEventListener('input', onCustomDateChange);
+  document.getElementById('historyDateTo').addEventListener('input', onCustomDateChange);
+  document.getElementById('btnHistoryApply').addEventListener('click', () => {
+    if (document.getElementById('historyPreset').value === 'custom') {
+      setCustomPeriodDefaults();
+    }
+    renderHistory();
+  });
+}
+
+  </script>
+  <script>
+let currentDiario = null;
+let saveTimer = null;
+
+function renderDisposicao(prontidao = {}) {
+  const container = document.getElementById('disposicaoContextos');
+  const normalized = normalizeProntidao(prontidao);
+  if (currentDiario) currentDiario.prontidao = normalized;
+
+  container.innerHTML = CONFIG.disposicaoContextos.map((ctx) => `
+    <section class="context-block" data-context="${ctx.id}">
+      <header class="context-header">
+        <h3>${ctx.title}</h3>
+        <p>${ctx.desc}</p>
+      </header>
+      ${ctx.questions.map((q) => {
+        const entry = normalized[q.id] || { valor: null, nota: '' };
+        return `
+          <article class="disposicao-item" data-q="${q.id}">
+            <h4 class="disposicao-label">${q.label}</h4>
+            <p class="disposicao-hint">${q.hint}</p>
+            <div class="option-group option-group-stack">
+              ${q.options.map((o) => `
+                <button type="button"
+                  class="option-btn ${entry.valor === o.value ? 'selected' : ''}"
+                  data-q="${q.id}" data-value="${o.value}">
+                  ${o.label}
+                </button>
+              `).join('')}
+            </div>
+            <textarea class="disposicao-nota" data-q="${q.id}" rows="2"
+              placeholder="Nota opcional sobre esta condição...">${escapeHtml(entry.nota)}</textarea>
+          </article>
+        `;
+      }).join('')}
+    </section>
+  `).join('');
+
+  container.querySelectorAll('.option-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const qId = btn.dataset.q;
+      const item = btn.closest('.disposicao-item');
+      item.querySelectorAll('.option-btn').forEach((b) => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      if (!currentDiario.prontidao[qId]) {
+        currentDiario.prontidao[qId] = { valor: null, nota: '' };
+      }
+      currentDiario.prontidao[qId].valor = Number(btn.dataset.value);
+      updateSemaforo();
+      scheduleSave();
+    });
+  });
+
+  container.querySelectorAll('.disposicao-nota').forEach((ta) => {
+    ta.addEventListener('input', () => {
+      const qId = ta.dataset.q;
+      if (!currentDiario.prontidao[qId]) {
+        currentDiario.prontidao[qId] = { valor: null, nota: '' };
+      }
+      currentDiario.prontidao[qId].nota = ta.value;
+      scheduleSave();
+    });
+  });
+}
+
+function renderEstrategias(selected = []) {
+  const container = document.getElementById('estrategias');
+  container.innerHTML = CONFIG.estrategias.map((s) => `
+    <button type="button"
+      class="chip chip-estrategia ${selected.includes(s.id) ? 'selected' : ''}"
+      data-id="${s.id}" title="${s.desc}">
+      <strong>${s.label}</strong>
+      <small>${s.desc}</small>
+    </button>
+  `).join('');
+
+  container.querySelectorAll('.chip').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      btn.classList.toggle('selected');
+      const ids = [...container.querySelectorAll('.chip.selected')].map((c) => c.dataset.id);
+      currentDiario.planoEstrategias = ids;
+      scheduleSave();
+    });
+  });
+}
+
+function renderTrades(trades = []) {
+  const container = document.getElementById('tradesContainer');
+  container.innerHTML = trades.map((trade, i) => buildTradeAccordion(trade, i)).join('');
+
+  trades.forEach((trade, i) => {
+    bindTradeEvents(i, trade);
+    updateTradeHeader(i);
+  });
+}
+
+function buildTradeAccordion(trade, index) {
+  const filled = isTradeFilled(trade);
+  return `
+    <details class="trade-accordion" data-trade="${index}" ${filled ? 'open' : ''}>
+      <summary class="trade-summary">
+        <span>Trade ${index + 1}</span>
+        <span class="trade-badge" id="tradeBadge${index}">${filled ? '✓ Preenchido' : 'Vazio'}</span>
+      </summary>
+      <div class="trade-body">
+        <div class="field-row">
+          <div class="field">
+            <label>Estratégia</label>
+            <select data-trade="${index}" data-field="estrategia">
+              <option value="">— Selecione —</option>
+              ${CONFIG.estrategias.map((s) => `
+                <option value="${s.id}" ${trade.estrategia === s.id ? 'selected' : ''}>${s.label} — ${s.desc}</option>
+              `).join('')}
+            </select>
+          </div>
+          <div class="field field-sm">
+            <label>Pontos obtidos</label>
+            <input type="number" step="0.25" data-trade="${index}" data-field="pontos"
+              value="${trade.pontos ?? ''}" placeholder="+12 / -5">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Nota do trade</label>
+          <div class="nota-group" data-trade="${index}" data-field="nota">
+            ${CONFIG.notas.map((n) => `
+              <button type="button" class="nota-btn ${trade.nota === n ? 'selected' : ''}" data-nota="${n}">${n}</button>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Falha ou aspecto a melhorar</label>
+          <select data-trade="${index}" data-field="falha">
+            <option value="">— Selecione —</option>
+            ${CONFIG.falhas.map((f) => `<option value="${f}" ${trade.falha === f ? 'selected' : ''}>${f}</option>`).join('')}
+          </select>
+          <input type="text" class="outro-input ${trade.falha === 'Outro' ? '' : 'hidden'}"
+            data-trade="${index}" data-field="falhaOutro" placeholder="Descreva..."
+            value="${trade.falhaOutro || ''}">
+        </div>
+
+        <div class="field">
+          <label>Condução</label>
+          <select data-trade="${index}" data-field="conducao">
+            <option value="">— Selecione —</option>
+            ${CONFIG.conducoes.map((c) => `<option value="${c}" ${trade.conducao === c ? 'selected' : ''}>${c}</option>`).join('')}
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Aspecto positivo — continuar fazendo</label>
+          <select data-trade="${index}" data-field="aspectoPositivo">
+            <option value="">— Selecione —</option>
+            ${CONFIG.aspectosPositivos.map((a) => `<option value="${a}" ${trade.aspectoPositivo === a ? 'selected' : ''}>${a}</option>`).join('')}
+          </select>
+          <input type="text" class="outro-input ${trade.aspectoPositivo === 'Outro' ? '' : 'hidden'}"
+            data-trade="${index}" data-field="aspectoOutro" placeholder="Descreva..."
+            value="${trade.aspectoOutro || ''}">
+        </div>
+
+        <div class="field">
+          <label>Comentário sobre o trade</label>
+          <textarea data-trade="${index}" data-field="comentario" rows="3"
+            placeholder="Observações sobre este trade...">${trade.comentario || ''}</textarea>
+        </div>
+      </div>
+    </details>
+  `;
+}
+
+function bindTradeEvents(index, trade) {
+  const accordion = document.querySelector(`[data-trade="${index}"].trade-accordion`);
+
+  accordion.querySelectorAll('select, input[type="number"], textarea').forEach((el) => {
+    el.addEventListener('change', () => {
+      const field = el.dataset.field;
+      let val = el.value;
+      if (field === 'pontos') val = val === '' ? null : Number(val);
+      currentDiario.trades[index][field] = val;
+
+      if (field === 'falha') toggleOutroInput(index, 'falha', 'falhaOutro');
+      if (field === 'aspectoPositivo') toggleOutroInput(index, 'aspectoPositivo', 'aspectoOutro');
+
+      updateTradeHeader(index);
+      scheduleSave();
+    });
+
+    if (el.tagName === 'TEXTAREA' || el.type === 'number') {
+      el.addEventListener('input', () => {
+        const field = el.dataset.field;
+        let val = el.value;
+        if (field === 'pontos') val = val === '' ? null : Number(val);
+        currentDiario.trades[index][field] = val;
+        updateTradeHeader(index);
+        scheduleSave();
+      });
+    }
+  });
+
+  accordion.querySelectorAll('.outro-input').forEach((el) => {
+    el.addEventListener('input', () => {
+      currentDiario.trades[index][el.dataset.field] = el.value;
+      scheduleSave();
+    });
+  });
+
+  accordion.querySelectorAll('.nota-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      accordion.querySelectorAll('.nota-btn').forEach((b) => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      currentDiario.trades[index].nota = btn.dataset.nota;
+      updateTradeHeader(index);
+      scheduleSave();
+    });
+  });
+}
+
+function toggleOutroInput(index, selectField, outroField) {
+  const accordion = document.querySelector(`[data-trade="${index}"].trade-accordion`);
+  const val = currentDiario.trades[index][selectField];
+  const outro = accordion.querySelector(`[data-field="${outroField}"]`);
+  if (outro) outro.classList.toggle('hidden', val !== 'Outro');
+}
+
+function updateTradeHeader(index) {
+  const badge = document.getElementById(`tradeBadge${index}`);
+  if (!badge) return;
+  const filled = isTradeFilled(currentDiario.trades[index]);
+  badge.textContent = filled ? '✓ Preenchido' : 'Vazio';
+  badge.classList.toggle('filled', filled);
+}
+
+function updateSemaforo() {
+  const result = calcScoreProntidao(currentDiario.prontidao);
+  const semaforo = document.getElementById('semaforo');
+  const scoreEl = document.getElementById('scoreValue');
+  const msgEl = document.getElementById('semaforoMsg');
+
+  semaforo.className = 'semaforo';
+  if (result.score === null) {
+    scoreEl.textContent = '—';
+    msgEl.textContent = `Responda todas as condições (${result.answered}/${result.total})`;
+    currentDiario.scoreProntidao = null;
+    currentDiario.statusOperacao = null;
+    return;
+  }
+
+  scoreEl.textContent = result.score;
+  semaforo.classList.add(result.status);
+  msgEl.textContent = getStatusLabel(result.status);
+  currentDiario.scoreProntidao = result.score;
+  currentDiario.statusOperacao = result.status;
+}
+
+const CHART_ZOOM_MIN = 50;
+const CHART_ZOOM_MAX = 500;
+
+function applyChartZoom(zoom) {
+  const preview = document.getElementById('chartPreview');
+  const range = document.getElementById('chartZoomRange');
+  const valueEl = document.getElementById('chartZoomValue');
+  const z = Math.min(CHART_ZOOM_MAX, Math.max(CHART_ZOOM_MIN, zoom || 100));
+
+  preview.style.transform = `scale(${z / 100})`;
+  range.value = z;
+  valueEl.textContent = `${z}%`;
+
+  if (currentDiario) currentDiario.graficoZoom = z;
+  return z;
+}
+
+function fitChartToFrame(autoSave = true) {
+  const preview = document.getElementById('chartPreview');
+  const frame = document.getElementById('chartPreviewFrame');
+  if (!preview.src || frame.classList.contains('hidden')) return;
+
+  preview.classList.add('chart-preview--fill');
+  applyChartZoom(100);
+
+  if (currentDiario) currentDiario.graficoFillMode = 'cover';
+
+  if (autoSave) scheduleSave();
+}
+
+function applyChartViewState() {
+  const preview = document.getElementById('chartPreview');
+  const fillMode = currentDiario?.graficoFillMode === 'cover';
+  preview.classList.toggle('chart-preview--fill', fillMode);
+  applyChartZoom(currentDiario?.graficoZoom ?? 100);
+}
+
+function renderGraficoDia(dataUrl, zoom) {
+  const frame = document.getElementById('chartPreviewFrame');
+  const preview = document.getElementById('chartPreview');
+  const placeholder = document.getElementById('chartPlaceholder');
+  const actions = document.getElementById('chartActions');
+  const zoomRow = document.getElementById('chartZoomRow');
+  const dropzone = document.getElementById('chartDropzone');
+
+  if (dataUrl) {
+    preview.onload = () => applyChartViewState();
+
+    preview.src = dataUrl;
+    frame.classList.remove('hidden');
+    placeholder.classList.add('hidden');
+    actions.classList.remove('hidden');
+    zoomRow.classList.remove('hidden');
+    dropzone.classList.add('chart-dropzone--has-image');
+
+    if (preview.complete && preview.naturalWidth) applyChartViewState();
+  } else {
+    preview.onload = null;
+    preview.src = '';
+    preview.style.transform = '';
+    preview.classList.remove('chart-preview--fill');
+    frame.classList.add('hidden');
+    placeholder.classList.remove('hidden');
+    actions.classList.add('hidden');
+    zoomRow.classList.add('hidden');
+    dropzone.classList.remove('chart-dropzone--has-image');
+  }
+}
+
+function compressImage(file, maxWidth = 1600) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width;
+        let h = img.height;
+        if (w > maxWidth) {
+          h = Math.round((h * maxWidth) / w);
+          w = maxWidth;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.onerror = () => reject(new Error('Imagem inválida'));
+      img.src = e.target.result;
+    };
+    reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function setGraficoDia(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  try {
+    const dataUrl = await compressImage(file);
+    currentDiario.graficoDia = dataUrl;
+    currentDiario.graficoZoom = 100;
+    currentDiario.graficoFillMode = null;
+    renderGraficoDia(dataUrl);
+    scheduleSave();
+  } catch (err) {
+    alert('Não foi possível carregar a imagem.');
+    console.error(err);
+  }
+}
+
+function removeGraficoDia() {
+  currentDiario.graficoDia = null;
+  currentDiario.graficoZoom = 100;
+  currentDiario.graficoFillMode = null;
+  renderGraficoDia(null);
+  document.getElementById('chartFileInput').value = '';
+  scheduleSave();
+}
+
+function initGraficoDia() {
+  const dropzone = document.getElementById('chartDropzone');
+  const fileInput = document.getElementById('chartFileInput');
+
+  dropzone.addEventListener('click', (e) => {
+    if (e.target.closest('#btnChartRemove, #btnChartReplace, #chartPreviewFrame, #chartZoomRow')) return;
+    if (!currentDiario?.graficoDia) fileInput.click();
+  });
+
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) setGraficoDia(file);
+    e.target.value = '';
+  });
+
+  document.getElementById('btnChartReplace').addEventListener('click', (e) => {
+    e.stopPropagation();
+    fileInput.click();
+  });
+
+  document.getElementById('btnChartRemove').addEventListener('click', (e) => {
+    e.stopPropagation();
+    removeGraficoDia();
+  });
+
+  document.getElementById('chartZoomRange').addEventListener('input', (e) => {
+    applyChartZoom(Number(e.target.value));
+    scheduleSave();
+  });
+
+  document.getElementById('btnChartFit').addEventListener('click', (e) => {
+    e.stopPropagation();
+    fitChartToFrame();
+  });
+
+  dropzone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropzone.classList.add('dragover');
+  });
+
+  dropzone.addEventListener('dragleave', () => {
+    dropzone.classList.remove('dragover');
+  });
+
+  dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file) setGraficoDia(file);
+  });
+
+  document.addEventListener('paste', (e) => {
+    const posPanel = document.getElementById('tab-pos');
+    if (!posPanel.classList.contains('active')) return;
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        setGraficoDia(item.getAsFile());
+        break;
+      }
+    }
+  });
+}
+
+function populateForm(diario) {
+  currentDiario = diario;
+  if (!('graficoDia' in currentDiario)) currentDiario.graficoDia = null;
+  if (!('graficoZoom' in currentDiario)) currentDiario.graficoZoom = 100;
+  if (!('graficoFillMode' in currentDiario)) currentDiario.graficoFillMode = null;
+  delete currentDiario.graficoDisplayWidth;
+  delete currentDiario.graficoDisplayHeight;
+  if (!('comentarioPreTrade' in currentDiario)) currentDiario.comentarioPreTrade = '';
+  currentDiario.prontidao = normalizeProntidao(diario.prontidao);
+  document.getElementById('headerDate').textContent = formatDateBR(diario.data);
+  renderDisposicao(currentDiario.prontidao);
+  renderEstrategias(diario.planoEstrategias);
+  renderTrades(diario.trades);
+  renderGraficoDia(diario.graficoDia, diario.graficoZoom);
+  updateSemaforo();
+
+  document.getElementById('comentarioPreTrade').value = diario.comentarioPreTrade || '';
+  document.getElementById('comentarioGeral').value = diario.comentarioGeral || '';
+}
+
+function collectFormData() {
+  currentDiario.comentarioPreTrade = document.getElementById('comentarioPreTrade').value;
+  currentDiario.comentarioGeral = document.getElementById('comentarioGeral').value;
+  if (currentDiario.graficoDia) {
+    currentDiario.graficoZoom = Number(document.getElementById('chartZoomRange').value) || 100;
+    currentDiario.graficoFillMode = document.getElementById('chartPreview').classList.contains('chart-preview--fill')
+      ? 'cover' : null;
+  }
+  currentDiario.atualizadoEm = new Date().toISOString();
+  return currentDiario;
+}
+
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  setSaveStatus('Salvando...');
+  saveTimer = setTimeout(() => saveCurrent(), 800);
+}
+
+async function loadToday() {
+  await loadDay(todayId());
+}
+
+async function saveCurrent() {
+  try {
+    collectFormData();
+    await saveDiario(currentDiario);
+    setSaveStatus('Salvo ✓');
+    if (typeof refreshCalendarDates === 'function') refreshCalendarDates();
+  } catch (err) {
+    setSaveStatus('Erro ao salvar');
+    console.error(err);
+  }
+}
+
+function setSaveStatus(msg) {
+  const el = document.getElementById('saveStatus');
+  if (el) el.textContent = msg;
+}
+
+  </script>
+  <script>
+async function initApp() {
+  setSaveStatus('Conectando ao Supabase...');
+  initTheme();
+  initTabs();
+  initModals();
+  initGraficoDia();
+  initCalendar();
+  initHistory();
+  await loadDay(todayId());
+
+  document.getElementById('btnSave').addEventListener('click', saveCurrent);
+  document.getElementById('comentarioPreTrade').addEventListener('input', scheduleSave);
+  document.getElementById('comentarioGeral').addEventListener('input', scheduleSave);
+
+  document.getElementById('btnTheme').addEventListener('click', toggleTheme);
+
+  document.getElementById('btnHistory').addEventListener('click', openHistory);
+
+  document.getElementById('btnExport').addEventListener('click', async () => {
+    const dateInput = document.getElementById('exportPdfDate');
+    if (dateInput) {
+      dateInput.value = currentDiario?.data || todayId();
+      dateInput.max = todayId();
+    }
+    await refreshBackupStatuses();
+    openModal('exportModal');
+  });
+
+  document.getElementById('btnBackupCSV').addEventListener('click', async () => {
+    await runBackupAction('btnBackupCSV', backupCSV);
+  });
+
+  document.getElementById('btnBackupJSON').addEventListener('click', async () => {
+    await runBackupAction('btnBackupJSON', backupJSON);
+  });
+
+  document.getElementById('btnExportCSV').addEventListener('click', exportCSV);
+  document.getElementById('btnExportJSON').addEventListener('click', exportJSON);
+  document.getElementById('btnExportPDF').addEventListener('click', exportDayPDF);
+
+  document.getElementById('btnLinkBackupCsv').addEventListener('click', async () => {
+    try {
+      const name = await linkBackupCsvFile();
+      if (name) alert(`Arquivo CSV vinculado: ${name}`);
+    } catch (err) {
+      if (err?.name !== 'AbortError') alert('Erro ao vincular CSV: ' + err.message);
+    }
+  });
+
+  document.getElementById('btnUnlinkBackupCsv').addEventListener('click', async () => {
+    await unlinkBackupCsvFile();
+    alert('Vínculo com o arquivo CSV removido.');
+  });
+
+  document.getElementById('btnLinkBackupJson').addEventListener('click', async () => {
+    try {
+      const name = await linkBackupJsonFile();
+      if (name) alert(`Arquivo JSON vinculado: ${name}`);
+    } catch (err) {
+      if (err?.name !== 'AbortError') alert('Erro ao vincular JSON: ' + err.message);
+    }
+  });
+
+  document.getElementById('btnUnlinkBackupJson').addEventListener('click', async () => {
+    await unlinkBackupJsonFile();
+    alert('Vínculo com o arquivo JSON removido.');
+  });
+
+  document.getElementById('btnImportJSON').addEventListener('click', () => {
+    document.getElementById('importFile').click();
+  });
+
+  document.getElementById('btnRestoreBackupCsv').addEventListener('click', async () => {
+    await runRestoreAction('btnRestoreBackupCsv', restoreBackupCsv);
+  });
+
+  document.getElementById('btnRestoreBackupJson').addEventListener('click', async () => {
+    await runRestoreAction('btnRestoreBackupJson', restoreBackupJson);
+  });
+
+  document.getElementById('importFile').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const count = await importJSON(file);
+      alert(`${count} registro(s) importado(s) com sucesso.`);
+      closeModal('exportModal');
+      if (typeof refreshCalendarDates === 'function') await refreshCalendarDates();
+      await loadDay(todayId());
+    } catch (err) {
+      alert('Erro ao importar: ' + err.message);
+    }
+    e.target.value = '';
+  });
+
+  // Service Worker desativado na versão Supabase
+}
+
+function initTabs() {
+  document.querySelectorAll('.tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById(`tab-${tab.dataset.tab}`).classList.add('active');
+    });
+  });
+}
+
+function initTheme() {
+  const saved = localStorage.getItem('trader-diary-theme') || 'dark';
+  applyTheme(saved);
+}
+
+function toggleTheme() {
+  const current = document.documentElement.dataset.theme || 'dark';
+  const next = current === 'light' ? 'dark' : 'light';
+  applyTheme(next);
+  localStorage.setItem('trader-diary-theme', next);
+}
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  const btn = document.getElementById('btnTheme');
+  btn.textContent = theme === 'light' ? '🌙' : '☀️';
+  btn.title = theme === 'light' ? 'Tema escuro' : 'Tema claro';
+  document.querySelector('meta[name="theme-color"]').content = theme === 'light' ? '#f8fafc' : '#0f172a';
+}
+
+document.addEventListener('DOMContentLoaded', initApp);
+
+async function runBackupAction(buttonId, backupFn) {
+  const btn = document.getElementById(buttonId);
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Atualizando...';
+  try {
+    const result = await backupFn();
+    if (result.cancelled) return;
+    if (result.updated === 0) {
+      alert(result.message);
+      return;
+    }
+    let msg = result.message;
+    if (result.usedDownloadFallback) {
+      msg += ' O arquivo atualizado foi baixado — substitua o backup anterior por ele.';
+    }
+    alert(msg);
+  } catch (err) {
+    if (err?.name !== 'AbortError') {
+      alert('Erro no backup: ' + err.message);
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+async function runRestoreAction(buttonId, restoreFn) {
+  const btn = document.getElementById(buttonId);
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Restaurando...';
+  try {
+    const result = await restoreFn();
+    if (result.cancelled) return;
+    alert(`${result.count} dia(s) restaurado(s) de ${result.source}.`);
+    closeModal('exportModal');
+    if (typeof refreshCalendarDates === 'function') await refreshCalendarDates();
+    await loadDay(todayId());
+  } catch (err) {
+    if (err?.name !== 'AbortError') {
+      alert('Erro ao restaurar: ' + err.message);
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+  </script>
+
+  <script>
+// ── Sincronização e status de conexão ────────────────────────
+function showSyncBanner(msg, isError = false) {
+  const banner = document.getElementById('syncBanner');
+  const msgEl  = document.getElementById('syncMsg');
+  banner.style.display = 'flex';
+  banner.className = 'sync-banner' + (isError ? ' error' : '');
+  msgEl.textContent = msg;
+  if (!isError) {
+    setTimeout(() => { banner.style.display = 'none'; }, 3000);
+  }
+}
+
+// Botão de sync manual
+document.addEventListener('DOMContentLoaded', () => {
+  const btnSync = document.getElementById('btnSync');
+  if (btnSync) {
+    btnSync.addEventListener('click', async () => {
+      btnSync.disabled = true;
+      btnSync.textContent = '⏳';
+      try {
+        await refreshCalendarDates();
+        await loadDay(selectedDateId || todayId());
+        showSyncBanner('Sincronizado com Supabase ✓');
+      } catch(e) {
+        showSyncBanner('Erro ao sincronizar: ' + e.message, true);
+      } finally {
+        btnSync.disabled = false;
+        btnSync.textContent = '🔄 Sync';
+      }
+    });
+  }
+});
+  </script>
+</body>
+</html>
