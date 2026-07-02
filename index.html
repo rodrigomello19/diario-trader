@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Diário de Trader — registro diário de operações">
+  <meta name="description" content="Diário de Trading — registro diário de operações">
   <meta name="theme-color" content="#0f172a">
-  <title>Diário de Trader</title>
+  <title>Diário de Trading</title>
   <style>
 :root,
 [data-theme="light"] {
@@ -20,7 +20,7 @@
   --primary: #2563eb;
   --primary-hover: #1d4ed8;
   --primary-light: #dbeafe;
-  --danger: #dc2626;
+  --danger: #ef4444;
   --danger-bg: #fef2f2;
   --warning: #d97706;
   --warning-bg: #fffbeb;
@@ -44,7 +44,7 @@
   --primary: #3b82f6;
   --primary-hover: #60a5fa;
   --primary-light: #1e3a5f;
-  --danger: #f87171;
+  --danger: #ff5555;
   --danger-bg: #450a0a;
   --warning: #fbbf24;
   --warning-bg: #451a03;
@@ -188,10 +188,14 @@ body {
 
 .cal-day--verde .cal-day-dot { background: var(--success); }
 .cal-day--amarelo .cal-day-dot { background: var(--warning); }
+.cal-day--alerta .cal-day-dot { background: #e67e22; }
+.cal-day--azul .cal-day-dot { background: #3b82f6; }
 .cal-day--vermelho .cal-day-dot { background: var(--danger); }
 
 .cal-day--selected.cal-day--verde .cal-day-dot,
 .cal-day--selected.cal-day--amarelo .cal-day-dot,
+.cal-day--selected.cal-day--alerta .cal-day-dot,
+.cal-day--selected.cal-day--azul .cal-day-dot,
 .cal-day--selected.cal-day--vermelho .cal-day-dot { background: #fff; }
 
 .calendar-legend {
@@ -324,11 +328,14 @@ body {
 
 .chip:hover { border-color: var(--primary); color: var(--primary); }
 
-.chip.selected {
-  background: var(--primary-light);
-  border-color: var(--primary);
-  color: var(--primary);
+.chip.selected,
+.option-btn.selected,
+.nota-btn.selected {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: #3b82f6;
+  color: #3b82f6;
   font-weight: 500;
+  box-shadow: none;
 }
 
 .chip-estrategia {
@@ -343,33 +350,16 @@ body {
 
 .chip-estrategia strong { font-size: 0.95rem; }
 .chip-estrategia small { font-size: 0.75rem; color: var(--text-muted); font-weight: 400; }
-.chip-estrategia.selected small { color: var(--primary); }
+.chip-estrategia.selected small { color: #3b82f6; }
 
-/* Disposição — blocos por contexto */
-.context-block {
+/* Disposição — lista contínua com divisores */
+.disposicao-list {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 16px 18px;
-  margin-bottom: 16px;
-  background: var(--bg-input);
-}
-
-.context-header {
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border);
-}
-
-.context-header h3 {
-  font-size: 1rem;
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.context-header p {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  margin: 0;
 }
 
 .disposicao-item {
@@ -382,6 +372,14 @@ body {
   padding-bottom: 0;
 }
 
+.disposicao-question {
+  font-size: 0.88rem;
+  font-weight: 400;
+  color: var(--text);
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
 .disposicao-label {
   font-size: 0.95rem;
   font-weight: 600;
@@ -390,10 +388,28 @@ body {
 }
 
 .disposicao-hint {
-  font-size: 0.82rem;
-  color: var(--text-muted);
-  margin-bottom: 12px;
+  font-size: 0.85rem;
   line-height: 1.45;
+  color: var(--text-muted);
+  margin: 0 0 12px;
+  padding-left: 12px;
+  border-left: 3px solid var(--border-strong);
+}
+
+.option-group-trio {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.disposicao-item .option-group-trio .option-btn,
+.maestria-tendencia-field .option-group-trio .option-btn {
+  width: 100%;
+  text-align: center;
+  padding: 10px 8px;
+  white-space: normal;
+  min-height: 44px;
+  line-height: 1.25;
 }
 
 .option-group-stack {
@@ -412,6 +428,7 @@ body {
 
 .disposicao-nota {
   width: 100%;
+  margin-top: 10px;
   padding: 8px 12px;
   border: 1.5px solid var(--border);
   border-radius: var(--radius-sm);
@@ -481,11 +498,17 @@ body {
 
 .option-btn:hover { border-color: var(--border-strong); color: var(--text); }
 
-.option-btn.selected {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
-  font-weight: 500;
+.maestria-tendencia-label {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 400;
+  color: var(--text);
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.maestria-tendencia-field .disposicao-nota {
+  background: var(--bg-input);
 }
 
 /* Semáforo */
@@ -536,21 +559,176 @@ body {
   background: var(--danger-bg);
 }
 .semaforo.vermelho .semaforo-value,
-.semaforo.vermelho .semaforo-msg { color: var(--danger); }
+.semaforo.vermelho .semaforo-msg,
+.semaforo.vermelho .semaforo-zona,
+.semaforo.vermelho .semaforo-acao { color: var(--danger); }
 
 .semaforo.amarelo {
   border-color: var(--warning);
   background: var(--warning-bg);
 }
 .semaforo.amarelo .semaforo-value,
-.semaforo.amarelo .semaforo-msg { color: var(--warning); }
+.semaforo.amarelo .semaforo-msg,
+.semaforo.amarelo .semaforo-zona,
+.semaforo.amarelo .semaforo-acao { color: var(--warning); }
+
+.semaforo.alerta {
+  border-color: #e67e22;
+  background: rgba(230, 126, 34, 0.12);
+}
+.semaforo.alerta .semaforo-value,
+.semaforo.alerta .semaforo-msg,
+.semaforo.alerta .semaforo-zona,
+.semaforo.alerta .semaforo-acao { color: #e67e22; }
+
+.semaforo.azul {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.12);
+}
+.semaforo.azul .semaforo-value,
+.semaforo.azul .semaforo-msg,
+.semaforo.azul .semaforo-zona,
+.semaforo.azul .semaforo-acao,
+.semaforo.azul .semaforo-pct { color: #3b82f6; }
+
+.semaforo-pct {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.semaforo-criticos {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--danger);
+  margin-top: 8px;
+  text-align: right;
+}
+
+.ido-grupos {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.ido-grupo {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  text-align: center;
+}
+
+.ido-grupo-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.ido-grupo-score {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.ido-grupo-pct {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.ido-grupo.verde { border-color: var(--success); }
+.ido-grupo.verde .ido-grupo-score { color: var(--success); }
+.ido-grupo.amarelo { border-color: var(--warning); }
+.ido-grupo.amarelo .ido-grupo-score { color: var(--warning); }
+.ido-grupo.alerta { border-color: #e67e22; }
+.ido-grupo.alerta .ido-grupo-score { color: #e67e22; }
+.ido-grupo.vermelho { border-color: var(--danger); }
+.ido-grupo.vermelho .ido-grupo-score { color: var(--danger); }
+.ido-grupo.azul { border-color: #3b82f6; }
+.ido-grupo.azul .ido-grupo-score { color: #3b82f6; }
+
+.disposicao-group-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding: 12px 0 4px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+.disposicao-group-label:first-child {
+  border-top: none;
+  margin-top: 0;
+  padding-top: 0;
+}
 
 .semaforo.verde {
   border-color: var(--success);
   background: var(--success-bg);
 }
 .semaforo.verde .semaforo-value,
-.semaforo.verde .semaforo-msg { color: var(--success); }
+.semaforo.verde .semaforo-msg,
+.semaforo.verde .semaforo-zona,
+.semaforo.verde .semaforo-acao { color: var(--success); }
+
+.semaforo-details {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+}
+
+.semaforo-zona {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+  color: var(--text-muted);
+}
+
+.semaforo-acao {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+.semaforo-euforia {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--warning);
+  margin-top: 8px;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.semaforo-euforia.hidden { display: none; }
+
+.chart-view--readonly {
+  margin-top: 4px;
+  width: 100%;
+}
+
+.chart-view--readonly .chart-preview-frame {
+  cursor: default;
+}
+
+.maestria-chart-empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  padding: 24px 12px;
+}
+
+.maestria-chart-empty.hidden { display: none; }
 
 /* Chart upload */
 .chart-upload {
@@ -630,10 +808,6 @@ body {
   display: block;
   pointer-events: none;
   user-select: none;
-}
-
-.chart-preview.chart-preview--fill {
-  object-fit: cover;
 }
 
 .chart-zoom-row {
@@ -735,6 +909,55 @@ body {
   border-top: 1px solid var(--border);
 }
 
+.trade-multi-add {
+  width: 100%;
+}
+
+.trade-multi-selected {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 44px;
+  align-items: flex-start;
+}
+
+.trade-multi-empty {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.trade-multi-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 10px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid #3b82f6;
+  color: #3b82f6;
+  font-size: 0.82rem;
+  line-height: 1.3;
+}
+
+.trade-multi-tag-remove {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0 2px;
+  cursor: pointer;
+  opacity: 0.85;
+}
+
+.trade-multi-tag-remove:hover { opacity: 1; }
+
 /* Form fields */
 .field { margin-bottom: 16px; }
 
@@ -801,12 +1024,6 @@ textarea { resize: vertical; min-height: 80px; }
 }
 
 .nota-btn:hover { border-color: var(--border-strong); }
-
-.nota-btn.selected {
-  border-color: var(--primary);
-  background: var(--primary-light);
-  color: var(--primary);
-}
 
 /* Score day */
 .score-day {
@@ -928,7 +1145,25 @@ body.modal-open { overflow: hidden; }
 
 .modal-panel.modal-history .modal-header {
   position: static;
+  border-bottom: none;
+}
+
+.history-view-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-card);
   border-bottom: 1px solid var(--border);
+  padding: 12px 24px 16px;
+}
+
+.history-view-tabs .tab {
+  flex: 1;
+  max-width: 220px;
+  border: 1px solid var(--border-strong);
+}
+
+.history-view-tabs .tab.active {
+  border-color: var(--primary);
 }
 
 .history-gallery-title {
@@ -1009,6 +1244,10 @@ body.modal-open { overflow: hidden; }
   padding-bottom: 0;
 }
 
+.stats-grid--history.hidden {
+  display: none;
+}
+
 .history-gallery-wrap {
   padding: 0 24px 32px;
 }
@@ -1079,6 +1318,12 @@ body.modal-open { overflow: hidden; }
   min-width: 0;
 }
 
+.history-day-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .history-day-head {
   display: flex;
   align-items: center;
@@ -1103,6 +1348,8 @@ body.modal-open { overflow: hidden; }
 
 .status-pill.verde { color: var(--success); border-color: var(--success); background: var(--success-bg); }
 .status-pill.amarelo { color: var(--warning); border-color: var(--warning); background: var(--warning-bg); }
+.status-pill.alerta { color: #e67e22; border-color: #e67e22; background: rgba(230, 126, 34, 0.12); }
+.status-pill.azul { color: #3b82f6; border-color: #3b82f6; background: rgba(59, 130, 246, 0.12); }
 .status-pill.vermelho { color: var(--danger); border-color: var(--danger); background: var(--danger-bg); }
 
 .history-day-line {
@@ -1126,20 +1373,102 @@ body.modal-open { overflow: hidden; }
 
 .history-day-trades li:last-child { border-bottom: none; }
 
+.history-day-maestria {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  font-size: 0.85rem;
+}
+
+.history-day-maestria li {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.history-day-maestria li:last-child { border-bottom: none; }
+
+.history-day-selectable {
+  width: 100%;
+  display: block;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s, background 0.15s;
+}
+
+.history-day-selectable:hover {
+  color: var(--primary);
+}
+
 .history-card-empty { font-style: italic; }
 
 .history-day-comment {
   font-size: 0.78rem;
   color: var(--text-muted);
   font-style: italic;
-  margin-top: 4px;
+  margin-top: 12px;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-.history-open-day { margin-top: auto; align-self: flex-start; }
+.history-day-comment strong {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.history-day-trades + .history-day-comment {
+  margin-top: 14px;
+}
+
+.history-day-expandable:not([hidden]) + .history-day-comment--geral {
+  margin-top: 14px;
+}
+
+.history-day-maestria + .history-day-comment--destaques,
+.history-day-expandable:not([hidden]) + .history-day-comment--destaques {
+  margin-top: 14px;
+}
+
+.history-day-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  margin-top: 8px;
+  padding-top: 8px;
+  flex-shrink: 0;
+}
+
+.history-open-day { align-self: auto; }
+
+.history-day-expandable {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.history-day-expandable[hidden] { display: none; }
+
+.history-day-card--text-expanded .history-day-comment {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+  overflow-wrap: anywhere;
+}
+
+.history-day-card--text-expanded .history-day-maestria {
+  display: none;
+}
 
 .modal-header {
   display: flex;
@@ -1184,6 +1513,45 @@ body.modal-open { overflow: hidden; }
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--primary);
+}
+
+.stat-ido-grupos {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 8px;
+  width: auto;
+}
+
+.stat-ido-grupo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 0 0 auto;
+  min-width: 0;
+  text-align: center;
+}
+
+.stat-ido-num {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--primary);
+  line-height: 1.2;
+}
+
+.stat-ido-grupo-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  line-height: 1.2;
+}
+
+.stat-card--ido-grupos {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
 }
 
 .stat-label {
@@ -1387,9 +1755,34 @@ body.modal-open { overflow: hidden; }
   .calendar-card { position: static; }
 }
 
+@media (min-width: 901px) {
+  .history-day-body {
+    height: 100%;
+    min-height: 100%;
+  }
+
+  .history-day-content {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .history-day-actions {
+    margin-top: auto;
+  }
+}
+
 @media (max-width: 900px) {
   .history-day-card {
     grid-template-columns: 1fr;
+  }
+
+  .history-day-body {
+    height: auto;
+    min-height: 0;
+  }
+
+  .history-day-content {
+    flex: 0 0 auto;
   }
 
   .history-day-chart {
@@ -1404,6 +1797,19 @@ body.modal-open { overflow: hidden; }
 }
 
 @media (max-width: 700px) {
+  #app { padding: 12px 8px; }
+
+  #tab-pre .card:first-child {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  #disposicaoContextos .disposicao-list {
+    margin-left: -10px;
+    margin-right: -10px;
+    padding: 12px 10px;
+  }
+
   .chart-preview-frame {
     width: 100%;
     max-width: 700px;
@@ -1415,7 +1821,12 @@ body.modal-open { overflow: hidden; }
   .history-custom-range { flex-wrap: wrap; }
   .stats-grid--history { grid-template-columns: repeat(2, 1fr); }
   .history-gallery-wrap { padding: 0 16px 24px; }
-  #app { padding: 16px; }
+  .ido-grupos { grid-template-columns: 1fr; }
+  .option-group-trio { grid-template-columns: repeat(3, 1fr); }
+  .semaforo { flex-direction: column; align-items: stretch; }
+  .semaforo-details,
+  .semaforo-criticos,
+  .semaforo-euforia { text-align: left; }
   .question-row { flex-direction: column; align-items: flex-start; }
   .option-group { width: 100%; }
   .option-btn { flex: 1; text-align: center; padding: 8px 6px; font-size: 0.8rem; }
@@ -1428,39 +1839,44 @@ body.modal-open { overflow: hidden; }
 }
 
 
-/* Banner de status de sincronização */
+/* Sync banner */
 .sync-banner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 16px;
-  margin-bottom: 12px;
-  background: var(--primary-light);
-  border: 1px solid var(--primary);
-  border-radius: var(--radius-sm);
-  font-size: 0.82rem;
-  color: var(--text-muted);
+  display:flex; align-items:center; gap:10px;
+  padding:8px 16px; margin-bottom:12px;
+  background:var(--primary-light); border:1px solid var(--primary);
+  border-radius:var(--radius-sm); font-size:0.82rem; color:var(--text-muted);
 }
-.sync-banner.error {
-  background: var(--danger-bg);
-  border-color: var(--danger);
-  color: var(--danger);
-}
-.sync-dot {
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  background: var(--primary);
-  flex-shrink: 0;
-}
-.sync-banner.error .sync-dot { background: var(--danger); }
+.sync-banner.error { background:var(--danger-bg); border-color:var(--danger); color:var(--danger); }
+.sync-dot { width:8px; height:8px; border-radius:50%; background:var(--primary); flex-shrink:0; }
+.sync-banner.error .sync-dot { background:var(--danger); }
 
-  </style>
+/* Header empilhado para mobile */
+.header { flex-direction:column; align-items:flex-start; gap:8px; }
+.header-actions { width:100%; justify-content:flex-end; }
+
+/* Botão sync abaixo do calendário */
+.btn-sync-cal { width:100%; margin-top:8px; gap:6px; }
+
+/* Botão adicionar trade */
+.add-trade-bar { display:flex; justify-content:center; margin:0 0 16px; }
+
+  
+/* Botão excluir trade no summary */
+.trade-summary { display:flex; align-items:center; gap:8px; }
+.trade-summary .trade-remove {
+  margin-left:auto; padding:2px 8px; font-size:0.85rem;
+  opacity:0.6; transition:opacity .15s;
+  flex-shrink:0;
+}
+.trade-summary .trade-remove:hover { opacity:1; }
+</style>
 </head>
 <body>
   <div id="app">
+
     <header class="header">
       <div class="header-left">
-        <h1>Diário de Trader</h1>
+        <h1>Diário de Trading</h1>
         <p class="header-date" id="headerDate"></p>
       </div>
       <div class="header-actions">
@@ -1494,14 +1910,15 @@ body.modal-open { overflow: hidden; }
             <span><i class="legend-dot legend-filled"></i> Preenchido</span>
           </div>
           <button type="button" class="btn btn-primary btn-block" id="btnGoToday">Ir para hoje</button>
+          <button type="button" class="btn btn-ghost btn-block btn-sync-cal" id="btnSync">🔄 Sincronizar</button>
         </div>
       </aside>
 
       <div class="main-content">
         <nav class="tabs" role="tablist">
           <button type="button" class="tab active" data-tab="pre" role="tab">Pré-trade</button>
-          <button type="button" class="btn btn-ghost btn-sm" id="btnSync" title="Sincronizar agora" style="margin-left:auto">🔄 Sync</button>
           <button type="button" class="tab" data-tab="pos" role="tab">Pós-trade</button>
+          <button type="button" class="tab" data-tab="maestria" role="tab">Análise Maestria</button>
         </nav>
 
         <main>
@@ -1509,15 +1926,21 @@ body.modal-open { overflow: hidden; }
           <section id="tab-pre" class="tab-panel active">
             <div class="card">
               <h2>Disposição para operar</h2>
-              <p class="card-hint">Avalie cada condição antes de entrar no mercado. Responda todas para ver o semáforo.</p>
+              <p class="card-hint">Responda em menos de 1 minuto. O IDO mede a probabilidade de executar seu plano com disciplina hoje — não prevê lucro.</p>
               <div id="disposicaoContextos"></div>
               <div class="semaforo" id="semaforo">
                 <div class="semaforo-score">
-                  <span class="semaforo-label">Score</span>
+                  <span class="semaforo-label">IDO</span>
                   <span class="semaforo-value" id="scoreValue">—</span>
-                  <span class="semaforo-max">/ 16</span>
+                  <span class="semaforo-max">/ 28</span>
+                  <span class="semaforo-pct" id="scorePercent"></span>
                 </div>
-                <p class="semaforo-msg" id="semaforoMsg">Responda todas as condições acima</p>
+                <div class="semaforo-details">
+                  <p class="semaforo-zona" id="semaforoZona"></p>
+                  <p class="semaforo-msg" id="semaforoMsg">Responda todas as condições acima</p>
+                  <p class="semaforo-acao" id="semaforoAcao"></p>
+                  <p class="semaforo-criticos hidden" id="semaforoCriticos"></p>
+                </div>
               </div>
             </div>
 
@@ -1529,7 +1952,6 @@ body.modal-open { overflow: hidden; }
 
             <div class="card">
               <h2>Rotina e preparação pré-trade</h2>
-              <p class="card-hint">O que fez antes de operar e comentários pertinentes</p>
               <textarea id="comentarioPreTrade" rows="5"
                 placeholder="Ex.: análise do gráfico, leitura de contexto, revisão do plano, alongamento, meditação..."></textarea>
             </div>
@@ -1539,7 +1961,6 @@ body.modal-open { overflow: hidden; }
           <section id="tab-pos" class="tab-panel">
             <div class="card">
               <h2>Print do gráfico do dia</h2>
-              <p class="card-hint">Cole ou selecione o print. Use <strong>Preencher quadro</strong> para ocupar todo o espaço (700×350). Ajuste com Ampliação se precisar.</p>
               <div class="chart-upload" id="chartUpload">
                 <input type="file" id="chartFileInput" accept="image/*" hidden>
                 <div class="chart-dropzone" id="chartDropzone" tabindex="0">
@@ -1556,15 +1977,20 @@ body.modal-open { overflow: hidden; }
                   <label for="chartZoomRange">Ampliação</label>
                   <input type="range" id="chartZoomRange" min="50" max="500" step="5" value="100">
                   <span class="chart-zoom-value" id="chartZoomValue">100%</span>
-                  <button type="button" class="btn btn-ghost btn-sm" id="btnChartFit">Preencher quadro</button>
+                  <label for="chartStretchXRange">Esticar horizontal</label>
+                  <input type="range" id="chartStretchXRange" min="50" max="300" step="5" value="100">
+                  <span class="chart-zoom-value" id="chartStretchXValue">100%</span>
                 </div>
                 <div class="chart-actions hidden" id="chartActions">
-                  <button type="button" class="btn btn-ghost" id="btnChartReplace">Trocar imagem</button>
                   <button type="button" class="btn btn-ghost btn-danger" id="btnChartRemove">Remover</button>
                 </div>
               </div>
             </div>
+
             <div id="tradesContainer"></div>
+            <div class="add-trade-bar">
+              <button type="button" class="btn btn-ghost" id="btnAddTrade">+ Adicionar trade</button>
+            </div>
 
             <div class="card">
               <h2>Comentário geral sobre o dia</h2>
@@ -1574,6 +2000,70 @@ body.modal-open { overflow: hidden; }
             <div class="save-bar">
               <span class="save-status" id="saveStatus">Pronto</span>
               <button type="button" class="btn btn-primary" id="btnSave">Salvar dia</button>
+            </div>
+          </section>
+
+          <!-- ANÁLISE MAESTRIA -->
+          <section id="tab-maestria" class="tab-panel">
+            <div class="card">
+              <h2>Gráfico do dia</h2>
+              <div class="chart-view chart-view--readonly" id="maestriaChartView">
+                <p class="maestria-chart-empty" id="maestriaChartEmpty">Adicione o print na aba Pós-trade para analisar aqui.</p>
+                <div class="chart-preview-frame hidden" id="maestriaChartPreviewFrame">
+                  <img id="maestriaChartPreview" class="chart-preview" alt="Gráfico do dia">
+                </div>
+              </div>
+              <div class="chart-zoom-row hidden" id="maestriaChartZoomRow">
+                <label for="maestriaChartZoomRange">Ampliação</label>
+                <input type="range" id="maestriaChartZoomRange" min="50" max="500" step="5" value="100">
+                <span class="chart-zoom-value" id="maestriaChartZoomValue">100%</span>
+                <label for="maestriaChartStretchXRange">Esticar horizontal</label>
+                <input type="range" id="maestriaChartStretchXRange" min="50" max="300" step="5" value="100">
+                <span class="chart-zoom-value" id="maestriaChartStretchXValue">100%</span>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>Contexto do mercado</h2>
+              <div class="field maestria-tendencia-field">
+                <span class="maestria-tendencia-label">Contexto macro</span>
+                <div class="option-group-trio" id="maestriaContextoMacroGroup" data-maestria-trend="contextoMacro" role="group" aria-label="Tendência do contexto macro">
+                  <button type="button" class="option-btn" data-trend="baixa">Baixa</button>
+                  <button type="button" class="option-btn" data-trend="lateral">Lateral</button>
+                  <button type="button" class="option-btn" data-trend="alta">Alta</button>
+                </div>
+                <textarea id="maestriaContextoMacroNota" class="disposicao-nota" rows="2"
+                  placeholder="Observação (opcional)..."></textarea>
+              </div>
+              <div class="field maestria-tendencia-field">
+                <span class="maestria-tendencia-label">Micro ciclo</span>
+                <div class="option-group-trio" id="maestriaMicroCicloGroup" data-maestria-trend="microCiclo" role="group" aria-label="Tendência do micro ciclo">
+                  <button type="button" class="option-btn" data-trend="baixa">Baixa</button>
+                  <button type="button" class="option-btn" data-trend="lateral">Lateral</button>
+                  <button type="button" class="option-btn" data-trend="alta">Alta</button>
+                </div>
+                <textarea id="maestriaMicroCicloNota" class="disposicao-nota" rows="2"
+                  placeholder="Observação (opcional)..."></textarea>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>Análise</h2>
+              <p class="card-hint">Registre a análise da janela</p>
+              <textarea id="maestriaAnalise" rows="8"
+                placeholder="Leitura da janela..."></textarea>
+            </div>
+
+            <div class="card">
+              <h2>Destaques</h2>
+              <p class="card-hint">Pontos principais a lembrar desta análise.</p>
+              <textarea id="maestriaDestaques" rows="5"
+                placeholder="Lições e foco para os próximos dias..."></textarea>
+            </div>
+
+            <div class="save-bar">
+              <span class="save-status" id="saveStatusMaestria">Pronto</span>
+              <button type="button" class="btn btn-primary" id="btnSaveMaestria">Salvar análise</button>
             </div>
           </section>
         </main>
@@ -1586,6 +2076,10 @@ body.modal-open { overflow: hidden; }
         <div class="modal-header">
           <h2 id="historyTitle">Histórico</h2>
           <button type="button" class="btn btn-ghost modal-close" aria-label="Fechar">✕</button>
+        </div>
+        <div class="history-view-tabs" role="tablist" aria-label="Tipo de histórico">
+          <button type="button" class="tab active" data-history-view="trading" role="tab" aria-selected="true">Trading</button>
+          <button type="button" class="tab" data-history-view="maestria" role="tab" aria-selected="false">Maestria</button>
         </div>
         <div class="history-toolbar">
           <select id="historyPreset" class="history-select">
@@ -1601,14 +2095,10 @@ body.modal-open { overflow: hidden; }
             <label class="sr-only" for="historyDateTo">Até</label>
             <input type="date" id="historyDateTo">
           </div>
-          <select id="filterEstrategia" class="history-select">
-            <option value="">Todas estratégias</option>
-          </select>
-          <button type="button" class="btn btn-primary" id="btnHistoryApply">Atualizar</button>
         </div>
         <p class="history-period-label" id="historyPeriodLabel"></p>
         <div class="stats-grid stats-grid--history" id="statsGrid"></div>
-        <h3 class="history-gallery-title">Dias do período</h3>
+        <h3 class="history-gallery-title" id="historyGalleryTitle">Dias do período</h3>
         <div class="history-gallery-wrap" id="historyGallery"></div>
       </div>
     </div>
@@ -1665,167 +2155,182 @@ body.modal-open { overflow: hidden; }
 
   </div>
 
-  <script>
-const CONFIG = {
+  <script>const CONFIG = {
   estrategias: [
-    { id: 'PCR', label: 'PCR', desc: 'Padrão Climática de Reversão' },
-    { id: 'CCE', label: 'CCE', desc: 'Contra climática de exaustão' },
-    { id: 'LK', label: 'LK', desc: 'Last Kiss' },
-    { id: 'FD', label: 'FD', desc: 'Falha dupla' },
-    { id: 'PC', label: 'PC', desc: 'Padrão Climática' },
-    { id: 'CCLK', label: 'CCLK', desc: 'Contra climática em contexto Last Kiss' }
+    { id: 'BI',   label: 'BI',   desc: 'Barra ignorada' },
+    { id: 'CCE',  label: 'CCE',  desc: 'Contra climática de exaustão' },
+    { id: 'CCFD', label: 'CCFD', desc: 'Contra climática contexto Falha Dupla' },
+    { id: 'CCLK', label: 'CCLK', desc: 'Contra climática em contexto Last Kiss' },
+    { id: 'FD',   label: 'FD',   desc: 'Falha dupla' },
+    { id: 'LK',   label: 'LK',   desc: 'Last Kiss' },
+    { id: 'PC',   label: 'PC',   desc: 'Padrão Climática' },
+    { id: 'PCR',  label: 'PCR',  desc: 'Padrão Climática de Reversão' },
+    { id: 'PE',   label: 'PE',   desc: 'Padrão elástico' },
+    { id: 'FE',   label: 'FE',   desc: 'Fora da estratégia' }
   ],
 
   disposicaoContextos: [
     {
-      id: 'mental',
-      title: 'Estado mental e emocional',
-      desc: 'Condições no momento de entrar no trade',
+      id: 'ido',
+      title: '',
+      desc: '',
       questions: [
         {
           id: 'estadoEmocional',
-          label: 'Estado emocional no momento de entrar no trade',
-          hint: 'Avalie como você se sente agora antes de iniciar a janela.',
+          weight: 2,
+          critical: true,
+          label: 'Como você se sente antes da janela?',
+          hint: 'Avalie seu estado emocional neste momento. O ideal é estar calmo, equilibrado e sem excesso de medo ou euforia.',
           options: [
-            { label: 'Inseguro', value: 0 },
-            { label: 'Neutro/controlado', value: 1 },
-            { label: 'Agitado', value: 2 }
+            { label: 'Inseguro', value: 0, score: 0 },
+            { label: 'Neutro', value: 1, score: 2 },
+            { label: 'Agitado', value: 2, score: 0 }
           ]
         },
         {
           id: 'foco',
-          label: 'Nível de foco e concentração',
-          hint: 'Considere distrações, fadiga mental e capacidade de seguir o plano.',
+          weight: 2,
+          critical: true,
+          label: 'Como está seu foco?',
+          hint: 'Considere seu nível de concentração, clareza mental e capacidade de seguir seu plano sem distrações.',
           options: [
-            { label: 'Baixo', value: 0 },
-            { label: 'Médio', value: 1 },
-            { label: 'Alto', value: 2 }
+            { label: 'Baixo', value: 0, score: 0 },
+            { label: 'Médio', value: 1, score: 1 },
+            { label: 'Alto', value: 2, score: 2 }
           ]
         },
         {
-          id: 'pensamentos',
-          label: 'Pensamentos intrusivos ou preocupações',
-          hint: 'Observe se algo fora do mercado está ocupando sua mente.',
+          id: 'presencaMental',
+          weight: 2,
+          critical: true,
+          label: 'Você está realmente presente?',
+          hint: 'Observe se sua mente está livre de preocupações pessoais, revenge trade ou pensamentos que possam desviar sua atenção do mercado.',
           options: [
-            { label: 'Estou abalado', value: 0 },
-            { label: 'Algo me preocupa mas consigo operar', value: 1 },
-            { label: 'Totalmente presente', value: 2 }
-          ]
-        }
-      ]
-    },
-    {
-      id: 'fisico',
-      title: 'Preparação física',
-      desc: 'Condição corporal antes da sessão',
-      questions: [
-        {
-          id: 'sono',
-          label: 'Como foi meu sono desta noite?',
-          hint: 'Considere horas dormidas e qualidade percebida ao acordar.',
-          options: [
-            { label: 'Fraco', value: 0 },
-            { label: 'Razoável', value: 1 },
-            { label: 'Bom', value: 2 }
-          ]
-        }
-      ]
-    },
-    {
-      id: 'operacional',
-      title: 'Contexto operacional',
-      desc: 'Preparação prática para a sessão de trading',
-      questions: [
-        {
-          id: 'tradeOntem',
-          label: 'Como foi meu trade de ontem?',
-          hint: 'Reflita sobre o resultado e como isso pode influenciar hoje.',
-          options: [
-            { label: 'Loss', value: 0 },
-            { label: 'Break even', value: 1 },
-            { label: 'Gain', value: 2 }
-          ]
-        },
-        {
-          id: 'tempo',
-          label: 'Tempo disponível para operar',
-          hint: 'Avalie se terá tempo de acompanhar as operações com calma.',
-          options: [
-            { label: 'Apertada', value: 0 },
-            { label: 'Parcial', value: 1 },
-            { label: 'Sessão completa', value: 2 }
-          ]
-        },
-        {
-          id: 'planoClareza',
-          label: 'Clareza do plano de trade',
-          hint: 'Você sabe quais setups vai operar e em quais condições?',
-          options: [
-            { label: 'Sem plano claro', value: 0 },
-            { label: 'Parcialmente definido', value: 1 },
-            { label: 'Plano definido', value: 2 }
+            { label: 'Disperso', value: 0, score: 0 },
+            { label: 'Parcial', value: 1, score: 1 },
+            { label: 'Presente', value: 2, score: 2 }
           ]
         },
         {
           id: 'paciencia',
-          label: 'Nível de paciência percebida',
-          hint: 'Perceba se está ansioso para entrar ou disposto a esperar.',
+          weight: 2,
+          critical: false,
+          label: 'Como está sua paciência?',
+          hint: 'Avalie sua disposição para esperar apenas os melhores setups, sem ansiedade para entrar no mercado.',
           options: [
-            { label: 'Baixa', value: 0 },
-            { label: 'Normal', value: 1 },
-            { label: 'Alta', value: 2 }
+            { label: 'Ansioso', value: 0, score: 0 },
+            { label: 'Normal', value: 1, score: 2 },
+            { label: 'Paciente', value: 2, score: 2 }
+          ]
+        },
+        {
+          id: 'sono',
+          weight: 1,
+          critical: false,
+          label: 'Como foi seu sono?',
+          hint: 'Considere a qualidade do seu descanso e como você acordou hoje, não apenas a quantidade de horas dormidas.',
+          options: [
+            { label: 'Ruim', value: 0, score: 0 },
+            { label: 'Regular', value: 1, score: 1 },
+            { label: 'Bom', value: 2, score: 2 }
+          ]
+        },
+        {
+          id: 'energia',
+          weight: 1,
+          critical: false,
+          label: 'Como está sua energia?',
+          hint: 'Avalie seu nível de disposição física e mental para permanecer atento durante toda a sessão.',
+          options: [
+            { label: 'Baixa', value: 0, score: 0 },
+            { label: 'Normal', value: 1, score: 1 },
+            { label: 'Alta', value: 2, score: 2 }
+          ]
+        },
+        {
+          id: 'tempo',
+          weight: 1,
+          critical: false,
+          label: 'Tempo disponível para operar?',
+          hint: 'Verifique se você terá tempo suficiente para acompanhar as operações com tranquilidade, sem interrupções ou pressa.',
+          options: [
+            { label: 'Curto', value: 0, score: 0 },
+            { label: 'Parcial', value: 1, score: 1 },
+            { label: 'Completo', value: 2, score: 2 }
+          ]
+        },
+        {
+          id: 'influenciaPregaoAnterior',
+          weight: 1,
+          critical: false,
+          label: 'O pregão anterior ainda influencia você?',
+          hint: 'Reflita se o resultado de ontem ainda desperta vontade de recuperar perdas, provar algo ou interfere nas decisões de hoje.',
+          options: [
+            { label: 'Sim', value: 0, score: 0 },
+            { label: 'Pouco', value: 1, score: 1 },
+            { label: 'Não', value: 2, score: 2 }
+          ]
+        },
+        {
+          id: 'confianca',
+          weight: 2,
+          critical: true,
+          label: 'Como está sua confiança?',
+          hint: 'Confie no seu plano, não no resultado. O objetivo é operar com equilíbrio, aceitando tanto o gain quanto o loss sem necessidade de provar nada ao mercado.',
+          options: [
+            { label: 'Baixa', value: 0, score: 0 },
+            { label: 'Normal', value: 1, score: 2 },
+            { label: 'Excessiva', value: 2, score: 0 }
           ]
         }
       ]
     }
   ],
 
-  disposicaoScoreMax: 16,
+  disposicaoScoreMax: 28,
 
   notas: ['A', 'B', 'C'],
 
   falhas: [
-    'Entrei antes do setup',
-    'Stop mal posicionado',
-    'Não respeitei o plano',
-    'Overtrade',
-    'Saí antecipada',
-    'Saí tarde demais',
-    'Tamanho de posição inadequado',
+    'Entrei antes do gatilho',
+    'Falha na leitura de contexto',
+    'Impulsivo',
+    'Lote inadequado',
+    'Não coloquei stop na mínima',
+    'Não defendi',
     'Não esperei confirmação',
-    'Operou fora do plano',
+    'Não respeitei o plano',
+    'Não saí no acionamento TS',
+    'Overtrade',
+    'Saí tarde demais',
+    'Saída antecipada',
     'Outro'
   ],
 
-  conducoes: [
-    'Excelente',
-    'Boa',
-    'Razoável',
-    'Fraca',
-    'Péssima'
-  ],
+  conducoes: ['Excelente','Boa','Razoável','Fraca','Péssima'],
 
   aspectosPositivos: [
-    'Respeitei o stop',
-    'Esperei confirmação',
-    'Gestão de risco adequada',
-    'Segui o plano',
-    'Disciplina emocional',
+    'Aguardei gatilho',
     'Boa leitura de contexto',
+    'Coloquei stop na mínima',
+    'Defesa',
+    'Disciplina',
+    'Esperei formação da estratégia',
     'Paciência na entrada',
+    'Respeitei o plano',
+    'Saída correta',
+    'Saída no acionamento TS',
     'Outro'
   ],
 
-  numTrades: 3
+  numTrades: 0
 };
 
 function getAllDisposicaoQuestions() {
   return CONFIG.disposicaoContextos.flatMap((c) => c.questions);
 }
-
-  </script>
-  <script>
-// ── Supabase config ──────────────────────────────────────────
+</script>
+  <script>// ── Supabase config ──────────────────────────────────────────
 const SUPABASE_URL = 'https://xwglwypaossvukgexlcm.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3Z2x3eXBhb3NzdnVrZ2V4bGNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3NDM3MjQsImV4cCI6MjA5ODMxOTcyNH0.ZRcOCENuMEoydmvmvOZo9xVbYjhtFOgQr3oWa__paQw';
 
@@ -1894,7 +2399,7 @@ async function getDiario(id) {
 }
 
 async function saveDiario(record) {
-  const payload = { ...record };
+  const payload = stripSyncedChartViewFields(record);
   await sbFetch('/rest/v1/diarios', {
     method: 'POST',
     headers: sbHeaders({ 'Prefer': 'resolution=merge-duplicates,return=representation' }),
@@ -1924,12 +2429,15 @@ async function deleteDiario(id) {
 }
 
 async function importDiarios(records) {
-  const rows = records.map(r => ({
-    id: r.id,
-    data: r.data,
-    payload: r,
-    atualizado_em: r.atualizadoEm || new Date().toISOString()
-  }));
+  const rows = records.map((r) => {
+    const payload = stripSyncedChartViewFields(r);
+    return {
+      id: r.id,
+      data: r.data,
+      payload,
+      atualizado_em: r.atualizadoEm || new Date().toISOString()
+    };
+  });
   // Envia em lotes de 50 para não estourar limite da API
   for (let i = 0; i < rows.length; i += 50) {
     const batch = rows.slice(i, i + 50);
@@ -1953,6 +2461,11 @@ function formatDateId(date) {
 function parseDateId(dateId) {
   const [y, m, d] = dateId.split('-').map(Number);
   return new Date(y, m - 1, d);
+}
+
+function isWeekend(dateId) {
+  const day = parseDateId(dateId).getDay();
+  return day === 0 || day === 6;
 }
 
 function addDaysToDateId(dateId, delta) {
@@ -1981,8 +2494,11 @@ function normalizeProntidao(prontidao) {
   const empty = emptyProntidao();
   if (!prontidao || typeof prontidao !== 'object') return empty;
 
+  const copy = { ...prontidao };
+  migrateLegacyProntidaoKeys(copy);
+
   getAllDisposicaoQuestions().forEach((q) => {
-    const entry = prontidao[q.id];
+    const entry = copy[q.id];
     if (entry === undefined || entry === null) return;
     if (typeof entry === 'number') {
       empty[q.id].valor = entry;
@@ -2001,6 +2517,19 @@ function diarioHasContent(d) {
     d.comentarioPreTrade ||
     d.comentarioGeral    ||
     d.graficoDia         ||
+    (d.planoEstrategias && d.planoEstrategias.length) ||
+    prontidaoHasAnswers(d.prontidao) ||
+    maestriaHasContent(d.maestria) ||
+    (d.trades || []).some(isTradeFilled)
+  );
+}
+
+function diarioHasTradingContent(d) {
+  if (!d) return false;
+  return !!(
+    d.comentarioPreTrade ||
+    d.comentarioGeral ||
+    d.graficoDia ||
     (d.planoEstrategias && d.planoEstrategias.length) ||
     prontidaoHasAnswers(d.prontidao) ||
     (d.trades || []).some(isTradeFilled)
@@ -2045,26 +2574,112 @@ function emptyDiario(id = todayId()) {
       estrategia: '',
       pontos: null,
       nota: '',
-      falha: '',
+      falhas: [],
       falhaOutro: '',
       conducao: '',
-      aspectoPositivo: '',
+      aspectosPositivos: [],
       aspectoOutro: '',
       comentario: ''
     })),
     graficoDia: null,
     graficoZoom: 100,
-    graficoFillMode: null,
+    graficoStretchX: 100,
     comentarioPreTrade: '',
     comentarioGeral: '',
+    maestria: emptyMaestria(),
     criadoEm: new Date().toISOString(),
     atualizadoEm: new Date().toISOString()
   };
 }
 
-  </script>
-  <script>
-function getProntidaoValor(prontidao, key) {
+function emptyMaestria() {
+  return {
+    contextoMacro: '',
+    contextoMacroNota: '',
+    microCiclo: '',
+    microCicloNota: '',
+    analise: '',
+    destaques: ''
+  };
+}
+
+const MAESTRIA_TENDENCIAS = [
+  { id: 'baixa', label: 'Baixa' },
+  { id: 'lateral', label: 'Lateral' },
+  { id: 'alta', label: 'Alta' }
+];
+
+function normalizeMaestriaTrend(value) {
+  const v = String(value || '').trim().toLowerCase();
+  return MAESTRIA_TENDENCIAS.some((t) => t.id === v) ? v : '';
+}
+
+function formatMaestriaTrendLabel(trendId) {
+  const item = MAESTRIA_TENDENCIAS.find((t) => t.id === trendId);
+  return item ? item.label : trendId;
+}
+
+function formatMaestriaTrendDisplay(trendId, nota) {
+  const parts = [];
+  if (trendId) parts.push(formatMaestriaTrendLabel(trendId));
+  const text = (nota || '').trim();
+  if (text) parts.push(text);
+  return parts.join(' — ');
+}
+
+function normalizeMaestria(maestria) {
+  const empty = emptyMaestria();
+  if (!maestria || typeof maestria !== 'object') return empty;
+
+  const contextoMacro = normalizeMaestriaTrend(maestria.contextoMacro);
+  const microCiclo = normalizeMaestriaTrend(maestria.microCiclo);
+  let contextoMacroNota = maestria.contextoMacroNota || '';
+  let microCicloNota = maestria.microCicloNota || '';
+
+  const rawMacro = String(maestria.contextoMacro || '').trim();
+  if (!contextoMacro && rawMacro) contextoMacroNota = contextoMacroNota || rawMacro;
+
+  const rawMicro = String(maestria.microCiclo || '').trim();
+  if (!microCiclo && rawMicro) microCicloNota = microCicloNota || rawMicro;
+
+  return {
+    contextoMacro,
+    contextoMacroNota,
+    microCiclo,
+    microCicloNota,
+    analise: maestria.analise || '',
+    destaques: maestria.destaques || ''
+  };
+}
+
+function maestriaHasContent(maestria) {
+  const m = normalizeMaestria(maestria);
+  return !!(
+    m.contextoMacro ||
+    m.contextoMacroNota.trim() ||
+    m.microCiclo ||
+    m.microCicloNota.trim() ||
+    m.analise.trim() ||
+    m.destaques.trim()
+  );
+}
+
+function getMaestriaFieldDisplayText(fieldId, maestria) {
+  const m = normalizeMaestria(maestria);
+  if (fieldId === 'contextoMacro') {
+    return formatMaestriaTrendDisplay(m.contextoMacro, m.contextoMacroNota);
+  }
+  if (fieldId === 'microCiclo') {
+    return formatMaestriaTrendDisplay(m.microCiclo, m.microCicloNota);
+  }
+  return m[fieldId]?.trim() || '';
+}
+
+function maestriaFieldHasDisplay(fieldId, maestria) {
+  return !!getMaestriaFieldDisplayText(fieldId, maestria);
+}
+</script>
+  <script>function getProntidaoValor(prontidao, key) {
   if (!prontidao || !prontidao[key]) return null;
   const entry = prontidao[key];
   if (typeof entry === 'object' && entry !== null) {
@@ -2075,40 +2690,196 @@ function getProntidaoValor(prontidao, key) {
   return null;
 }
 
-function calcScoreProntidao(prontidao) {
-  const keys = getAllDisposicaoQuestions().map((q) => q.id);
-  let total = 0;
-  let answered = 0;
+function getDisposicaoQuestion(id) {
+  return getAllDisposicaoQuestions().find((q) => q.id === id);
+}
 
-  for (const key of keys) {
-    const val = getProntidaoValor(prontidao, key);
-    if (val !== null) {
-      total += val;
-      answered++;
+function getQuestionItemScore(question, storedValue) {
+  if (!question || storedValue === null || storedValue === undefined) return null;
+  const opt = question.options.find((o) => o.value === storedValue);
+  if (!opt) return null;
+  return opt.score !== undefined ? opt.score : opt.value;
+}
+
+function migrateLegacyProntidaoKeys(prontidao) {
+  if (!prontidao || typeof prontidao !== 'object') return;
+  if (prontidao.pensamentos && !prontidao.presencaMental) {
+    prontidao.presencaMental = prontidao.pensamentos;
+  }
+  if (prontidao.tradeOntem && !prontidao.influenciaPregaoAnterior) {
+    const entry = prontidao.tradeOntem;
+    const v = typeof entry === 'object' ? entry.valor : entry;
+    const map = { 0: 0, 1: 1, 2: 2 };
+    prontidao.influenciaPregaoAnterior = {
+      valor: map[v] ?? v,
+      nota: typeof entry === 'object' ? (entry.nota || '') : ''
+    };
+  }
+  const emEntry = prontidao.estadoEmocional;
+  if (emEntry && typeof emEntry === 'object' && emEntry.valor !== null && emEntry.valor !== undefined) {
+    const emMap5 = { 0: 0, 1: 0, 2: 1, 3: 2, 4: 2 };
+    if (emEntry.valor > 2 && emMap5[emEntry.valor] !== undefined) {
+      emEntry.valor = emMap5[emEntry.valor];
+    }
+  }
+  const confEntry = prontidao.confianca;
+  if (confEntry && typeof confEntry === 'object' && confEntry.valor !== null && confEntry.valor !== undefined) {
+    const confMap5 = { 0: 0, 1: 0, 2: 1, 3: 2, 4: 2 };
+    if (confEntry.valor > 2 && confMap5[confEntry.valor] !== undefined) {
+      confEntry.valor = confMap5[confEntry.valor];
+    }
+  }
+}
+
+function getPercentColorClass(percent) {
+  if (percent < 40) return 'vermelho';
+  if (percent < 60) return 'alerta';
+  if (percent < 75) return 'amarelo';
+  if (percent < 90) return 'verde';
+  return 'azul';
+}
+
+function classifyIdoStatus(criticalCount, percent) {
+  const levels = [];
+  if (criticalCount >= 3 || percent < 40) levels.push('nao_operar');
+  if (criticalCount >= 2 || (percent >= 40 && percent < 60)) levels.push('defensivo');
+  if (criticalCount >= 1 || (percent >= 60 && percent < 75)) levels.push('cautela');
+  if (criticalCount === 0 && percent >= 75 && percent < 90) levels.push('normal');
+  if (criticalCount === 0 && percent >= 90) levels.push('excelente');
+
+  const order = ['nao_operar', 'defensivo', 'cautela', 'normal', 'excelente'];
+  return order.find((s) => levels.includes(s)) || 'cautela';
+}
+
+function getNivelOperacional(status) {
+  const labels = {
+    excelente: 'Excelente condição',
+    normal: 'Operação normal',
+    cautela: 'Operar com cautela',
+    defensivo: 'Modo defensivo',
+    nao_operar: 'Não operar',
+    neutra: 'Operação normal',
+    alerta: 'Modo defensivo',
+    proibida: 'Não operar',
+    verde: 'Operação normal',
+    amarelo: 'Operar com cautela',
+    vermelho: 'Não operar'
+  };
+  return labels[status] || '—';
+}
+
+function getRestricaoOperacional(criticalCount) {
+  if (criticalCount >= 3) {
+    return 'Seu estado atual apresenta fatores críticos suficientes para comprometer sua disciplina operacional.';
+  }
+  if (criticalCount === 2) {
+    return 'Alto risco. Lote mínimo. Apenas setups A+. Máximo de 1 operação. Stop diário reduzido.';
+  }
+  if (criticalCount === 1) {
+    return 'Modo defensivo. Reduzir lote em 50%. Máximo de 2 operações. Não aumentar mão. Encerrar após erro operacional relevante.';
+  }
+  return 'Operação normal. Seguir o plano.';
+}
+
+function getStatusDiagnostico(status) {
+  return getNivelOperacional(status);
+}
+
+function getRecomendacoes(status) {
+  const recomendacoes = {
+    excelente: 'Equilíbrio emocional, disciplina e controle. Mantenha o plano sem aumentar risco.',
+    normal: 'Condições adequadas para executar o plano com disciplina.',
+    cautela: 'Redobre a atenção às regras de gerenciamento e seletividade de setups.',
+    defensivo: 'Priorize preservação de capital e execução impecável.',
+    nao_operar: 'Feche a plataforma. Considere exercício, meditação, journaling ou resolver a preocupação identificada.'
+  };
+  return recomendacoes[status] || '';
+}
+
+function getStatusAcao(status) {
+  return getRecomendacoes(status);
+}
+
+function getStatusCssClass(status) {
+  const map = {
+    excelente: 'azul',
+    normal: 'verde',
+    neutra: 'verde',
+    verde: 'verde',
+    cautela: 'amarelo',
+    amarelo: 'amarelo',
+    defensivo: 'alerta',
+    alerta: 'alerta',
+    nao_operar: 'vermelho',
+    proibida: 'vermelho',
+    vermelho: 'vermelho'
+  };
+  return map[status] || 'neutro';
+}
+
+function getZonaLabel(status) {
+  return getNivelOperacional(status);
+}
+
+function getStatusLabel(status) {
+  return getNivelOperacional(status);
+}
+
+function calcScoreProntidao(prontidao) {
+  const questions = getAllDisposicaoQuestions();
+  let weightedScore = 0;
+  let answered = 0;
+  const criticalAlerts = [];
+
+  for (const q of questions) {
+    const storedValue = getProntidaoValor(prontidao, q.id);
+    if (storedValue === null) continue;
+    answered++;
+
+    const itemScore = getQuestionItemScore(q, storedValue);
+    const weighted = itemScore * q.weight;
+    weightedScore += weighted;
+
+    if (q.critical && itemScore === 0) {
+      criticalAlerts.push(q.label);
     }
   }
 
   const max = CONFIG.disposicaoScoreMax;
-  if (answered < keys.length) {
-    return { score: null, status: null, answered, total: keys.length, max };
+  if (answered < questions.length) {
+    return {
+      score: null,
+      percent: null,
+      status: null,
+      zona: null,
+      diagnostico: null,
+      acao: null,
+      criticalCount: 0,
+      criticalAlerts: [],
+      answered,
+      total: questions.length,
+      max
+    };
   }
 
-  return { score: total, status: getStatusOperacao(total), answered, total: keys.length, max };
-}
+  const percent = Math.round((weightedScore / max) * 1000) / 10;
+  const criticalCount = criticalAlerts.length;
+  const status = classifyIdoStatus(criticalCount, percent);
 
-function getStatusOperacao(score) {
-  if (score <= 6) return 'vermelho';
-  if (score <= 10) return 'amarelo';
-  return 'verde';
-}
-
-function getStatusLabel(status) {
-  switch (status) {
-    case 'vermelho': return 'Não operar hoje';
-    case 'amarelo': return 'Operar com muita cautela';
-    case 'verde': return 'Pode operar';
-    default: return 'Responda todas as condições';
-  }
+  return {
+    score: weightedScore,
+    percent,
+    status,
+    zona: getZonaLabel(status),
+    diagnostico: getStatusDiagnostico(status),
+    acao: getStatusAcao(status),
+    restricao: getRestricaoOperacional(criticalCount),
+    criticalCount,
+    criticalAlerts,
+    answered,
+    total: questions.length,
+    max
+  };
 }
 
 function calcPontuacaoDia(trades) {
@@ -2126,15 +2897,16 @@ function isTradeFilled(trade) {
 function prontidaoHasAnswers(prontidao) {
   return getAllDisposicaoQuestions().some((q) => getProntidaoValor(prontidao, q.id) !== null);
 }
-
-  </script>
-  <script>
-function getCsvHeaders() {
+</script>
+  <script>function getCsvHeaders() {
   const dispIds = getAllDisposicaoQuestions().map((q) => q.id);
   const dispHeaders = dispIds.flatMap((id) => [`${id}_valor`, `${id}_nota`]);
   return [
     'data', 'score_disposicao', 'status_operacao',
     'plano_estrategias', 'comentario_pre_trade', 'comentario_geral',
+    'maestria_contexto_macro', 'maestria_contexto_macro_nota',
+    'maestria_micro_ciclo', 'maestria_micro_ciclo_nota',
+    'maestria_analise', 'maestria_destaques',
     ...dispHeaders,
     'trade_num', 'estrategia', 'pontos', 'nota', 'falha', 'conducao',
     'aspecto_positivo', 'comentario_trade'
@@ -2146,13 +2918,20 @@ function diariosToDataRows(diarios, headers = getCsvHeaders()) {
   const rows = [];
 
   for (const d of diarios) {
+    const maestria = normalizeMaestria(d.maestria);
     const base = [
       d.data,
       d.scoreProntidao ?? '',
       d.statusOperacao ?? '',
       (d.planoEstrategias || []).join('|'),
       d.comentarioPreTrade ?? '',
-      d.comentarioGeral ?? ''
+      d.comentarioGeral ?? '',
+      maestria.contextoMacro,
+      maestria.contextoMacroNota,
+      maestria.microCiclo,
+      maestria.microCicloNota,
+      maestria.analise,
+      maestria.destaques
     ];
 
     const pront = dispIds.flatMap((id) => {
@@ -2169,6 +2948,7 @@ function diariosToDataRows(diarios, headers = getCsvHeaders()) {
       rows.push([...base, ...pront, '', '', '', '', '', '', '', '']);
     } else {
       for (const t of filledTrades) {
+        normalizeTradeSelections(t);
         rows.push([
           ...base,
           ...pront,
@@ -2176,9 +2956,9 @@ function diariosToDataRows(diarios, headers = getCsvHeaders()) {
           t.estrategia,
           t.pontos ?? '',
           t.nota,
-          t.falha === 'Outro' ? (t.falhaOutro || 'Outro') : (t.falha || ''),
+          formatTradeSelectionsExport(t.falhas, t.falhaOutro),
           t.conducao,
-          t.aspectoPositivo === 'Outro' ? (t.aspectoOutro || 'Outro') : (t.aspectoPositivo || ''),
+          formatTradeSelectionsExport(t.aspectosPositivos, t.aspectoOutro),
           t.comentario || ''
         ]);
       }
@@ -2567,10 +3347,18 @@ async function unlinkBackupJsonFile() {
 }
 
 function prepareDiariosForBackup(diarios) {
-  return diarios.map((d) => ({
-    ...d,
-    prontidao: normalizeProntidao(d.prontidao)
-  }));
+  return diarios.map((d) => {
+    const prepared = {
+      ...d,
+      prontidao: normalizeProntidao(d.prontidao)
+    };
+    const result = calcScoreProntidao(prepared.prontidao);
+    if (result.score !== null) {
+      prepared.scoreProntidao = result.score;
+      prepared.statusOperacao = result.status;
+    }
+    return prepared;
+  });
 }
 
 function mergeBackupJson(existingText, newDiarios) {
@@ -2634,6 +3422,36 @@ function parseOptionalNumber(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+function restoreMultiSelectValue(value, options, outroKey = 'Outro') {
+  const text = String(value || '').trim();
+  if (!text) return { values: [], outro: '' };
+
+  const parts = text.includes('|')
+    ? text.split('|').map((s) => s.trim()).filter(Boolean)
+    : [text];
+
+  const values = [];
+  const customParts = [];
+
+  parts.forEach((part) => {
+    if (options.includes(part)) {
+      values.push(part);
+    } else {
+      customParts.push(part);
+    }
+  });
+
+  if (customParts.length) {
+    if (!values.includes(outroKey)) values.push(outroKey);
+    return {
+      values: [...new Set(values)],
+      outro: customParts.join(' | ')
+    };
+  }
+
+  return { values: [...new Set(values)], outro: '' };
+}
+
 function restoreSelectValue(value, options, outroKey) {
   const text = String(value || '').trim();
   if (!text) return { value: '', outro: '' };
@@ -2677,6 +3495,14 @@ function csvRowsToDiarios(parsed) {
         : [];
       diario.comentarioPreTrade = get(row, 'comentario_pre_trade') || '';
       diario.comentarioGeral = get(row, 'comentario_geral') || '';
+      diario.maestria = normalizeMaestria({
+        contextoMacro: get(row, 'maestria_contexto_macro') || '',
+        contextoMacroNota: get(row, 'maestria_contexto_macro_nota') || '',
+        microCiclo: get(row, 'maestria_micro_ciclo') || '',
+        microCicloNota: get(row, 'maestria_micro_ciclo_nota') || '',
+        analise: get(row, 'maestria_analise') || '',
+        destaques: get(row, 'maestria_destaques') || ''
+      });
       diario.trades = [];
       byDate.set(dateId, diario);
     }
@@ -2688,18 +3514,18 @@ function csvRowsToDiarios(parsed) {
     if (!Number.isFinite(numero)) continue;
 
     const diario = byDate.get(dateId);
-    const falha = restoreSelectValue(get(row, 'falha'), CONFIG.falhas, 'Outro');
-    const aspecto = restoreSelectValue(get(row, 'aspecto_positivo'), CONFIG.aspectosPositivos, 'Outro');
+    const falha = restoreMultiSelectValue(get(row, 'falha'), CONFIG.falhas, 'Outro');
+    const aspecto = restoreMultiSelectValue(get(row, 'aspecto_positivo'), CONFIG.aspectosPositivos, 'Outro');
 
     diario.trades.push({
       numero,
       estrategia: get(row, 'estrategia') || '',
       pontos: parseOptionalNumber(get(row, 'pontos')),
       nota: get(row, 'nota') || '',
-      falha: falha.value,
+      falhas: falha.values,
       falhaOutro: falha.outro,
       conducao: get(row, 'conducao') || '',
-      aspectoPositivo: aspecto.value,
+      aspectosPositivos: aspecto.values,
       aspectoOutro: aspecto.outro,
       comentario: get(row, 'comentario_trade') || ''
     });
@@ -2709,28 +3535,31 @@ function csvRowsToDiarios(parsed) {
 
   for (const diario of byDate.values()) {
     const tradesMap = new Map(diario.trades.map((t) => [t.numero, t]));
-    diario.trades = Array.from({ length: CONFIG.numTrades }, (_, i) => {
+    if (!diario.trades || diario.trades.length === 0) {
+      diario.trades = [];
+    }
+    // legado: garante campos em trades existentes
+    diario.trades = diario.trades.map((_, i) => {
       const num = i + 1;
       return tradesMap.get(num) || {
         numero: num,
         estrategia: '',
         pontos: null,
         nota: '',
-        falha: '',
+        falhas: [],
         falhaOutro: '',
         conducao: '',
-        aspectoPositivo: '',
+        aspectosPositivos: [],
         aspectoOutro: '',
         comentario: ''
       };
     });
+    diario.trades.forEach(normalizeTradeSelections);
 
-    if (diario.scoreProntidao === null || !diario.statusOperacao) {
-      const result = calcScoreProntidao(diario.prontidao);
-      if (result.score !== null) {
-        diario.scoreProntidao = result.score;
-        diario.statusOperacao = result.status;
-      }
+    const result = calcScoreProntidao(diario.prontidao);
+    if (result.score !== null) {
+      diario.scoreProntidao = result.score;
+      diario.statusOperacao = result.status;
     }
 
     diario.atualizadoEm = new Date().toISOString();
@@ -2765,15 +3594,26 @@ async function restoreBackupCsv({ preferLinked = true } = {}) {
 }
 
 function calcStats(diarios, periodFrom, periodTo) {
-  const withScore = diarios.filter((d) => d.scoreProntidao !== null);
+  const withScore = diarios
+    .map((d) => {
+      const result = calcScoreProntidao(d.prontidao);
+      return result.score !== null ? result.score : d.scoreProntidao;
+    })
+    .filter((score) => score !== null && score !== undefined);
   const allTrades = diarios.flatMap((d) => (d.trades || []).filter(isTradeFilled));
 
   const estrategiaCount = {};
+  const estrategiaPontos = {};
   for (const t of allTrades) {
-    if (t.estrategia) estrategiaCount[t.estrategia] = (estrategiaCount[t.estrategia] || 0) + 1;
+    if (t.estrategia) {
+      estrategiaCount[t.estrategia] = (estrategiaCount[t.estrategia] || 0) + 1;
+      estrategiaPontos[t.estrategia] = (estrategiaPontos[t.estrategia] || 0) + (Number(t.pontos) || 0);
+    }
   }
 
-  const topEstrategia = Object.entries(estrategiaCount).sort((a, b) => b[1] - a[1])[0];
+  const topEstrategia = pickTopEstrategiaByUso(estrategiaCount, estrategiaPontos);
+
+  const topEstrategiaPontos = Object.entries(estrategiaPontos).sort((a, b) => b[1] - a[1])[0];
 
   const notaMap = { A: 0, B: 0, C: 0 };
   for (const t of allTrades) {
@@ -2782,39 +3622,32 @@ function calcStats(diarios, periodFrom, periodTo) {
 
   const totalPontos = allTrades.reduce((s, t) => s + (Number(t.pontos) || 0), 0);
 
-  const semaforo = { verde: 0, amarelo: 0, vermelho: 0 };
+  const semaforo = { excelente: 0, normal: 0, cautela: 0, defensivo: 0, nao_operar: 0 };
   for (const d of diarios) {
-    if (d.statusOperacao && semaforo[d.statusOperacao] !== undefined) {
-      semaforo[d.statusOperacao]++;
-    }
-  }
-
-  let totalDias = diarios.length;
-  if (periodFrom && periodTo) {
-    totalDias = 0;
-    let cursor = periodFrom;
-    while (cursor <= periodTo) {
-      totalDias++;
-      cursor = addDaysToDateId(cursor, 1);
-    }
+    const result = calcScoreProntidao(d.prontidao);
+    const status = result.score !== null ? result.status : d.statusOperacao;
+    if (status === 'verde' || status === 'neutra') semaforo.normal++;
+    else if (status === 'amarelo') semaforo.cautela++;
+    else if (status === 'alerta' || status === 'proibida') semaforo.nao_operar++;
+    else if (status && semaforo[status] !== undefined) semaforo[status]++;
   }
 
   const diasComTrades = diarios.filter((d) => (d.trades || []).some(isTradeFilled)).length;
   const mediaPontosDia = diasComTrades
-    ? (totalPontos / diasComTrades).toFixed(1)
+    ? Math.round(totalPontos / diasComTrades)
     : '—';
 
   return {
-    totalDias,
     diasComRegistro: diarios.filter(diarioHasContent).length,
     diasComProntidao: withScore.length,
-    scoreMedio: withScore.length
-      ? (withScore.reduce((s, d) => s + d.scoreProntidao, 0) / withScore.length).toFixed(1)
-      : '—',
+    diasAptos: semaforo.excelente + semaforo.normal,
     totalTrades: allTrades.length,
     totalPontos,
     mediaPontosDia,
     topEstrategia: topEstrategia ? `${topEstrategia[0]} (${topEstrategia[1]}x)` : '—',
+    topEstrategiaPontos: topEstrategiaPontos
+      ? `${topEstrategiaPontos[0]} (${Math.round(topEstrategiaPontos[1])} pts)`
+      : '—',
     notas: notaMap,
     semaforo
   };
@@ -3179,19 +4012,26 @@ async function buildDayPdf(diario) {
   pdf.addSpacer(6);
 
   pdf.addHeading('Disposição para operar');
-  const statusLabel = diario.statusOperacao ? getStatusLabel(diario.statusOperacao) : '—';
-  pdf.addLine(`Score: ${diario.scoreProntidao ?? '—'}/16 · ${statusLabel}`);
+  const dispResult = calcScoreProntidao(diario.prontidao);
+  if (dispResult.score !== null) {
+    pdf.addLine(`IDO: ${dispResult.score}/${dispResult.max} (${dispResult.percent}%) · ${dispResult.zona}`);
+    pdf.addLine(`Alertas críticos: ${dispResult.criticalCount}`, 12);
+    if (dispResult.criticalAlerts.length) {
+      pdf.addLine(`Itens: ${dispResult.criticalAlerts.join('; ')}`, 16);
+    }
+    pdf.addLine(`Restrições: ${dispResult.restricao}`, 12);
+    pdf.addLine(`Recomendações: ${dispResult.acao}`, 12);
+  } else {
+    pdf.addLine('IDO: —/28 · Respostas incompletas');
+  }
 
   const prontidao = normalizeProntidao(diario.prontidao);
-  for (const ctx of CONFIG.disposicaoContextos) {
-    pdf.addLine(ctx.title, 8);
-    for (const q of ctx.questions) {
-      const entry = prontidao[q.id] || { valor: null, nota: '' };
-      const answer = getDisposicaoAnswerLabel(q.id, entry.valor);
-      pdf.addLine(`• ${q.label}: ${answer}`, 12);
-      if (entry.nota?.trim()) {
-        pdf.addLine(`  Nota: ${entry.nota.trim()}`, 16);
-      }
+  for (const q of getAllDisposicaoQuestions()) {
+    const entry = prontidao[q.id] || { valor: null, nota: '' };
+    const answer = getDisposicaoAnswerLabel(q.id, entry.valor);
+    pdf.addLine(`• ${q.label}: ${answer}`, 12);
+    if (entry.nota?.trim()) {
+      pdf.addLine(`  Nota: ${entry.nota.trim()}`, 16);
     }
   }
 
@@ -3215,19 +4055,16 @@ async function buildDayPdf(diario) {
     pdf.addLine('Nenhum trade registrado.');
   } else {
     trades.forEach((trade) => {
+      normalizeTradeSelections(trade);
       pdf.addLine(`Trade ${trade.numero}`, 8);
       pdf.addLine(`Estratégia: ${trade.estrategia || '—'}`, 12);
       pdf.addLine(`Pontos: ${trade.pontos ?? '—'} · Nota: ${trade.nota || '—'}`, 12);
-      if (trade.falha) {
-        const falha = trade.falha === 'Outro' ? (trade.falhaOutro || 'Outro') : trade.falha;
-        pdf.addLine(`Falha: ${falha}`, 12);
+      if (trade.falhas?.length) {
+        pdf.addLine(`Falha: ${formatTradeSelectionsDisplay(trade.falhas, trade.falhaOutro)}`, 12);
       }
       if (trade.conducao) pdf.addLine(`Condução: ${trade.conducao}`, 12);
-      if (trade.aspectoPositivo) {
-        const aspecto = trade.aspectoPositivo === 'Outro'
-          ? (trade.aspectoOutro || 'Outro')
-          : trade.aspectoPositivo;
-        pdf.addLine(`Aspecto positivo: ${aspecto}`, 12);
+      if (trade.aspectosPositivos?.length) {
+        pdf.addLine(`Aspecto positivo: ${formatTradeSelectionsDisplay(trade.aspectosPositivos, trade.aspectoOutro)}`, 12);
       }
       if (trade.comentario?.trim()) pdf.addLine(`Comentário: ${trade.comentario.trim()}`, 12);
       pdf.addSpacer(4);
@@ -3237,6 +4074,30 @@ async function buildDayPdf(diario) {
   if (diario.comentarioGeral?.trim()) {
     pdf.addHeading('Comentário geral sobre o dia');
     pdf.addLine(diario.comentarioGeral.trim());
+  }
+
+  const maestria = normalizeMaestria(diario.maestria);
+  if (maestriaHasContent(maestria)) {
+    pdf.addHeading('Análise Maestria');
+    if (maestria.contextoMacro || maestria.contextoMacroNota.trim()) {
+      pdf.addLine('Contexto macro', 8);
+      pdf.addLine(formatMaestriaTrendDisplay(maestria.contextoMacro, maestria.contextoMacroNota), 12);
+      pdf.addSpacer(4);
+    }
+    if (maestria.microCiclo || maestria.microCicloNota.trim()) {
+      pdf.addLine('Micro ciclo', 8);
+      pdf.addLine(formatMaestriaTrendDisplay(maestria.microCiclo, maestria.microCicloNota), 12);
+      pdf.addSpacer(4);
+    }
+    if (maestria.analise.trim()) {
+      pdf.addLine('Análise', 8);
+      pdf.addLine(maestria.analise.trim(), 12);
+      pdf.addSpacer(4);
+    }
+    if (maestria.destaques.trim()) {
+      pdf.addLine('Destaques', 8);
+      pdf.addLine(maestria.destaques.trim(), 12);
+    }
   }
 
   const exportedAt = new Date().toLocaleString('pt-BR');
@@ -3285,10 +4146,8 @@ async function exportDayPDF() {
     btn.textContent = originalLabel;
   }
 }
-
-  </script>
-  <script>
-function openModal(id) {
+</script>
+  <script>function openModal(id) {
   const overlay = document.getElementById(id);
   if (!overlay) return;
   overlay.removeAttribute('hidden');
@@ -3327,10 +4186,8 @@ function initModals() {
     document.querySelectorAll('.modal-overlay:not([hidden])').forEach((o) => closeModal(o));
   });
 }
-
-  </script>
-  <script>
-const MESES = [
+</script>
+  <script>const MESES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ];
@@ -3351,7 +4208,9 @@ async function refreshCalendarDates() {
     if (diarioHasContent(d)) {
       const date = getDiarioDate(d);
       filledDates.add(date);
-      if (d.statusOperacao) statusByDate[date] = d.statusOperacao;
+      const result = calcScoreProntidao(d.prontidao);
+      if (result.score !== null) statusByDate[date] = result.status;
+      else if (d.statusOperacao) statusByDate[date] = d.statusOperacao;
     }
   }
   renderCalendar();
@@ -3425,7 +4284,7 @@ function renderCalendar() {
       isToday ? 'cal-day--today' : '',
       isSelected ? 'cal-day--selected' : '',
       hasEntry ? 'cal-day--filled' : '',
-      status ? `cal-day--${status}` : ''
+      status ? `cal-day--${getStatusCssClass(status)}` : ''
     ].filter(Boolean).join(' ');
 
     html += `
@@ -3465,36 +4324,93 @@ function initCalendar() {
 
   refreshCalendarDates();
 }
-
-  </script>
-  <script>
-function normalizeDateRange(from, to) {
+</script>
+  <script>function normalizeDateRange(from, to) {
   if (!from || !to) return { from: null, to: null };
   if (from > to) return { from: to, to: from };
   return { from, to };
 }
 
 function getLastTradingSessionRange(allDiarios) {
-  const withContent = allDiarios.filter(diarioHasContent);
+  const withContent = allDiarios.filter(diarioHasTradingContent);
   if (!withContent.length) return { from: null, to: null };
 
-  const contentIds = new Set(withContent.map((d) => getDiarioDate(d)));
-  let endDate = [...contentIds].sort().pop();
-  let startDate = endDate;
+  const lastDate = withContent
+    .map((d) => getDiarioDate(d))
+    .filter(Boolean)
+    .sort()
+    .pop();
 
-  while (contentIds.has(previousDayId(startDate))) {
-    startDate = previousDayId(startDate);
-  }
-
-  return { from: startDate, to: endDate };
+  return { from: lastDate, to: lastDate };
 }
 
-function getPeriodRange(preset, allDiarios, customFrom, customTo) {
+function getLastMaestriaSessionRange(allDiarios) {
+  const withMaestria = allDiarios.filter(diarioHasMaestriaRecord);
+  if (!withMaestria.length) return { from: null, to: null };
+
+  const lastDate = withMaestria
+    .map((d) => getDiarioDate(d))
+    .filter(Boolean)
+    .sort()
+    .pop();
+
+  return { from: lastDate, to: lastDate };
+}
+
+function diarioHasMaestriaRecord(d) {
+  return !!(d && maestriaHasContent(d.maestria));
+}
+
+function historyDayQualifies(d, viewMode = 'trading') {
+  return viewMode === 'maestria' ? diarioHasMaestriaRecord(d) : diarioHasTradingContent(d);
+}
+
+const HISTORY_PRESET_LABELS = {
+  trading: {
+    'last-session': 'Última sessão de trading',
+    'last-week': 'Últimos 7 dias',
+    'last-month': 'Últimos 30 dias',
+    custom: 'Período personalizado'
+  },
+  maestria: {
+    'last-session': 'Última análise maestria',
+    'last-week': 'Últimos 7 dias',
+    'last-month': 'Últimos 30 dias',
+    custom: 'Período personalizado'
+  }
+};
+
+function getHistoryViewMode() {
+  const active = document.querySelector('.history-view-tabs .tab.active');
+  return active?.dataset.historyView === 'maestria' ? 'maestria' : 'trading';
+}
+
+function updateHistoryPresetOptions(viewMode = getHistoryViewMode()) {
+  const labels = HISTORY_PRESET_LABELS[viewMode] || HISTORY_PRESET_LABELS.trading;
+  document.querySelectorAll('#historyPreset option').forEach((opt) => {
+    if (labels[opt.value]) opt.textContent = labels[opt.value];
+  });
+}
+
+function setHistoryViewMode(viewMode) {
+  document.querySelectorAll('.history-view-tabs .tab').forEach((tab) => {
+    const isActive = tab.dataset.historyView === viewMode;
+    tab.classList.toggle('active', isActive);
+    tab.setAttribute('aria-selected', String(isActive));
+  });
+  updateHistoryPresetOptions(viewMode);
+  document.getElementById('historyPreset').value = 'last-session';
+  toggleCustomRange();
+}
+
+function getPeriodRange(preset, allDiarios, customFrom, customTo, viewMode = 'trading') {
   const today = todayId();
 
   switch (preset) {
     case 'last-session':
-      return getLastTradingSessionRange(allDiarios);
+      return viewMode === 'maestria'
+        ? getLastMaestriaSessionRange(allDiarios)
+        : getLastTradingSessionRange(allDiarios);
     case 'last-week':
       return { from: addDaysToDateId(today, -6), to: today };
     case 'last-month':
@@ -3506,7 +4422,9 @@ function getPeriodRange(preset, allDiarios, customFrom, customTo) {
       return normalizeDateRange(customFrom, customTo);
     }
     default:
-      return getLastTradingSessionRange(allDiarios);
+      return viewMode === 'maestria'
+        ? getLastMaestriaSessionRange(allDiarios)
+        : getLastTradingSessionRange(allDiarios);
   }
 }
 
@@ -3526,14 +4444,98 @@ function buildDiarioMap(diarios) {
   return map;
 }
 
-function formatPeriodLabel(from, to, preset) {
+function buildHistoryDayList(allInRange, from, to, preset, viewMode = 'trading') {
+  const diarioMap = buildDiarioMap(allInRange);
+  const qualifies = (d) => historyDayQualifies(d, viewMode);
+  let days;
+
+  if (preset === 'last-session') {
+    days = allInRange
+      .filter(qualifies)
+      .map((d) => ({ dateId: getDiarioDate(d), diario: d }))
+      .filter((day) => day.dateId);
+  } else {
+    days = [];
+    let cursor = from;
+    while (cursor <= to) {
+      const d = diarioMap.get(cursor);
+      if (!isWeekend(cursor) || qualifies(d)) {
+        days.push({ dateId: cursor, diario: d || null });
+      }
+      cursor = addDaysToDateId(cursor, 1);
+    }
+
+    if (viewMode === 'maestria') {
+      days = days.filter(({ diario }) => qualifies(diario));
+    }
+  }
+
+  return days.sort((a, b) => b.dateId.localeCompare(a.dateId));
+}
+
+function setHistoryStatsVisible(visible) {
+  document.getElementById('statsGrid').classList.toggle('hidden', !visible);
+}
+
+function getHistoryStatsDiarios(allInRange, from, to, preset, viewMode = 'trading') {
+  return buildHistoryDayList(allInRange, from, to, preset, viewMode)
+    .map((day) => day.diario)
+    .filter((d) => historyDayQualifies(d, viewMode));
+}
+
+const MAESTRIA_HISTORY_FIELDS = [
+  { id: 'contextoMacro', label: 'Contexto macro', scrollId: 'maestriaContextoMacroGroup' },
+  { id: 'microCiclo', label: 'Micro ciclo', scrollId: 'maestriaMicroCicloGroup' },
+  { id: 'analise', label: 'Análise', scrollId: 'maestriaAnalise' },
+  { id: 'destaques', label: 'Destaques', scrollId: 'maestriaDestaques' }
+];
+
+function activateAppTab(tabName) {
+  document.querySelectorAll('nav.tabs .tab').forEach((tab) => {
+    tab.classList.toggle('active', tab.dataset.tab === tabName);
+  });
+  document.querySelectorAll('.tab-panel').forEach((panel) => {
+    panel.classList.toggle('active', panel.id === `tab-${tabName}`);
+  });
+}
+
+async function openDayFromHistory(dateId, options = {}) {
+  await loadDay(dateId);
+  closeModal('historyModal');
+
+  if (options.tab) activateAppTab(options.tab);
+
+  requestAnimationFrame(() => {
+    if (options.tradeIndex != null) {
+      const accordion = document.querySelector(`[data-trade="${options.tradeIndex}"].trade-accordion`);
+      if (accordion) {
+        accordion.open = true;
+        accordion.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+
+    if (options.maestriaField) {
+      const field = MAESTRIA_HISTORY_FIELDS.find((item) => item.id === options.maestriaField);
+      const el = field ? document.getElementById(field.scrollId) : null;
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  });
+}
+
+function pickTopEstrategiaByUso(estrategiaCount, estrategiaPontos) {
+  const entries = Object.entries(estrategiaCount);
+  if (!entries.length) return null;
+  entries.sort((a, b) => {
+    const countDiff = b[1] - a[1];
+    if (countDiff !== 0) return countDiff;
+    return (estrategiaPontos[b[0]] || 0) - (estrategiaPontos[a[0]] || 0);
+  });
+  return entries[0];
+}
+
+function formatPeriodLabel(from, to, preset, viewMode = 'trading') {
   if (!from || !to) return 'Nenhum período com registros';
-  const presetLabels = {
-    'last-session': 'Última sessão de trading',
-    'last-week': 'Últimos 7 dias',
-    'last-month': 'Últimos 30 dias',
-    custom: 'Período personalizado'
-  };
+  const presetLabels = HISTORY_PRESET_LABELS[viewMode] || HISTORY_PRESET_LABELS.trading;
   const [fy, fm, fd] = from.split('-');
   const [ty, tm, td] = to.split('-');
   const range = from === to
@@ -3542,18 +4544,33 @@ function formatPeriodLabel(from, to, preset) {
   return `${presetLabels[preset] || 'Período'} · ${range}`;
 }
 
+function renderIdoCorStatHtml(semaforo) {
+  const grupos = [
+    { css: 'aptos', label: 'Apto', count: semaforo.excelente + semaforo.normal },
+    { css: 'atencao', label: 'Atenção', count: semaforo.cautela + semaforo.defensivo },
+    { css: 'bloqueado', label: 'Bloq', count: semaforo.nao_operar }
+  ];
+
+  return `<span class="stat-ido-grupos">${grupos.map((g) => `
+    <span class="stat-ido-grupo ${g.css}">
+      <span class="stat-ido-num">${g.count}</span>
+      <span class="stat-ido-grupo-label">${g.label}</span>
+    </span>
+  `).join('')}</span>`;
+}
+
 function renderStatsGrid(stats) {
   const grid = document.getElementById('statsGrid');
   grid.innerHTML = `
-    <div class="stat-card"><span class="stat-value">${stats.totalDias}</span><span class="stat-label">Dias no período</span></div>
     <div class="stat-card"><span class="stat-value">${stats.diasComRegistro}</span><span class="stat-label">Dias com registro</span></div>
-    <div class="stat-card"><span class="stat-value">${stats.scoreMedio}</span><span class="stat-label">Score médio disposição</span></div>
+    <div class="stat-card"><span class="stat-value">${stats.diasAptos}</span><span class="stat-label">Dias aptos</span></div>
     <div class="stat-card"><span class="stat-value">${stats.totalTrades}</span><span class="stat-label">Trades</span></div>
     <div class="stat-card"><span class="stat-value">${stats.totalPontos}</span><span class="stat-label">Pontos totais</span></div>
     <div class="stat-card"><span class="stat-value">${stats.mediaPontosDia}</span><span class="stat-label">Média pts/dia</span></div>
     <div class="stat-card"><span class="stat-value">${stats.topEstrategia}</span><span class="stat-label">Estratégia + usada</span></div>
+    <div class="stat-card"><span class="stat-value">${stats.topEstrategiaPontos}</span><span class="stat-label">Estratégia + pontos</span></div>
     <div class="stat-card"><span class="stat-value">A:${stats.notas.A} B:${stats.notas.B} C:${stats.notas.C}</span><span class="stat-label">Notas</span></div>
-    <div class="stat-card"><span class="stat-value">${stats.semaforo.verde}/${stats.semaforo.amarelo}/${stats.semaforo.vermelho}</span><span class="stat-label">Verde / Amarelo / Vermelho</span></div>
+    <div class="stat-card stat-card--ido-grupos">${renderIdoCorStatHtml(stats.semaforo)}</div>
   `;
 }
 
@@ -3577,9 +4594,95 @@ function createChartElement(d, dateId) {
   return chartWrap;
 }
 
-function createDayCard(d, dateId) {
+function dayHasTradingExpandableDetails(d) {
+  if (!d || !diarioHasTradingContent(d)) return false;
+  const prontidao = normalizeProntidao(d.prontidao);
+  if (getAllDisposicaoQuestions().some((q) => prontidao[q.id]?.nota?.trim())) return true;
+  if (d.comentarioPreTrade?.trim()) return true;
+  if (d.comentarioGeral?.trim()) return true;
+  return (d.trades || []).some((t) => {
+    if (!isTradeFilled(t)) return false;
+    return !!(t.falhas?.length || t.conducao || t.aspectosPositivos?.length || t.comentario?.trim());
+  });
+}
+
+function appendExpandableLine(parent, label, text) {
+  const p = document.createElement('p');
+  p.className = 'history-day-line';
+  const strong = document.createElement('strong');
+  strong.textContent = `${label}: `;
+  const span = document.createElement('span');
+  span.style.whiteSpace = 'pre-wrap';
+  span.textContent = text;
+  p.appendChild(strong);
+  p.appendChild(span);
+  parent.appendChild(p);
+}
+
+function buildTradingExpandableContent(d) {
+  const panel = document.createElement('div');
+  panel.className = 'history-day-expandable';
+  panel.hidden = true;
+  let hasContent = false;
+
+  const prontidao = normalizeProntidao(d.prontidao);
+  for (const ctx of CONFIG.disposicaoContextos) {
+    for (const q of ctx.questions) {
+      const nota = prontidao[q.id]?.nota?.trim();
+      if (nota) {
+        appendExpandableLine(panel, `Disposição · ${q.label}`, nota);
+        hasContent = true;
+      }
+    }
+  }
+
+  const trades = (d.trades || []).filter(isTradeFilled);
+  trades.forEach((t) => {
+    normalizeTradeSelections(t);
+    const hasExtra = t.falhas?.length || t.conducao || t.aspectosPositivos?.length || t.comentario?.trim();
+    if (!hasExtra) return;
+
+    const parts = [];
+    const est = CONFIG.estrategias.find((s) => s.id === t.estrategia);
+    parts.push(`Estratégia: ${est ? `${est.label} — ${est.desc}` : (t.estrategia || '—')}`);
+    parts.push(`Pontos: ${t.pontos ?? '—'} · Nota: ${t.nota || '—'}`);
+    if (t.falhas?.length) {
+      parts.push(`Falha: ${formatTradeSelectionsDisplay(t.falhas, t.falhaOutro)}`);
+    }
+    if (t.conducao) parts.push(`Condução: ${t.conducao}`);
+    if (t.aspectosPositivos?.length) {
+      parts.push(`Aspecto positivo: ${formatTradeSelectionsDisplay(t.aspectosPositivos, t.aspectoOutro)}`);
+    }
+    if (t.comentario?.trim()) parts.push(`Comentário: ${t.comentario.trim()}`);
+    appendExpandableLine(panel, `Trade ${t.numero}`, parts.join('\n'));
+    hasContent = true;
+  });
+
+  return hasContent ? panel : null;
+}
+
+function buildMaestriaExpandableContent(d) {
+  const panel = document.createElement('div');
+  panel.className = 'history-day-expandable';
+  panel.hidden = true;
+  let hasContent = false;
+
+  const maestria = normalizeMaestria(d.maestria);
+  MAESTRIA_HISTORY_FIELDS.forEach((field) => {
+    if (field.id === 'destaques') return;
+    const text = getMaestriaFieldDisplayText(field.id, maestria);
+    if (!text) return;
+    appendExpandableLine(panel, field.label, text);
+    hasContent = true;
+  });
+
+  return hasContent ? panel : null;
+}
+
+function createMaestriaDayCard(d, dateId) {
   const article = document.createElement('article');
-  article.className = d && diarioHasContent(d)
+  const hasMaestria = diarioHasMaestriaRecord(d);
+  article.className = hasMaestria
     ? 'history-day-card'
     : 'history-day-card history-day-card--empty';
 
@@ -3588,22 +4691,136 @@ function createDayCard(d, dateId) {
   const body = document.createElement('div');
   body.className = 'history-day-body';
 
-  if (d && diarioHasContent(d)) {
+  const content = document.createElement('div');
+  content.className = 'history-day-content';
+
+  if (hasMaestria) {
+    const maestria = normalizeMaestria(d.maestria);
+
+    const head = document.createElement('div');
+    head.className = 'history-day-head';
+    head.innerHTML = `<h3>${formatDateShort(getDiarioDate(d))}</h3>`;
+    content.appendChild(head);
+
+    const maestriaUl = document.createElement('ul');
+    maestriaUl.className = 'history-day-maestria';
+    MAESTRIA_HISTORY_FIELDS.forEach((field) => {
+      if (field.id === 'destaques') return;
+      const display = getMaestriaFieldDisplayText(field.id, maestria);
+      if (!display) return;
+      const li = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'history-day-selectable history-open-maestria';
+      btn.dataset.id = getDiarioDate(d) || dateId;
+      btn.dataset.maestriaField = field.id;
+      const preview = display.replace(/\s+/g, ' ');
+      const shortPreview = preview.length > 72 ? `${preview.slice(0, 72)}…` : preview;
+      btn.innerHTML = `<strong>${field.label}</strong> ${escapeHtml(shortPreview)}`;
+      li.appendChild(btn);
+      maestriaUl.appendChild(li);
+    });
+    if (maestriaUl.children.length) content.appendChild(maestriaUl);
+  } else {
+    const h3 = document.createElement('h3');
+    h3.textContent = formatDateShort(dateId);
+    content.appendChild(h3);
+
+    const p = document.createElement('p');
+    p.className = 'history-day-line';
+    p.textContent = 'Nenhuma análise Maestria neste dia.';
+    content.appendChild(p);
+  }
+
+  let expandableContent = null;
+  if (hasMaestria) {
+    expandableContent = buildMaestriaExpandableContent(d);
+    if (expandableContent) content.appendChild(expandableContent);
+
+    const destaquesText = normalizeMaestria(d.maestria).destaques.trim();
+    if (destaquesText) {
+      const comment = document.createElement('p');
+      comment.className = 'history-day-comment history-day-comment--destaques';
+      comment.innerHTML = `<strong>Destaques:</strong> ${escapeHtml(destaquesText)}`;
+      content.appendChild(comment);
+    }
+  }
+
+  body.appendChild(content);
+
+  const actions = document.createElement('div');
+  actions.className = 'history-day-actions';
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn btn-ghost btn-sm history-open-day';
+  btn.dataset.id = getDiarioDate(d) || dateId;
+  btn.dataset.openTab = 'maestria';
+  btn.textContent = hasMaestria ? 'Abrir análise' : 'Criar análise';
+  actions.appendChild(btn);
+
+  if (hasMaestria && expandableContent) {
+    const expandBtn = document.createElement('button');
+    expandBtn.type = 'button';
+    expandBtn.className = 'btn btn-ghost btn-sm history-expand-day';
+    expandBtn.textContent = 'Expandir';
+    expandBtn.setAttribute('aria-expanded', 'false');
+    expandBtn.addEventListener('click', () => {
+      const opening = !article.classList.contains('history-day-card--text-expanded');
+      article.classList.toggle('history-day-card--text-expanded', opening);
+      expandableContent.hidden = !opening;
+      expandBtn.textContent = opening ? 'Recolher' : 'Expandir';
+      expandBtn.setAttribute('aria-expanded', String(opening));
+    });
+    actions.appendChild(expandBtn);
+  }
+
+  body.appendChild(actions);
+  article.appendChild(body);
+  return article;
+}
+
+function createDayCard(d, dateId, viewMode = 'trading') {
+  if (viewMode === 'maestria') return createMaestriaDayCard(d, dateId);
+
+  const article = document.createElement('article');
+  const hasTrading = diarioHasTradingContent(d);
+  article.className = hasTrading
+    ? 'history-day-card'
+    : 'history-day-card history-day-card--empty';
+
+  article.appendChild(createChartElement(d, dateId));
+
+  const body = document.createElement('div');
+  body.className = 'history-day-body';
+
+  const content = document.createElement('div');
+  content.className = 'history-day-content';
+
+  if (d && hasTrading) {
     const trades = (d.trades || []).filter(isTradeFilled);
     const pts = trades.reduce((s, t) => s + (Number(t.pontos) || 0), 0);
-    const statusClass = d.statusOperacao || 'neutro';
-    const statusLabel = d.statusOperacao ? getStatusLabel(d.statusOperacao) : '—';
+    const dispResult = calcScoreProntidao(d.prontidao);
+    const idoScore = dispResult.score !== null ? dispResult.score : d.scoreProntidao;
+    const idoPercent = dispResult.percent !== null ? dispResult.percent : null;
+    const statusKey = dispResult.score !== null ? dispResult.status : d.statusOperacao;
+    const statusClass = getStatusCssClass(statusKey || 'neutro');
+    const nivelLabel = statusKey ? getNivelOperacional(statusKey) : '—';
 
     const head = document.createElement('div');
     head.className = 'history-day-head';
     head.innerHTML = `
       <h3>${formatDateShort(getDiarioDate(d))}</h3>
-      <span class="status-pill ${statusClass}">${d.scoreProntidao ?? '—'}</span>
+      <span class="status-pill ${statusClass}">${idoScore ?? '—'}</span>
     `;
-    body.appendChild(head);
+    content.appendChild(head);
+
+    const dispLine = idoPercent !== null
+      ? `IDO ${idoScore ?? '—'}/28 (${idoPercent}%) · ${escapeHtml(nivelLabel)}`
+      : `IDO ${idoScore ?? '—'}/28 · ${escapeHtml(nivelLabel)}`;
 
     const lines = [
-      ['Disposição', `${d.scoreProntidao ?? '—'}/16 · ${escapeHtml(statusLabel)}`],
+      ['Disposição', dispLine],
       ['Plano', (d.planoEstrategias || []).join(', ') || '—'],
       ['Resumo', `${trades.length} trade(s) · ${pts} pts`]
     ];
@@ -3612,15 +4829,21 @@ function createDayCard(d, dateId) {
       const p = document.createElement('p');
       p.className = 'history-day-line';
       p.innerHTML = `<strong>${label}:</strong> ${value}`;
-      body.appendChild(p);
+      content.appendChild(p);
     });
 
     const ul = document.createElement('ul');
     ul.className = 'history-day-trades';
     if (trades.length) {
-      trades.forEach((t) => {
+      trades.forEach((t, index) => {
         const li = document.createElement('li');
-        li.innerHTML = `<strong>T${t.numero}</strong> ${t.estrategia || '—'} · ${t.pontos ?? 0} pts · Nota ${t.nota || '—'}`;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'history-day-selectable history-open-trade';
+        btn.dataset.id = getDiarioDate(d) || dateId;
+        btn.dataset.tradeIndex = String(index);
+        btn.textContent = `T${t.numero} ${t.estrategia || '—'} · ${t.pontos ?? 0} pts · Nota ${t.nota || '—'}`;
+        li.appendChild(btn);
         ul.appendChild(li);
       });
     } else {
@@ -3629,73 +4852,119 @@ function createDayCard(d, dateId) {
       li.textContent = 'Nenhum trade registrado';
       ul.appendChild(li);
     }
-    body.appendChild(ul);
+    content.appendChild(ul);
 
     if (d.comentarioPreTrade) {
       const pre = document.createElement('p');
       pre.className = 'history-day-comment';
-      pre.textContent = `Pré: ${d.comentarioPreTrade}`;
-      body.appendChild(pre);
-    }
-
-    if (d.comentarioGeral) {
-      const comment = document.createElement('p');
-      comment.className = 'history-day-comment';
-      comment.textContent = d.comentarioGeral;
-      body.appendChild(comment);
+      pre.innerHTML = `<strong>Pré:</strong> ${escapeHtml(d.comentarioPreTrade)}`;
+      content.appendChild(pre);
     }
   } else {
     const h3 = document.createElement('h3');
     h3.textContent = formatDateShort(dateId);
-    body.appendChild(h3);
+    content.appendChild(h3);
 
     const p = document.createElement('p');
     p.className = 'history-day-line';
     p.textContent = 'Nenhum dado neste dia.';
-    body.appendChild(p);
+    content.appendChild(p);
   }
+
+  let expandableContent = null;
+  if (d && hasTrading) {
+    expandableContent = buildTradingExpandableContent(d);
+    if (expandableContent) content.appendChild(expandableContent);
+
+    if (d.comentarioGeral) {
+      const comment = document.createElement('p');
+      comment.className = 'history-day-comment history-day-comment--geral';
+      comment.innerHTML = `<strong>Comentário:</strong> ${escapeHtml(d.comentarioGeral)}`;
+      content.appendChild(comment);
+    }
+  }
+
+  body.appendChild(content);
+
+  const actions = document.createElement('div');
+  actions.className = 'history-day-actions';
 
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'btn btn-ghost btn-sm history-open-day';
   btn.dataset.id = getDiarioDate(d) || dateId;
-  btn.textContent = d && diarioHasContent(d) ? 'Abrir / editar dia' : 'Criar registro';
-  body.appendChild(btn);
+  btn.textContent = hasTrading ? 'Abrir / editar dia' : 'Criar registro';
+  actions.appendChild(btn);
+
+  if (d && hasTrading && dayHasTradingExpandableDetails(d)) {
+    const expandBtn = document.createElement('button');
+    expandBtn.type = 'button';
+    expandBtn.className = 'btn btn-ghost btn-sm history-expand-day';
+    expandBtn.textContent = 'Expandir';
+    expandBtn.setAttribute('aria-expanded', 'false');
+    expandBtn.addEventListener('click', () => {
+      const opening = !article.classList.contains('history-day-card--text-expanded');
+      article.classList.toggle('history-day-card--text-expanded', opening);
+      if (expandableContent) expandableContent.hidden = !opening;
+      expandBtn.textContent = opening ? 'Recolher' : 'Expandir';
+      expandBtn.setAttribute('aria-expanded', String(opening));
+    });
+    actions.appendChild(expandBtn);
+  }
+
+  body.appendChild(actions);
 
   article.appendChild(body);
   return article;
 }
 
-function renderHistoryGallery(allInRange, from, to) {
+function renderHistoryGallery(allInRange, from, to, preset = 'custom', viewMode = 'trading') {
   const gallery = document.getElementById('historyGallery');
   gallery.innerHTML = '';
 
-  const daysInPeriod = [];
-  let cursor = from;
-  while (cursor <= to) {
-    daysInPeriod.push(cursor);
-    cursor = addDaysToDateId(cursor, 1);
-  }
+  const daysInPeriod = buildHistoryDayList(allInRange, from, to, preset, viewMode);
 
   if (daysInPeriod.length === 0) {
-    gallery.innerHTML = '<p class="empty-msg">Selecione um período válido.</p>';
+    gallery.innerHTML = viewMode === 'maestria'
+      ? '<p class="empty-msg">Nenhuma análise Maestria encontrada no período.</p>'
+      : '<p class="empty-msg">Selecione um período válido.</p>';
     return;
   }
 
-  const diarioMap = buildDiarioMap(allInRange);
   const track = document.createElement('div');
   track.className = 'history-gallery-track';
 
-  daysInPeriod.forEach((dateId) => {
-    track.appendChild(createDayCard(diarioMap.get(dateId), dateId));
+  daysInPeriod.forEach(({ dateId, diario }) => {
+    track.appendChild(createDayCard(diario, dateId, viewMode));
   });
 
   gallery.appendChild(track);
 
   gallery.querySelectorAll('.history-open-day').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      await loadDay(btn.dataset.id);
-      closeModal('historyModal');
+      await openDayFromHistory(btn.dataset.id, {
+        tab: btn.dataset.openTab || undefined
+      });
+    });
+  });
+
+  gallery.querySelectorAll('.history-open-trade').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await openDayFromHistory(btn.dataset.id, {
+        tab: 'pos',
+        tradeIndex: Number(btn.dataset.tradeIndex)
+      });
+    });
+  });
+
+  gallery.querySelectorAll('.history-open-maestria').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await openDayFromHistory(btn.dataset.id, {
+        tab: 'maestria',
+        maestriaField: btn.dataset.maestriaField
+      });
     });
   });
 }
@@ -3706,58 +4975,68 @@ function showHistoryEmpty(message) {
 
 async function renderHistory() {
   const all = await getAllDiarios();
+  const viewMode = getHistoryViewMode();
   const preset = document.getElementById('historyPreset').value;
-  const estrategia = document.getElementById('filterEstrategia').value;
   const customFrom = document.getElementById('historyDateFrom').value;
   const customTo = document.getElementById('historyDateTo').value;
+  const showStats = viewMode === 'trading';
 
-  const range = getPeriodRange(preset, all, customFrom, customTo);
+  setHistoryStatsVisible(showStats);
+
+  document.getElementById('historyGalleryTitle').textContent =
+    viewMode === 'maestria' ? 'Análises do período' : 'Dias do período';
+
+  const range = getPeriodRange(preset, all, customFrom, customTo, viewMode);
   const { from, to, needsDates } = range;
 
   if (needsDates) {
     document.getElementById('historyPeriodLabel').textContent =
       'Período personalizado · selecione a data inicial e final';
-    renderStatsGrid({
-      totalDias: 0, diasComRegistro: 0, scoreMedio: '—', totalTrades: 0,
-      totalPontos: 0, mediaPontosDia: '—', topEstrategia: '—',
-      notas: { A: 0, B: 0, C: 0 }, semaforo: { verde: 0, amarelo: 0, vermelho: 0 }
-    });
-    showHistoryEmpty('Escolha as datas e clique em Atualizar.');
+    if (showStats) {
+      renderStatsGrid({
+        diasComRegistro: 0, diasAptos: 0, totalTrades: 0,
+        totalPontos: 0, mediaPontosDia: '—', topEstrategia: '—', topEstrategiaPontos: '—',
+        notas: { A: 0, B: 0, C: 0 }, semaforo: { excelente: 0, normal: 0, cautela: 0, defensivo: 0, nao_operar: 0 }
+      });
+    }
+    showHistoryEmpty('Selecione a data inicial e final.');
     return;
   }
 
   if (!from || !to) {
     document.getElementById('historyPeriodLabel').textContent = 'Nenhum período com registros';
-    renderStatsGrid({
-      totalDias: 0, diasComRegistro: 0, scoreMedio: '—', totalTrades: 0,
-      totalPontos: 0, mediaPontosDia: '—', topEstrategia: '—',
-      notas: { A: 0, B: 0, C: 0 }, semaforo: { verde: 0, amarelo: 0, vermelho: 0 }
-    });
-    showHistoryEmpty('Nenhum registro encontrado. Preencha o diário para ver o histórico.');
+    if (showStats) {
+      renderStatsGrid({
+        diasComRegistro: 0, diasAptos: 0, totalTrades: 0,
+        totalPontos: 0, mediaPontosDia: '—', topEstrategia: '—', topEstrategiaPontos: '—',
+        notas: { A: 0, B: 0, C: 0 }, semaforo: { excelente: 0, normal: 0, cautela: 0, defensivo: 0, nao_operar: 0 }
+      });
+    }
+    showHistoryEmpty(viewMode === 'maestria'
+      ? 'Nenhuma análise Maestria encontrada. Preencha a aba Análise Maestria para ver o histórico.'
+      : 'Nenhum registro encontrado. Preencha o diário para ver o histórico.');
     return;
   }
 
   const allInRange = filterDiariosInRange(all, from, to);
-  let filtered = allInRange;
+  const withContent = allInRange.filter((d) => historyDayQualifies(d, viewMode));
 
-  if (estrategia) {
-    filtered = allInRange.filter((d) =>
-      (d.trades || []).some((t) => t.estrategia === estrategia) ||
-      (d.planoEstrategias || []).includes(estrategia)
-    );
+  document.getElementById('historyPeriodLabel').textContent =
+    formatPeriodLabel(from, to, preset, viewMode);
+
+  if (showStats) {
+    const statsDiarios = getHistoryStatsDiarios(allInRange, from, to, preset, viewMode);
+    const stats = calcStats(statsDiarios, from, to);
+    renderStatsGrid(stats);
   }
 
-  const withContent = allInRange.filter(diarioHasContent);
-
-  document.getElementById('historyPeriodLabel').textContent = formatPeriodLabel(from, to, preset);
-
-  const stats = calcStats(estrategia ? filtered : withContent, from, to);
-  renderStatsGrid(stats);
-  renderHistoryGallery(allInRange, from, to);
+  renderHistoryGallery(allInRange, from, to, preset, viewMode);
 
   if (withContent.length === 0) {
     const label = document.getElementById('historyPeriodLabel');
-    label.textContent += ' · nenhum dia com registro no período';
+    label.textContent += viewMode === 'maestria'
+      ? ' · nenhuma análise Maestria no período'
+      : ' · nenhum dia com registro no período';
   }
 }
 
@@ -3787,10 +5066,10 @@ async function openHistory() {
   const session = getLastTradingSessionRange(all);
   const today = todayId();
 
+  setHistoryViewMode('trading');
   document.getElementById('historyPreset').value = 'last-session';
   document.getElementById('historyDateFrom').value = session.from || addDaysToDateId(today, -29);
   document.getElementById('historyDateTo').value = session.to || today;
-  document.getElementById('filterEstrategia').value = '';
 
   toggleCustomRange();
   await renderHistory();
@@ -3798,12 +5077,12 @@ async function openHistory() {
 }
 
 function initHistory() {
-  const filterEstrategia = document.getElementById('filterEstrategia');
-  CONFIG.estrategias.forEach((s) => {
-    const opt = document.createElement('option');
-    opt.value = s.id;
-    opt.textContent = s.label;
-    filterEstrategia.appendChild(opt);
+  document.querySelectorAll('.history-view-tabs .tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      if (tab.classList.contains('active')) return;
+      setHistoryViewMode(tab.dataset.historyView);
+      renderHistory();
+    });
   });
 
   document.getElementById('historyPreset').addEventListener('change', () => {
@@ -3814,22 +5093,15 @@ function initHistory() {
     renderHistory();
   });
 
-  document.getElementById('filterEstrategia').addEventListener('change', renderHistory);
   document.getElementById('historyDateFrom').addEventListener('change', onCustomDateChange);
   document.getElementById('historyDateTo').addEventListener('change', onCustomDateChange);
   document.getElementById('historyDateFrom').addEventListener('input', onCustomDateChange);
   document.getElementById('historyDateTo').addEventListener('input', onCustomDateChange);
-  document.getElementById('btnHistoryApply').addEventListener('click', () => {
-    if (document.getElementById('historyPreset').value === 'custom') {
-      setCustomPeriodDefaults();
-    }
-    renderHistory();
-  });
-}
 
-  </script>
-  <script>
-let currentDiario = null;
+  updateHistoryPresetOptions('trading');
+}
+</script>
+  <script>let currentDiario = null;
 let saveTimer = null;
 
 function renderDisposicao(prontidao = {}) {
@@ -3837,34 +5109,27 @@ function renderDisposicao(prontidao = {}) {
   const normalized = normalizeProntidao(prontidao);
   if (currentDiario) currentDiario.prontidao = normalized;
 
-  container.innerHTML = CONFIG.disposicaoContextos.map((ctx) => `
-    <section class="context-block" data-context="${ctx.id}">
-      <header class="context-header">
-        <h3>${ctx.title}</h3>
-        <p>${ctx.desc}</p>
-      </header>
-      ${ctx.questions.map((q) => {
-        const entry = normalized[q.id] || { valor: null, nota: '' };
-        return `
-          <article class="disposicao-item" data-q="${q.id}">
-            <h4 class="disposicao-label">${q.label}</h4>
-            <p class="disposicao-hint">${q.hint}</p>
-            <div class="option-group option-group-stack">
-              ${q.options.map((o) => `
-                <button type="button"
-                  class="option-btn ${entry.valor === o.value ? 'selected' : ''}"
-                  data-q="${q.id}" data-value="${o.value}">
-                  ${o.label}
-                </button>
-              `).join('')}
-            </div>
-            <textarea class="disposicao-nota" data-q="${q.id}" rows="2"
-              placeholder="Nota opcional sobre esta condição...">${escapeHtml(entry.nota)}</textarea>
-          </article>
-        `;
-      }).join('')}
-    </section>
-  `).join('');
+  const questions = getAllDisposicaoQuestions();
+  container.innerHTML = `<div class="disposicao-list">${questions.map((q) => {
+    const entry = normalized[q.id] || { valor: null, nota: '' };
+    return `
+      <article class="disposicao-item" data-q="${q.id}">
+        <h4 class="disposicao-question">${q.label}</h4>
+        ${q.hint ? `<p class="disposicao-hint">${q.hint}</p>` : ''}
+        <div class="option-group option-group-trio">
+          ${q.options.map((o) => `
+            <button type="button"
+              class="option-btn ${entry.valor === o.value ? 'selected' : ''}"
+              data-q="${q.id}" data-value="${o.value}">
+              ${o.label}
+            </button>
+          `).join('')}
+        </div>
+        <textarea class="disposicao-nota" data-q="${q.id}" rows="2"
+          placeholder="Observação...">${entry.nota || ''}</textarea>
+      </article>
+    `;
+  }).join('')}</div>`;
 
   container.querySelectorAll('.option-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -3894,10 +5159,13 @@ function renderDisposicao(prontidao = {}) {
 }
 
 function renderEstrategias(selected = []) {
+  const estrategias = CONFIG.estrategias.filter((s) => s.id !== 'FE');
+  const filteredSelected = selected.filter((id) => id !== 'FE');
+  if (currentDiario) currentDiario.planoEstrategias = filteredSelected;
   const container = document.getElementById('estrategias');
-  container.innerHTML = CONFIG.estrategias.map((s) => `
+  container.innerHTML = estrategias.map((s) => `
     <button type="button"
-      class="chip chip-estrategia ${selected.includes(s.id) ? 'selected' : ''}"
+      class="chip chip-estrategia ${filteredSelected.includes(s.id) ? 'selected' : ''}"
       data-id="${s.id}" title="${s.desc}">
       <strong>${s.label}</strong>
       <small>${s.desc}</small>
@@ -3914,7 +5182,180 @@ function renderEstrategias(selected = []) {
   });
 }
 
+function normalizeTradeSelections(trade) {
+  if (!trade || typeof trade !== 'object') return trade;
+
+  if (!Array.isArray(trade.falhas)) {
+    const legacy = String(trade.falha ?? '').trim();
+    trade.falhas = [];
+    if (legacy) {
+      if (CONFIG.falhas.includes(legacy)) {
+        trade.falhas = [legacy];
+      } else if (legacy === 'Outro') {
+        trade.falhas = ['Outro'];
+      } else {
+        trade.falhas = ['Outro'];
+        trade.falhaOutro = trade.falhaOutro || legacy;
+      }
+    }
+  } else {
+    trade.falhas = trade.falhas.filter((f) => CONFIG.falhas.includes(f));
+  }
+
+  if (!Array.isArray(trade.aspectosPositivos)) {
+    const legacy = String(trade.aspectoPositivo ?? '').trim();
+    trade.aspectosPositivos = [];
+    if (legacy) {
+      if (CONFIG.aspectosPositivos.includes(legacy)) {
+        trade.aspectosPositivos = [legacy];
+      } else if (legacy === 'Outro') {
+        trade.aspectosPositivos = ['Outro'];
+      } else {
+        trade.aspectosPositivos = ['Outro'];
+        trade.aspectoOutro = trade.aspectoOutro || legacy;
+      }
+    }
+  } else {
+    const aspectoAliases = { 'Disciplina emocional': 'Disciplina' };
+    trade.aspectosPositivos = trade.aspectosPositivos
+      .map((a) => aspectoAliases[a] || a)
+      .filter((a) => CONFIG.aspectosPositivos.includes(a));
+  }
+
+  trade.falhaOutro = trade.falhaOutro || '';
+  trade.aspectoOutro = trade.aspectoOutro || '';
+  delete trade.falha;
+  delete trade.aspectoPositivo;
+  return trade;
+}
+
+function formatTradeSelectionLabel(value, outroText) {
+  return value === 'Outro' ? (outroText?.trim() || 'Outro') : value;
+}
+
+function formatTradeSelectionsDisplay(selections = [], outroText = '') {
+  if (!selections.length) return '';
+  return selections.map((item) => formatTradeSelectionLabel(item, outroText)).join(' · ');
+}
+
+function formatTradeSelectionsExport(selections = [], outroText = '') {
+  if (!selections.length) return '';
+  return selections.map((item) => formatTradeSelectionLabel(item, outroText)).join('|');
+}
+
+function buildTradeMultiTags(selected = [], outroText = '', index, field) {
+  if (!selected.length) {
+    return '<p class="trade-multi-empty">Nenhuma opção selecionada.</p>';
+  }
+  return selected.map((value) => {
+    const label = formatTradeSelectionLabel(value, outroText);
+    return `
+      <span class="trade-multi-tag" data-value="${escapeHtml(value)}">
+        <span class="trade-multi-tag-label">${escapeHtml(label)}</span>
+        <button type="button" class="trade-multi-tag-remove" data-trade="${index}" data-field="${field}" data-value="${escapeHtml(value)}" aria-label="Remover ${escapeHtml(label)}">×</button>
+      </span>
+    `;
+  }).join('');
+}
+
+function buildTradeMultiField(index, trade, { label, options, field, outroField }) {
+  normalizeTradeSelections(trade);
+  const selected = trade[field] || [];
+  const outroValue = trade[outroField] || '';
+  return `
+    <div class="field">
+      <label>${label}</label>
+      <div class="trade-multi-picker" data-trade="${index}" data-field="${field}" data-outro-field="${outroField}">
+        <select class="trade-multi-add" data-trade="${index}" data-field="${field}">
+          <option value="">— Selecione —</option>
+          ${options.map((opt) => `
+            <option value="${escapeHtml(opt)}" ${selected.includes(opt) ? 'disabled' : ''}>${escapeHtml(opt)}</option>
+          `).join('')}
+        </select>
+        <input type="text" class="outro-input trade-multi-outro ${selected.includes('Outro') ? '' : 'hidden'}"
+          data-trade="${index}" data-field="${outroField}" placeholder="Descreva..."
+          value="${escapeHtml(outroValue)}">
+        <div class="trade-multi-selected" data-trade="${index}" data-field="${field}">
+          ${buildTradeMultiTags(selected, outroValue, index, field)}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function refreshTradeMultiSelected(index, field, outroField) {
+  const trade = currentDiario?.trades?.[index];
+  const picker = document.querySelector(`.trade-multi-picker[data-trade="${index}"][data-field="${field}"]`);
+  if (!trade || !picker) return;
+
+  const selected = trade[field] || [];
+  const outroText = trade[outroField] || '';
+  const container = picker.querySelector('.trade-multi-selected');
+  if (container) {
+    container.innerHTML = buildTradeMultiTags(selected, outroText, index, field);
+  }
+
+  const outroInput = picker.querySelector('.trade-multi-outro');
+  if (outroInput) outroInput.classList.toggle('hidden', !selected.includes('Outro'));
+
+  const addSelect = picker.querySelector('.trade-multi-add');
+  if (addSelect) {
+    addSelect.value = '';
+    addSelect.querySelectorAll('option').forEach((opt) => {
+      if (!opt.value) return;
+      opt.disabled = selected.includes(opt.value);
+    });
+  }
+}
+
+function bindTradeMultiPickers(index) {
+  const accordion = document.querySelector(`[data-trade="${index}"].trade-accordion`);
+  if (!accordion) return;
+
+  accordion.querySelectorAll('.trade-multi-picker').forEach((picker) => {
+    const field = picker.dataset.field;
+    const outroField = picker.dataset.outroField;
+    const trade = currentDiario.trades[index];
+
+    const addSelect = picker.querySelector('.trade-multi-add');
+    if (addSelect) {
+      addSelect.addEventListener('change', () => {
+        const value = addSelect.value;
+        if (!value) return;
+        const list = [...(trade[field] || [])];
+        if (!list.includes(value)) list.push(value);
+        trade[field] = list;
+        refreshTradeMultiSelected(index, field, outroField);
+        updateTradeHeader(index);
+        scheduleSave();
+      });
+    }
+
+    const outroInput = picker.querySelector('.trade-multi-outro');
+    if (outroInput) {
+      outroInput.addEventListener('input', () => {
+        trade[outroField] = outroInput.value;
+        refreshTradeMultiSelected(index, field, outroField);
+        scheduleSave();
+      });
+    }
+
+    picker.addEventListener('click', (e) => {
+      const removeBtn = e.target.closest('.trade-multi-tag-remove');
+      if (!removeBtn) return;
+      e.preventDefault();
+      const value = removeBtn.dataset.value;
+      trade[field] = (trade[field] || []).filter((item) => item !== value);
+      if (value === 'Outro') trade[outroField] = '';
+      refreshTradeMultiSelected(index, field, outroField);
+      updateTradeHeader(index);
+      scheduleSave();
+    });
+  });
+}
+
 function renderTrades(trades = []) {
+  trades.forEach(normalizeTradeSelections);
   const container = document.getElementById('tradesContainer');
   container.innerHTML = trades.map((trade, i) => buildTradeAccordion(trade, i)).join('');
 
@@ -3928,9 +5369,10 @@ function buildTradeAccordion(trade, index) {
   const filled = isTradeFilled(trade);
   return `
     <details class="trade-accordion" data-trade="${index}" ${filled ? 'open' : ''}>
-      <summary class="trade-summary">
-        <span>Trade ${index + 1}</span>
-        <span class="trade-badge" id="tradeBadge${index}">${filled ? '✓ Preenchido' : 'Vazio'}</span>
+      <summary class="trade-summary" onclick="return false">
+        <span class="trade-title" onclick="event.currentTarget.closest('details').toggleAttribute('open')">Trade ${index + 1}</span>
+        <span class="trade-badge" id="tradeBadge${index}" onclick="event.currentTarget.closest('details').toggleAttribute('open')">${filled ? '✓ Preenchido' : 'Vazio'}</span>
+        <button type="button" class="btn btn-ghost btn-sm btn-danger trade-remove" title="Excluir trade" onclick="event.stopPropagation();removeTrade(${index})"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>
       </summary>
       <div class="trade-body">
         <div class="field-row">
@@ -3959,16 +5401,12 @@ function buildTradeAccordion(trade, index) {
           </div>
         </div>
 
-        <div class="field">
-          <label>Falha ou aspecto a melhorar</label>
-          <select data-trade="${index}" data-field="falha">
-            <option value="">— Selecione —</option>
-            ${CONFIG.falhas.map((f) => `<option value="${f}" ${trade.falha === f ? 'selected' : ''}>${f}</option>`).join('')}
-          </select>
-          <input type="text" class="outro-input ${trade.falha === 'Outro' ? '' : 'hidden'}"
-            data-trade="${index}" data-field="falhaOutro" placeholder="Descreva..."
-            value="${trade.falhaOutro || ''}">
-        </div>
+        ${buildTradeMultiField(index, trade, {
+          label: 'Falha ou aspecto a melhorar',
+          options: CONFIG.falhas,
+          field: 'falhas',
+          outroField: 'falhaOutro'
+        })}
 
         <div class="field">
           <label>Condução</label>
@@ -3978,16 +5416,12 @@ function buildTradeAccordion(trade, index) {
           </select>
         </div>
 
-        <div class="field">
-          <label>Aspecto positivo — continuar fazendo</label>
-          <select data-trade="${index}" data-field="aspectoPositivo">
-            <option value="">— Selecione —</option>
-            ${CONFIG.aspectosPositivos.map((a) => `<option value="${a}" ${trade.aspectoPositivo === a ? 'selected' : ''}>${a}</option>`).join('')}
-          </select>
-          <input type="text" class="outro-input ${trade.aspectoPositivo === 'Outro' ? '' : 'hidden'}"
-            data-trade="${index}" data-field="aspectoOutro" placeholder="Descreva..."
-            value="${trade.aspectoOutro || ''}">
-        </div>
+        ${buildTradeMultiField(index, trade, {
+          label: 'Aspecto positivo — continuar fazendo',
+          options: CONFIG.aspectosPositivos,
+          field: 'aspectosPositivos',
+          outroField: 'aspectoOutro'
+        })}
 
         <div class="field">
           <label>Comentário sobre o trade</label>
@@ -4002,15 +5436,12 @@ function buildTradeAccordion(trade, index) {
 function bindTradeEvents(index, trade) {
   const accordion = document.querySelector(`[data-trade="${index}"].trade-accordion`);
 
-  accordion.querySelectorAll('select, input[type="number"], textarea').forEach((el) => {
+  accordion.querySelectorAll('select:not(.trade-multi-add), input[type="number"], textarea').forEach((el) => {
     el.addEventListener('change', () => {
       const field = el.dataset.field;
       let val = el.value;
       if (field === 'pontos') val = val === '' ? null : Number(val);
       currentDiario.trades[index][field] = val;
-
-      if (field === 'falha') toggleOutroInput(index, 'falha', 'falhaOutro');
-      if (field === 'aspectoPositivo') toggleOutroInput(index, 'aspectoPositivo', 'aspectoOutro');
 
       updateTradeHeader(index);
       scheduleSave();
@@ -4028,12 +5459,7 @@ function bindTradeEvents(index, trade) {
     }
   });
 
-  accordion.querySelectorAll('.outro-input').forEach((el) => {
-    el.addEventListener('input', () => {
-      currentDiario.trades[index][el.dataset.field] = el.value;
-      scheduleSave();
-    });
-  });
+  bindTradeMultiPickers(index);
 
   accordion.querySelectorAll('.nota-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -4046,13 +5472,6 @@ function bindTradeEvents(index, trade) {
   });
 }
 
-function toggleOutroInput(index, selectField, outroField) {
-  const accordion = document.querySelector(`[data-trade="${index}"].trade-accordion`);
-  const val = currentDiario.trades[index][selectField];
-  const outro = accordion.querySelector(`[data-field="${outroField}"]`);
-  if (outro) outro.classList.toggle('hidden', val !== 'Outro');
-}
-
 function updateTradeHeader(index) {
   const badge = document.getElementById(`tradeBadge${index}`);
   if (!badge) return;
@@ -4062,62 +5481,183 @@ function updateTradeHeader(index) {
 }
 
 function updateSemaforo() {
+  if (!currentDiario) return;
+
   const result = calcScoreProntidao(currentDiario.prontidao);
   const semaforo = document.getElementById('semaforo');
   const scoreEl = document.getElementById('scoreValue');
+  const percentEl = document.getElementById('scorePercent');
+  const zonaEl = document.getElementById('semaforoZona');
   const msgEl = document.getElementById('semaforoMsg');
+  const acaoEl = document.getElementById('semaforoAcao');
+  const criticosEl = document.getElementById('semaforoCriticos');
 
   semaforo.className = 'semaforo';
   if (result.score === null) {
     scoreEl.textContent = '—';
+    percentEl.textContent = '';
+    zonaEl.textContent = '';
     msgEl.textContent = `Responda todas as condições (${result.answered}/${result.total})`;
+    acaoEl.textContent = '';
+    criticosEl.textContent = '';
+    criticosEl.classList.add('hidden');
     currentDiario.scoreProntidao = null;
     currentDiario.statusOperacao = null;
     return;
   }
 
   scoreEl.textContent = result.score;
-  semaforo.classList.add(result.status);
-  msgEl.textContent = getStatusLabel(result.status);
+  percentEl.textContent = `${result.percent}% de prontidão`;
+  semaforo.classList.add(getStatusCssClass(result.status));
+  zonaEl.textContent = result.zona;
+  msgEl.textContent = result.restricao;
+  acaoEl.textContent = getRecomendacoes(result.status);
+
+  if (result.criticalCount > 0) {
+    criticosEl.textContent = `⚠ ${result.criticalCount} alerta(s) crítico(s): ${result.criticalAlerts.join(' · ')}`;
+    criticosEl.classList.remove('hidden');
+  } else {
+    criticosEl.textContent = '';
+    criticosEl.classList.add('hidden');
+  }
+
   currentDiario.scoreProntidao = result.score;
   currentDiario.statusOperacao = result.status;
 }
 
 const CHART_ZOOM_MIN = 50;
 const CHART_ZOOM_MAX = 500;
+const CHART_STRETCH_MIN = 50;
+const CHART_STRETCH_MAX = 300;
+
+function clampChartZoom(zoom) {
+  return Math.min(CHART_ZOOM_MAX, Math.max(CHART_ZOOM_MIN, zoom || 100));
+}
+
+function clampChartStretchX(stretchX) {
+  return Math.min(CHART_STRETCH_MAX, Math.max(CHART_STRETCH_MIN, stretchX || 100));
+}
+
+const CHART_VIEW_STORAGE_KEY = 'trader-diary-chart-view';
+
+function getChartViewStore() {
+  try {
+    return JSON.parse(localStorage.getItem(CHART_VIEW_STORAGE_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function saveChartViewStore(store) {
+  localStorage.setItem(CHART_VIEW_STORAGE_KEY, JSON.stringify(store));
+}
+
+function getChartViewDateId(diario = currentDiario) {
+  return getDiarioDate(diario) || selectedDateId || todayId();
+}
+
+function getLocalChartView(dateId) {
+  const entry = getChartViewStore()[dateId];
+  if (!entry) {
+    return { zoom: 100, stretchX: 100 };
+  }
+  return {
+    zoom: clampChartZoom(entry.zoom),
+    stretchX: clampChartStretchX(entry.stretchX)
+  };
+}
+
+function setLocalChartView(dateId, { zoom, stretchX } = {}) {
+  if (!dateId) return;
+  const store = getChartViewStore();
+  const prev = store[dateId] || { zoom: 100, stretchX: 100 };
+  store[dateId] = {
+    zoom: clampChartZoom(zoom ?? prev.zoom),
+    stretchX: clampChartStretchX(stretchX ?? prev.stretchX)
+  };
+  saveChartViewStore(store);
+}
+
+function deleteLocalChartView(dateId) {
+  if (!dateId) return;
+  const store = getChartViewStore();
+  if (!store[dateId]) return;
+  delete store[dateId];
+  saveChartViewStore(store);
+}
+
+function loadLocalChartViewIntoDiario(diario) {
+  const view = getLocalChartView(getChartViewDateId(diario));
+  diario.graficoZoom = view.zoom;
+  diario.graficoStretchX = view.stretchX;
+  return view;
+}
+
+function persistCurrentChartView() {
+  if (!currentDiario?.graficoDia) return;
+  setLocalChartView(getChartViewDateId(), {
+    zoom: currentDiario.graficoZoom,
+    stretchX: currentDiario.graficoStretchX
+  });
+}
+
+function stripSyncedChartViewFields(record) {
+  const payload = { ...record };
+  delete payload.graficoZoom;
+  delete payload.graficoStretchX;
+  delete payload.graficoFillMode;
+  delete payload.graficoDisplayWidth;
+  delete payload.graficoDisplayHeight;
+  return payload;
+}
 
 function applyChartZoom(zoom) {
-  const preview = document.getElementById('chartPreview');
-  const range = document.getElementById('chartZoomRange');
-  const valueEl = document.getElementById('chartZoomValue');
-  const z = Math.min(CHART_ZOOM_MAX, Math.max(CHART_ZOOM_MIN, zoom || 100));
-
-  preview.style.transform = `scale(${z / 100})`;
-  range.value = z;
-  valueEl.textContent = `${z}%`;
-
-  if (currentDiario) currentDiario.graficoZoom = z;
+  const z = clampChartZoom(zoom);
+  if (currentDiario) {
+    currentDiario.graficoZoom = z;
+    persistCurrentChartView();
+  }
+  applyChartViewState();
   return z;
 }
 
-function fitChartToFrame(autoSave = true) {
-  const preview = document.getElementById('chartPreview');
-  const frame = document.getElementById('chartPreviewFrame');
-  if (!preview.src || frame.classList.contains('hidden')) return;
-
-  preview.classList.add('chart-preview--fill');
-  applyChartZoom(100);
-
-  if (currentDiario) currentDiario.graficoFillMode = 'cover';
-
-  if (autoSave) scheduleSave();
+function applyChartStretchX(stretchX) {
+  const sx = clampChartStretchX(stretchX);
+  if (currentDiario) {
+    currentDiario.graficoStretchX = sx;
+    persistCurrentChartView();
+  }
+  applyChartViewState();
+  return sx;
 }
 
 function applyChartViewState() {
-  const preview = document.getElementById('chartPreview');
-  const fillMode = currentDiario?.graficoFillMode === 'cover';
-  preview.classList.toggle('chart-preview--fill', fillMode);
-  applyChartZoom(currentDiario?.graficoZoom ?? 100);
+  const zoom = clampChartZoom(currentDiario?.graficoZoom ?? 100);
+  const stretchX = clampChartStretchX(currentDiario?.graficoStretchX ?? 100);
+  const z = zoom / 100;
+  const sx = stretchX / 100;
+
+  ['chartPreview', 'maestriaChartPreview'].forEach((id) => {
+    const preview = document.getElementById(id);
+    if (!preview) return;
+    if (!preview.src) {
+      preview.style.transform = '';
+      return;
+    }
+    preview.style.transform = `scale(${z * sx}, ${z})`;
+  });
+
+  [
+    ['chartZoomRange', 'chartZoomValue', zoom],
+    ['maestriaChartZoomRange', 'maestriaChartZoomValue', zoom],
+    ['chartStretchXRange', 'chartStretchXValue', stretchX],
+    ['maestriaChartStretchXRange', 'maestriaChartStretchXValue', stretchX]
+  ].forEach(([rangeId, valueId, val]) => {
+    const range = document.getElementById(rangeId);
+    const valueEl = document.getElementById(valueId);
+    if (range) range.value = val;
+    if (valueEl) valueEl.textContent = `${val}%`;
+  });
 }
 
 function renderGraficoDia(dataUrl, zoom) {
@@ -4143,13 +5683,90 @@ function renderGraficoDia(dataUrl, zoom) {
     preview.onload = null;
     preview.src = '';
     preview.style.transform = '';
-    preview.classList.remove('chart-preview--fill');
     frame.classList.add('hidden');
     placeholder.classList.remove('hidden');
     actions.classList.add('hidden');
     zoomRow.classList.add('hidden');
     dropzone.classList.remove('chart-dropzone--has-image');
   }
+
+  renderMaestriaGrafico(dataUrl, zoom);
+}
+
+function renderMaestriaGrafico(dataUrl, zoom) {
+  const frame = document.getElementById('maestriaChartPreviewFrame');
+  const preview = document.getElementById('maestriaChartPreview');
+  const empty = document.getElementById('maestriaChartEmpty');
+  const zoomRow = document.getElementById('maestriaChartZoomRow');
+
+  if (dataUrl) {
+    preview.onload = () => applyChartViewState();
+    preview.src = dataUrl;
+    frame.classList.remove('hidden');
+    empty.classList.add('hidden');
+    zoomRow.classList.remove('hidden');
+    applyChartViewState();
+  } else {
+    preview.onload = null;
+    preview.src = '';
+    preview.style.transform = '';
+    frame.classList.add('hidden');
+    empty.classList.remove('hidden');
+    zoomRow.classList.add('hidden');
+  }
+}
+
+function setMaestriaTrendGroup(groupId, trendId) {
+  document.querySelectorAll(`#${groupId} .option-btn`).forEach((btn) => {
+    btn.classList.toggle('selected', btn.dataset.trend === trendId);
+  });
+}
+
+function getMaestriaTrendFromGroup(groupId) {
+  const selected = document.querySelector(`#${groupId} .option-btn.selected`);
+  return selected?.dataset.trend || '';
+}
+
+function populateMaestriaForm(diario) {
+  const maestria = normalizeMaestria(diario.maestria);
+  currentDiario.maestria = maestria;
+  setMaestriaTrendGroup('maestriaContextoMacroGroup', maestria.contextoMacro);
+  document.getElementById('maestriaContextoMacroNota').value = maestria.contextoMacroNota;
+  setMaestriaTrendGroup('maestriaMicroCicloGroup', maestria.microCiclo);
+  document.getElementById('maestriaMicroCicloNota').value = maestria.microCicloNota;
+  document.getElementById('maestriaAnalise').value = maestria.analise;
+  document.getElementById('maestriaDestaques').value = maestria.destaques;
+  renderMaestriaGrafico(diario.graficoDia, currentDiario.graficoZoom);
+}
+
+function initMaestriaTendencia() {
+  document.querySelectorAll('[data-maestria-trend]').forEach((group) => {
+    group.querySelectorAll('.option-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const wasSelected = btn.classList.contains('selected');
+        group.querySelectorAll('.option-btn').forEach((b) => b.classList.remove('selected'));
+        if (!wasSelected) btn.classList.add('selected');
+
+        if (currentDiario?.maestria) {
+          const field = group.dataset.maestriaTrend;
+          currentDiario.maestria[field] = btn.classList.contains('selected') ? btn.dataset.trend : '';
+        }
+        scheduleSave();
+      });
+    });
+  });
+}
+
+function initMaestriaGrafico() {
+  document.getElementById('maestriaChartZoomRange').addEventListener('input', (e) => {
+    applyChartZoom(Number(e.target.value));
+    scheduleSave();
+  });
+
+  document.getElementById('maestriaChartStretchXRange').addEventListener('input', (e) => {
+    applyChartStretchX(Number(e.target.value));
+    scheduleSave();
+  });
 }
 
 function compressImage(file, maxWidth = 1600) {
@@ -4184,7 +5801,8 @@ async function setGraficoDia(file) {
     const dataUrl = await compressImage(file);
     currentDiario.graficoDia = dataUrl;
     currentDiario.graficoZoom = 100;
-    currentDiario.graficoFillMode = null;
+    currentDiario.graficoStretchX = 100;
+    setLocalChartView(getChartViewDateId(), { zoom: 100, stretchX: 100 });
     renderGraficoDia(dataUrl);
     scheduleSave();
   } catch (err) {
@@ -4194,9 +5812,11 @@ async function setGraficoDia(file) {
 }
 
 function removeGraficoDia() {
+  const dateId = getChartViewDateId();
   currentDiario.graficoDia = null;
   currentDiario.graficoZoom = 100;
-  currentDiario.graficoFillMode = null;
+  currentDiario.graficoStretchX = 100;
+  deleteLocalChartView(dateId);
   renderGraficoDia(null);
   document.getElementById('chartFileInput').value = '';
   scheduleSave();
@@ -4207,7 +5827,7 @@ function initGraficoDia() {
   const fileInput = document.getElementById('chartFileInput');
 
   dropzone.addEventListener('click', (e) => {
-    if (e.target.closest('#btnChartRemove, #btnChartReplace, #chartPreviewFrame, #chartZoomRow')) return;
+    if (e.target.closest('#btnChartRemove, #chartPreviewFrame, #chartZoomRow')) return;
     if (!currentDiario?.graficoDia) fileInput.click();
   });
 
@@ -4215,11 +5835,6 @@ function initGraficoDia() {
     const file = e.target.files[0];
     if (file) setGraficoDia(file);
     e.target.value = '';
-  });
-
-  document.getElementById('btnChartReplace').addEventListener('click', (e) => {
-    e.stopPropagation();
-    fileInput.click();
   });
 
   document.getElementById('btnChartRemove').addEventListener('click', (e) => {
@@ -4232,9 +5847,9 @@ function initGraficoDia() {
     scheduleSave();
   });
 
-  document.getElementById('btnChartFit').addEventListener('click', (e) => {
-    e.stopPropagation();
-    fitChartToFrame();
+  document.getElementById('chartStretchXRange').addEventListener('input', (e) => {
+    applyChartStretchX(Number(e.target.value));
+    scheduleSave();
   });
 
   dropzone.addEventListener('dragover', (e) => {
@@ -4271,18 +5886,16 @@ function initGraficoDia() {
 function populateForm(diario) {
   currentDiario = diario;
   if (!('graficoDia' in currentDiario)) currentDiario.graficoDia = null;
-  if (!('graficoZoom' in currentDiario)) currentDiario.graficoZoom = 100;
-  if (!('graficoFillMode' in currentDiario)) currentDiario.graficoFillMode = null;
-  delete currentDiario.graficoDisplayWidth;
-  delete currentDiario.graficoDisplayHeight;
+  loadLocalChartViewIntoDiario(currentDiario);
   if (!('comentarioPreTrade' in currentDiario)) currentDiario.comentarioPreTrade = '';
   currentDiario.prontidao = normalizeProntidao(diario.prontidao);
   document.getElementById('headerDate').textContent = formatDateBR(diario.data);
   renderDisposicao(currentDiario.prontidao);
   renderEstrategias(diario.planoEstrategias);
   renderTrades(diario.trades);
-  renderGraficoDia(diario.graficoDia, diario.graficoZoom);
+  renderGraficoDia(diario.graficoDia, currentDiario.graficoZoom);
   updateSemaforo();
+  populateMaestriaForm(diario);
 
   document.getElementById('comentarioPreTrade').value = diario.comentarioPreTrade || '';
   document.getElementById('comentarioGeral').value = diario.comentarioGeral || '';
@@ -4291,10 +5904,18 @@ function populateForm(diario) {
 function collectFormData() {
   currentDiario.comentarioPreTrade = document.getElementById('comentarioPreTrade').value;
   currentDiario.comentarioGeral = document.getElementById('comentarioGeral').value;
+  currentDiario.maestria = {
+    contextoMacro: getMaestriaTrendFromGroup('maestriaContextoMacroGroup'),
+    contextoMacroNota: document.getElementById('maestriaContextoMacroNota').value,
+    microCiclo: getMaestriaTrendFromGroup('maestriaMicroCicloGroup'),
+    microCicloNota: document.getElementById('maestriaMicroCicloNota').value,
+    analise: document.getElementById('maestriaAnalise').value,
+    destaques: document.getElementById('maestriaDestaques').value
+  };
   if (currentDiario.graficoDia) {
     currentDiario.graficoZoom = Number(document.getElementById('chartZoomRange').value) || 100;
-    currentDiario.graficoFillMode = document.getElementById('chartPreview').classList.contains('chart-preview--fill')
-      ? 'cover' : null;
+    currentDiario.graficoStretchX = Number(document.getElementById('chartStretchXRange').value) || 100;
+    persistCurrentChartView();
   }
   currentDiario.atualizadoEm = new Date().toISOString();
   return currentDiario;
@@ -4323,25 +5944,31 @@ async function saveCurrent() {
 }
 
 function setSaveStatus(msg) {
-  const el = document.getElementById('saveStatus');
-  if (el) el.textContent = msg;
+  ['saveStatus', 'saveStatusMaestria'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = msg;
+  });
 }
-
-  </script>
-  <script>
-async function initApp() {
-  setSaveStatus('Conectando ao Supabase...');
+</script>
+  <script>async function initApp() {
+  setSaveStatus('Conectando...');
   initTheme();
   initTabs();
   initModals();
   initGraficoDia();
+  initMaestriaGrafico();
+  initMaestriaTendencia();
   initCalendar();
   initHistory();
   await loadDay(todayId());
 
   document.getElementById('btnSave').addEventListener('click', saveCurrent);
+  document.getElementById('btnSaveMaestria').addEventListener('click', saveCurrent);
   document.getElementById('comentarioPreTrade').addEventListener('input', scheduleSave);
   document.getElementById('comentarioGeral').addEventListener('input', scheduleSave);
+  ['maestriaContextoMacroNota', 'maestriaMicroCicloNota', 'maestriaAnalise', 'maestriaDestaques'].forEach((id) => {
+    document.getElementById(id).addEventListener('input', scheduleSave);
+  });
 
   document.getElementById('btnTheme').addEventListener('click', toggleTheme);
 
@@ -4428,9 +6055,9 @@ async function initApp() {
 }
 
 function initTabs() {
-  document.querySelectorAll('.tab').forEach((tab) => {
+  document.querySelectorAll('nav.tabs .tab').forEach((tab) => {
     tab.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
+      document.querySelectorAll('nav.tabs .tab').forEach((t) => t.classList.remove('active'));
       document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
       tab.classList.add('active');
       document.getElementById(`tab-${tab.dataset.tab}`).classList.add('active');
@@ -4508,42 +6135,62 @@ async function runRestoreAction(buttonId, restoreFn) {
     btn.textContent = original;
   }
 }
-
-  </script>
+</script>
 
   <script>
-// ── Sincronização e status de conexão ────────────────────────
+// ── Trades dinâmicos + Sync ───────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+
+  document.getElementById('btnAddTrade').addEventListener('click', () => {
+    if (!currentDiario) return;
+    const nextNum = currentDiario.trades.length + 1;
+    currentDiario.trades.push({
+      numero: nextNum, estrategia: '', pontos: null, nota: '',
+      falhas: [], falhaOutro: '', conducao: '',
+      aspectosPositivos: [], aspectoOutro: '', comentario: ''
+    });
+    renderTrades(currentDiario.trades);
+    scheduleSave();
+    const cards = document.querySelectorAll('[data-trade]');
+    if (cards.length) cards[cards.length - 1].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  document.getElementById('btnSync').addEventListener('click', async () => {
+    const btn = document.getElementById('btnSync');
+    btn.disabled = true;
+    btn.textContent = '⏳ Sincronizando...';
+    try {
+      await refreshCalendarDates();
+      await loadDay(selectedDateId || todayId());
+      showSyncBanner('Sincronizado ✓');
+    } catch(e) {
+      showSyncBanner('Erro: ' + e.message, true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🔄 Sincronizar';
+    }
+  });
+});
+
 function showSyncBanner(msg, isError = false) {
   const banner = document.getElementById('syncBanner');
   const msgEl  = document.getElementById('syncMsg');
   banner.style.display = 'flex';
   banner.className = 'sync-banner' + (isError ? ' error' : '');
   msgEl.textContent = msg;
-  if (!isError) {
-    setTimeout(() => { banner.style.display = 'none'; }, 3000);
-  }
+  if (!isError) setTimeout(() => { banner.style.display = 'none'; }, 3000);
 }
-
-// Botão de sync manual
-document.addEventListener('DOMContentLoaded', () => {
-  const btnSync = document.getElementById('btnSync');
-  if (btnSync) {
-    btnSync.addEventListener('click', async () => {
-      btnSync.disabled = true;
-      btnSync.textContent = '⏳';
-      try {
-        await refreshCalendarDates();
-        await loadDay(selectedDateId || todayId());
-        showSyncBanner('Sincronizado com Supabase ✓');
-      } catch(e) {
-        showSyncBanner('Erro ao sincronizar: ' + e.message, true);
-      } finally {
-        btnSync.disabled = false;
-        btnSync.textContent = '🔄 Sync';
-      }
-    });
-  }
-});
-  </script>
+  
+// ── Remover trade ─────────────────────────────────────────────
+function removeTrade(index) {
+  if (!currentDiario) return;
+  if (!confirm('Excluir Trade ' + (index + 1) + '? Esta ação não pode ser desfeita.')) return;
+  currentDiario.trades.splice(index, 1);
+  // Renumerar
+  currentDiario.trades.forEach((t, i) => { t.numero = i + 1; });
+  renderTrades(currentDiario.trades);
+  scheduleSave();
+}
+</script>
 </body>
 </html>
