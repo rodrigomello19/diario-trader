@@ -2439,7 +2439,7 @@ body.modal-open { overflow: hidden; }
                 <div class="semaforo-score">
                   <span class="semaforo-label">IDO</span>
                   <span class="semaforo-value" id="scoreValue">—</span>
-                  <span class="semaforo-max">/ 24</span>
+                  <span class="semaforo-max">/ 18</span>
                   <span class="semaforo-pct" id="scorePercent"></span>
                 </div>
                 <div class="semaforo-details">
@@ -2708,18 +2708,6 @@ body.modal-open { overflow: hidden; }
           ]
         },
         {
-          id: 'paciencia',
-          weight: 2,
-          critical: false,
-          label: 'Como está sua paciência?',
-          hint: 'Avalie sua disposição para esperar apenas os melhores setups, sem ansiedade para entrar no mercado.',
-          options: [
-            { label: 'Ansioso', value: 0, score: 0 },
-            { label: 'Normal', value: 1, score: 2 },
-            { label: 'Paciente', value: 2, score: 2 }
-          ]
-        },
-        {
           id: 'sono',
           weight: 1,
           critical: false,
@@ -2729,18 +2717,6 @@ body.modal-open { overflow: hidden; }
             { label: 'Ruim', value: 0, score: 0 },
             { label: 'Regular', value: 1, score: 1 },
             { label: 'Bom', value: 2, score: 2 }
-          ]
-        },
-        {
-          id: 'energia',
-          weight: 1,
-          critical: false,
-          label: 'Como está sua energia?',
-          hint: 'Avalie seu nível de disposição física e mental para permanecer atento durante toda a sessão.',
-          options: [
-            { label: 'Baixa', value: 0, score: 0 },
-            { label: 'Normal', value: 1, score: 1 },
-            { label: 'Alta', value: 2, score: 2 }
           ]
         },
         {
@@ -2783,7 +2759,7 @@ body.modal-open { overflow: hidden; }
     }
   ],
 
-  disposicaoScoreMax: 24,
+  disposicaoScoreMax: 18,
 
   notas: ['A', 'B', 'C'],
 
@@ -4659,7 +4635,7 @@ async function buildDayPdf(diario) {
     pdf.addLine(`Restrições: ${dispResult.restricao}`, 12);
     pdf.addLine(`Recomendações: ${dispResult.acao}`, 12);
   } else {
-    pdf.addLine('IDO: —/24 · Respostas incompletas');
+    pdf.addLine('IDO: —/18 · Respostas incompletas');
   }
 
   const prontidao = normalizeProntidao(diario.prontidao);
@@ -5584,8 +5560,8 @@ function createDayCard(d, dateId, viewMode = 'trading') {
     content.appendChild(head);
 
     const dispLine = idoPercent !== null
-      ? `IDO ${idoScore ?? '—'}/24 (${idoPercent}%) · ${escapeHtml(nivelLabel)}`
-      : `IDO ${idoScore ?? '—'}/24 · ${escapeHtml(nivelLabel)}`;
+      ? `IDO ${idoScore ?? '—'}/18 (${idoPercent}%) · ${escapeHtml(nivelLabel)}`
+      : `IDO ${idoScore ?? '—'}/18 · ${escapeHtml(nivelLabel)}`;
 
     const lines = [
       ['Disposição', dispLine],
