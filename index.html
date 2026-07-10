@@ -73,10 +73,22 @@ body {
   display: grid;
   grid-template-columns: 280px 1fr;
   gap: 24px;
-  align-items: start;
 }
 
-.main-content { min-width: 0; }
+.calendar-sidebar {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+}
+
+.maestria-foco-reminder--sidebar {
+  position: sticky;
+  top: 24px;
+  z-index: 2;
+  margin-top: 16px;
+  align-self: flex-start;
+  width: 100%;
+}
 
 /* Editing banner */
 .editing-banner {
@@ -97,8 +109,121 @@ body {
 .btn-block { width: 100%; margin-top: 12px; }
 .btn-icon { padding: 6px 12px; font-size: 1.25rem; line-height: 1; }
 
+/* Dia fechado — sem operação */
+.day-fechado-motivo-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin: -8px 0 12px;
+}
+
+.day-fechado-motivo-bar.hidden { display: none; }
+
+.day-fechado-motivo {
+  width: 100%;
+  max-width: 280px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.82rem;
+}
+
+.btn-fechado-dia--active {
+  background: rgba(139, 92, 246, 0.14) !important;
+  box-shadow: inset 0 0 0 1px rgba(139, 92, 246, 0.35);
+}
+
+.btn-fechar-dia {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  min-width: 40px;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+}
+
+.btn-fechar-dia .lock-icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+  color: var(--text-muted);
+}
+
+.btn-fechar-dia .lock-icon--closed { display: none; }
+
+.btn-fechar-dia.btn-fechar-dia--fechado .lock-icon--open { display: none; }
+
+.btn-fechar-dia.btn-fechar-dia--fechado .lock-icon--closed {
+  display: block;
+  color: #8b5cf6;
+}
+
+.btn-fechar-dia.btn-fechar-dia--fechado {
+  background: rgba(139, 92, 246, 0.14) !important;
+  box-shadow: inset 0 0 0 1px rgba(139, 92, 246, 0.35);
+}
+
+.day-fechado-notice {
+  padding: 28px 24px;
+  margin-bottom: 16px;
+  text-align: center;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(139, 92, 246, 0.03));
+  border: 1px dashed rgba(139, 92, 246, 0.45);
+  border-radius: var(--radius);
+  color: var(--text);
+}
+
+.day-fechado-notice-icon {
+  font-size: 2rem;
+  line-height: 1;
+  margin-bottom: 10px;
+}
+
+.day-fechado-notice h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: #8b5cf6;
+}
+
+.day-fechado-notice p {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  max-width: 36rem;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+.main-content--fechado .tabs,
+.main-content--fechado .tab-panel { display: none !important; }
+
+.cal-day--fechado:not(.cal-day--selected) .cal-day-num { color: #8b5cf6; }
+.cal-day--fechado .cal-day-dot { background: #8b5cf6; }
+.cal-day--selected.cal-day--fechado .cal-day-dot { background: #fff; }
+
+.legend-fechado { background: #8b5cf6; }
+
+.history-day-card--fechado {
+  border-color: rgba(139, 92, 246, 0.35);
+  background: linear-gradient(180deg, rgba(139, 92, 246, 0.06), transparent 48%);
+}
+
+.history-card-no-img--fechado span { opacity: 0.85; }
+
+.status-pill--fechado {
+  background: rgba(139, 92, 246, 0.14);
+  color: #8b5cf6;
+  border: 1px solid rgba(139, 92, 246, 0.35);
+}
+
 /* Calendar */
-.calendar-card { padding: 16px; position: sticky; top: 24px; }
+.calendar-card { padding: 16px; }
+
+.main-content { min-width: 0; }
 
 .calendar-nav {
   display: flex;
@@ -509,6 +634,39 @@ body {
 
 .maestria-tendencia-field .disposicao-nota {
   background: var(--bg-input);
+}
+
+/* Lembrete Maestria — Foco de hoje */
+.maestria-foco-reminder {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(234, 179, 8, 0.35);
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.1), rgba(234, 179, 8, 0.03));
+}
+
+.maestria-foco-reminder.hidden { display: none; }
+
+.maestria-foco-reminder-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ca8a04;
+  margin-bottom: 8px;
+}
+
+.maestria-foco-reminder-body {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+.calendar-sidebar .maestria-foco-reminder-body {
+  font-size: 0.8125rem;
+}
+
+.calendar-sidebar .maestria-foco-reminder-title {
+  font-size: 0.875rem;
 }
 
 /* Semáforo */
@@ -971,11 +1129,152 @@ body {
 
 .field-row {
   display: grid;
-  grid-template-columns: 1fr 160px;
+  grid-template-columns: 1fr 112px;
   gap: 16px;
+  align-items: end;
 }
 
-.field-sm { }
+.trade-lado-hora-field {
+  margin-bottom: 16px;
+}
+
+.trade-lado-hora-labels {
+  display: grid;
+  grid-template-columns: 1fr 180px;
+  gap: 16px;
+  margin-bottom: 6px;
+}
+
+.trade-lado-hora-labels label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.trade-lado-hora-labels label:last-child {
+  width: 120px;
+  margin-left: 60px;
+  text-align: center;
+}
+
+.trade-lado-hora-controls {
+  display: grid;
+  grid-template-columns: 1fr 180px;
+  gap: 16px;
+  align-items: center;
+}
+
+.trade-nota-field {
+  margin-bottom: 16px;
+}
+
+.trade-nota-field > label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.hora-group {
+  width: 180px;
+  flex-shrink: 0;
+}
+
+.trade-hora-wrap {
+  display: grid;
+  grid-template-columns: 52px 120px;
+  column-gap: 8px;
+  width: 180px;
+}
+
+.trade-hora-reset {
+  grid-column: 1;
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: 2px solid #3b82f6;
+  border-radius: var(--radius-sm);
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.trade-hora-reset:hover {
+  border-color: #2563eb;
+  background: rgba(59, 130, 246, 0.2);
+}
+
+.trade-hora-reset.hidden {
+  visibility: hidden;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.trade-hora-reset svg {
+  width: 16px;
+  height: 16px;
+}
+
+.trade-hora-input {
+  grid-column: 2;
+  width: 120px;
+  height: 52px;
+  padding: 0 10px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  font-family: inherit;
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-align: center;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.trade-hora-input:hover {
+  border-color: var(--border-strong);
+}
+
+.trade-hora-input--active {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: #3b82f6;
+  color: #3b82f6;
+  font-weight: 500;
+  box-shadow: none;
+}
+
+.trade-hora-input:not(.trade-hora-input--active):focus {
+  outline: none;
+  border-color: var(--border-strong);
+  box-shadow: none;
+}
+
+.trade-hora-input--active:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.trade-hora-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.trade-hora-input--active::-webkit-calendar-picker-indicator {
+  opacity: 0.75;
+}
+
+.field-sm input[type="number"] {
+  padding-left: 8px;
+  padding-right: 8px;
+}
 
 input[type="text"],
 input[type="number"],
@@ -1010,7 +1309,8 @@ textarea { resize: vertical; min-height: 80px; }
   gap: 8px;
 }
 
-.nota-btn {
+.nota-btn,
+.lado-btn {
   width: 52px;
   height: 52px;
   border: 2px solid var(--border);
@@ -1023,7 +1323,29 @@ textarea { resize: vertical; min-height: 80px; }
   color: var(--text-muted);
 }
 
-.nota-btn:hover { border-color: var(--border-strong); }
+.nota-btn:hover,
+.lado-btn:hover { border-color: var(--border-strong); }
+
+.lado-group {
+  display: flex;
+  gap: 8px;
+}
+
+.lado-btn--compra.selected {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: #22c55e;
+  color: #16a34a;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.lado-btn--venda.selected {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: #ef4444;
+  color: #dc2626;
+  font-weight: 700;
+  box-shadow: none;
+}
 
 /* Score day */
 .score-day {
@@ -1257,6 +1579,43 @@ body.modal-open { overflow: hidden; }
   flex-direction: column;
   gap: 24px;
   padding: 0;
+}
+
+.history-gallery-track--charts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.history-chart-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.history-chart-card:hover {
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.history-chart-card-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+.history-chart-card-header h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.history-chart-card .history-day-chart {
+  border-right: none;
+  border-bottom: none;
+  min-height: 260px;
 }
 
 .history-day-card {
@@ -1745,17 +2104,101 @@ body.modal-open { overflow: hidden; }
 }
 
 /* Responsive */
-@media (max-width: 900px) {
+@media (max-width: 600px) {
   .app-body {
     grid-template-columns: 1fr;
   }
 
   .calendar-sidebar { order: -1; }
 
-  .calendar-card { position: static; }
+  .maestria-foco-reminder--sidebar {
+    position: static;
+    max-width: 340px;
+    margin: 16px auto 0;
+  }
+
+  .calendar-card {
+    max-width: 340px;
+    margin: 0 auto;
+    padding: 12px;
+  }
+
+  .calendar-grid { gap: 3px; }
+
+  .cal-day {
+    aspect-ratio: auto;
+    min-height: 30px;
+    max-height: 34px;
+    font-size: 0.78rem;
+  }
+
+  .cal-weekday { font-size: 0.65rem; }
+
+  .calendar-legend {
+    margin-top: 8px;
+    font-size: 0.7rem;
+    gap: 10px;
+  }
 }
 
-@media (min-width: 901px) {
+@media (min-width: 601px) and (max-width: 1024px) {
+  #app { padding: 16px 16px 36px; }
+
+  .app-body {
+    grid-template-columns: minmax(200px, 228px) minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .maestria-foco-reminder--sidebar {
+    top: 16px;
+  }
+
+  .calendar-card {
+    padding: 12px;
+  }
+
+  .calendar-month { font-size: 0.92rem; }
+
+  .calendar-grid { gap: 3px; }
+
+  .cal-day {
+    aspect-ratio: auto;
+    min-height: 30px;
+    max-height: 34px;
+    font-size: 0.76rem;
+  }
+
+  .cal-weekday {
+    font-size: 0.64rem;
+    padding: 2px 0;
+  }
+
+  .cal-day-dot {
+    width: 4px;
+    height: 4px;
+  }
+
+  .calendar-legend {
+    margin-top: 8px;
+    font-size: 0.7rem;
+    gap: 10px;
+  }
+
+  .btn-block { margin-top: 8px; }
+
+  .chart-preview-frame {
+    width: 100%;
+    max-width: 100%;
+    height: min(280px, 38vw);
+  }
+
+  .chart-zoom-row {
+    gap: 8px;
+    font-size: 0.8rem;
+  }
+}
+
+@media (min-width: 1025px) {
   .history-day-body {
     height: 100%;
     min-height: 100%;
@@ -1771,7 +2214,7 @@ body.modal-open { overflow: hidden; }
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .history-day-card {
     grid-template-columns: 1fr;
   }
@@ -1821,6 +2264,7 @@ body.modal-open { overflow: hidden; }
   .history-custom-range { flex-wrap: wrap; }
   .stats-grid--history { grid-template-columns: repeat(2, 1fr); }
   .history-gallery-wrap { padding: 0 16px 24px; }
+  .history-gallery-track--charts { grid-template-columns: 1fr; }
   .ido-grupos { grid-template-columns: 1fr; }
   .option-group-trio { grid-template-columns: repeat(3, 1fr); }
   .semaforo { flex-direction: column; align-items: stretch; }
@@ -1831,6 +2275,43 @@ body.modal-open { overflow: hidden; }
   .option-group { width: 100%; }
   .option-btn { flex: 1; text-align: center; padding: 8px 6px; font-size: 0.8rem; }
   .field-row { grid-template-columns: 1fr; }
+  .trade-lado-hora-labels,
+  .trade-lado-hora-controls {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  .trade-lado-hora-field .lado-group { gap: 6px; }
+  .trade-lado-hora-field .lado-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 1.1rem;
+  }
+  .hora-group { width: 152px; flex-shrink: 0; }
+  .trade-hora-wrap {
+    grid-template-columns: 40px 106px;
+    column-gap: 6px;
+    width: 152px;
+  }
+  .trade-hora-reset {
+    width: 40px;
+    height: 44px;
+  }
+  .trade-hora-input {
+    width: 106px;
+    height: 44px;
+    font-size: 1.1rem;
+  }
+  .trade-lado-hora-labels label:last-child {
+    width: 106px;
+    margin-left: 46px;
+    text-align: center;
+  }
+  .trade-nota-field .nota-group { gap: 6px; }
+  .trade-nota-field .nota-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 1.1rem;
+  }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .semaforo { flex-direction: column; text-align: center; }
   .semaforo-msg { text-align: center; }
@@ -1881,10 +2362,25 @@ body.modal-open { overflow: hidden; }
       </div>
       <div class="header-actions">
         <button type="button" class="btn btn-ghost" id="btnTheme" title="Tema claro">☀️</button>
+        <button type="button" class="btn btn-ghost btn-fechar-dia" id="btnFecharDia" title="Fechar dia" aria-pressed="false" aria-label="Fechar dia">
+          <svg class="lock-icon lock-icon--open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="5" y="11" width="14" height="10" rx="2"></rect>
+            <path d="M8 11V8a4 4 0 0 1 7.5-2"></path>
+          </svg>
+          <svg class="lock-icon lock-icon--closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="5" y="11" width="14" height="10" rx="2"></rect>
+            <path d="M8 11V8a4 4 0 0 1 8 0v3"></path>
+          </svg>
+        </button>
         <button type="button" class="btn btn-ghost" id="btnHistory">Histórico</button>
         <button type="button" class="btn btn-ghost" id="btnExport">Exportar</button>
       </div>
     </header>
+
+    <div id="diaFechadoMotivoBar" class="day-fechado-motivo-bar hidden">
+      <input type="text" id="diaFechadoMotivo" class="day-fechado-motivo"
+        placeholder="Motivo (opcional)">
+    </div>
 
     <div id="syncBanner" class="sync-banner" style="display:none">
       <span class="sync-dot"></span>
@@ -1907,14 +2403,25 @@ body.modal-open { overflow: hidden; }
           <div class="calendar-grid" id="calendarGrid"></div>
           <div class="calendar-legend">
             <span><i class="legend-dot legend-today"></i> Hoje</span>
-            <span><i class="legend-dot legend-filled"></i> Preenchido</span>
+            <span><i class="legend-dot legend-filled"></i> Salvo</span>
+            <span><i class="legend-dot legend-fechado"></i> Off</span>
           </div>
           <button type="button" class="btn btn-primary btn-block" id="btnGoToday">Ir para hoje</button>
           <button type="button" class="btn btn-ghost btn-block btn-sync-cal" id="btnSync">🔄 Sincronizar</button>
         </div>
+        <div id="maestriaFocoReminder" class="maestria-foco-reminder maestria-foco-reminder--sidebar hidden" aria-live="polite">
+          <h3 class="maestria-foco-reminder-title">Foco de hoje</h3>
+          <p class="maestria-foco-reminder-body" id="maestriaFocoReminderBody"></p>
+        </div>
       </aside>
 
-      <div class="main-content">
+      <div class="main-content" id="mainContent">
+        <div id="dayFechadoNotice" class="day-fechado-notice hidden" aria-live="polite">
+          <div class="day-fechado-notice-icon" aria-hidden="true">🔒</div>
+          <h3>Sem operação</h3>
+          <p id="dayFechadoNoticeText">Sem operação neste dia — não é necessário registrar disposição, trades nem análise Maestria. Clique no cadeado para reabrir.</p>
+        </div>
+
         <nav class="tabs" role="tablist">
           <button type="button" class="tab active" data-tab="pre" role="tab">Pré-trade</button>
           <button type="button" class="tab" data-tab="pos" role="tab">Pós-trade</button>
@@ -1932,7 +2439,7 @@ body.modal-open { overflow: hidden; }
                 <div class="semaforo-score">
                   <span class="semaforo-label">IDO</span>
                   <span class="semaforo-value" id="scoreValue">—</span>
-                  <span class="semaforo-max">/ 28</span>
+                  <span class="semaforo-max">/ 24</span>
                   <span class="semaforo-pct" id="scorePercent"></span>
                 </div>
                 <div class="semaforo-details">
@@ -2080,6 +2587,7 @@ body.modal-open { overflow: hidden; }
         <div class="history-view-tabs" role="tablist" aria-label="Tipo de histórico">
           <button type="button" class="tab active" data-history-view="trading" role="tab" aria-selected="true">Trading</button>
           <button type="button" class="tab" data-history-view="maestria" role="tab" aria-selected="false">Maestria</button>
+          <button type="button" class="tab" data-history-view="grafica" role="tab" aria-selected="false">Análise Gráfica</button>
         </div>
         <div class="history-toolbar">
           <select id="historyPreset" class="history-select">
@@ -2179,24 +2687,12 @@ body.modal-open { overflow: hidden; }
           id: 'estadoEmocional',
           weight: 2,
           critical: true,
-          label: 'Como você se sente antes da janela?',
+          label: 'Como você está agora?',
           hint: 'Avalie seu estado emocional neste momento. O ideal é estar calmo, equilibrado e sem excesso de medo ou euforia.',
           options: [
-            { label: 'Inseguro', value: 0, score: 0 },
-            { label: 'Neutro', value: 1, score: 2 },
+            { label: 'Tenso', value: 0, score: 0 },
+            { label: 'Calmo', value: 1, score: 2 },
             { label: 'Agitado', value: 2, score: 0 }
-          ]
-        },
-        {
-          id: 'foco',
-          weight: 2,
-          critical: true,
-          label: 'Como está seu foco?',
-          hint: 'Considere seu nível de concentração, clareza mental e capacidade de seguir seu plano sem distrações.',
-          options: [
-            { label: 'Baixo', value: 0, score: 0 },
-            { label: 'Médio', value: 1, score: 1 },
-            { label: 'Alto', value: 2, score: 2 }
           ]
         },
         {
@@ -2287,7 +2783,7 @@ body.modal-open { overflow: hidden; }
     }
   ],
 
-  disposicaoScoreMax: 28,
+  disposicaoScoreMax: 24,
 
   notas: ['A', 'B', 'C'],
 
@@ -2395,7 +2891,7 @@ async function getDiario(id) {
     headers: sbHeaders()
   });
   if (!data || !data.length) return null;
-  return data[0].payload;
+  return applyLocalChartViewToDiario(data[0].payload);
 }
 
 async function saveDiario(record) {
@@ -2418,7 +2914,9 @@ async function getAllDiarios() {
     headers: sbHeaders()
   });
   if (!data) return [];
-  return data.map(r => r.payload).sort((a, b) => b.data.localeCompare(a.data));
+  return data
+    .map((r) => applyLocalChartViewToDiario(r.payload))
+    .sort((a, b) => b.data.localeCompare(a.data));
 }
 
 async function deleteDiario(id) {
@@ -2468,6 +2966,16 @@ function isWeekend(dateId) {
   return day === 0 || day === 6;
 }
 
+const WEEKEND_FECHADO_MOTIVO = 'Final de semana';
+
+function getDefaultDiaFechado(dateId) {
+  return isWeekend(dateId);
+}
+
+function getDefaultDiaFechadoMotivo(dateId) {
+  return isWeekend(dateId) ? WEEKEND_FECHADO_MOTIVO : '';
+}
+
 function addDaysToDateId(dateId, delta) {
   const date = parseDateId(dateId);
   date.setDate(date.getDate() + delta);
@@ -2511,9 +3019,26 @@ function normalizeProntidao(prontidao) {
   return empty;
 }
 
+function normalizeDiarioFechado(diario) {
+  if (!diario || typeof diario !== 'object') return diario;
+  if (diario.diaFechado === undefined && diario.feriado) {
+    diario.diaFechado = !!diario.feriado;
+  }
+  if (!diario.diaFechadoMotivo && diario.feriadoMotivo) {
+    diario.diaFechadoMotivo = diario.feriadoMotivo;
+  }
+  diario.diaFechado = !!diario.diaFechado;
+  diario.diaFechadoMotivo = String(diario.diaFechadoMotivo || '');
+  delete diario.feriado;
+  delete diario.feriadoMotivo;
+  return diario;
+}
+
 function diarioHasContent(d) {
   if (!d) return false;
+  normalizeDiarioFechado(d);
   return !!(
+    d.diaFechado         ||
     d.comentarioPreTrade ||
     d.comentarioGeral    ||
     d.graficoDia         ||
@@ -2534,6 +3059,11 @@ function diarioHasTradingContent(d) {
     prontidaoHasAnswers(d.prontidao) ||
     (d.trades || []).some(isTradeFilled)
   );
+}
+
+function diarioHasRegistroEmDiaAberto(dateId, diario) {
+  if (!isDiaAberto(dateId, diario) || !diario) return false;
+  return diarioHasTradingContent(diario);
 }
 
 function todayId() {
@@ -2561,10 +3091,53 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function isDiarioFechado(d) {
+  if (!d) return false;
+  normalizeDiarioFechado(d);
+  return !!d.diaFechado;
+}
+
+function isDiaAberto(dateId, diario) {
+  if (diario) {
+    normalizeDiarioFechado(diario);
+    return !diario.diaFechado;
+  }
+  return !getDefaultDiaFechado(dateId);
+}
+
+function countFilledTrades(diario) {
+  if (!diario) return 0;
+  return (diario.trades || []).filter(isTradeFilled).length;
+}
+
+function iterPeriodDays(from, to, diarioMap) {
+  const days = [];
+  let cursor = from;
+  while (cursor <= to) {
+    const diario = diarioMap.get(cursor) || null;
+    if (!isWeekend(cursor) || diario) {
+      days.push({ dateId: cursor, diario });
+    }
+    cursor = addDaysToDateId(cursor, 1);
+  }
+  return days;
+}
+
+function getDiaFechadoDisplayText(d) {
+  normalizeDiarioFechado(d);
+  const motivo = String(d?.diaFechadoMotivo || '').trim();
+  return motivo ? `Sem operação — ${motivo}` : 'Sem operação neste dia';
+}
+
+const TRADE_HORA_DEFAULT = '10:30';
+const TRADE_LADOS = ['compra', 'venda'];
+
 function emptyDiario(id = todayId()) {
   return {
     id,
     data: id,
+    diaFechado: getDefaultDiaFechado(id),
+    diaFechadoMotivo: getDefaultDiaFechadoMotivo(id),
     prontidao: emptyProntidao(),
     scoreProntidao: null,
     statusOperacao: null,
@@ -2573,7 +3146,10 @@ function emptyDiario(id = todayId()) {
       numero: i + 1,
       estrategia: '',
       pontos: null,
+      lado: '',
       nota: '',
+      hora: TRADE_HORA_DEFAULT,
+      horaAtiva: false,
       falhas: [],
       falhaOutro: '',
       conducao: '',
@@ -2662,6 +3238,18 @@ function maestriaHasContent(maestria) {
     m.analise.trim() ||
     m.destaques.trim()
   );
+}
+
+function findLastMaestriaDestaquesSession(allDiarios, beforeDateId) {
+  let best = null;
+  for (const d of allDiarios) {
+    const date = getDiarioDate(d);
+    if (!date || date >= beforeDateId) continue;
+    const destaques = normalizeMaestria(d.maestria).destaques.trim();
+    if (!destaques) continue;
+    if (!best || date > best.date) best = { date, destaques };
+  }
+  return best;
 }
 
 function getMaestriaFieldDisplayText(fieldId, maestria) {
@@ -2902,13 +3490,13 @@ function prontidaoHasAnswers(prontidao) {
   const dispIds = getAllDisposicaoQuestions().map((q) => q.id);
   const dispHeaders = dispIds.flatMap((id) => [`${id}_valor`, `${id}_nota`]);
   return [
-    'data', 'score_disposicao', 'status_operacao',
+    'data', 'dia_fechado', 'dia_fechado_motivo', 'score_disposicao', 'status_operacao',
     'plano_estrategias', 'comentario_pre_trade', 'comentario_geral',
     'maestria_contexto_macro', 'maestria_contexto_macro_nota',
     'maestria_micro_ciclo', 'maestria_micro_ciclo_nota',
     'maestria_analise', 'maestria_destaques',
     ...dispHeaders,
-    'trade_num', 'estrategia', 'pontos', 'nota', 'falha', 'conducao',
+    'trade_num', 'estrategia', 'pontos', 'nota', 'lado', 'hora_trade', 'falha', 'conducao',
     'aspecto_positivo', 'comentario_trade'
   ];
 }
@@ -2918,9 +3506,12 @@ function diariosToDataRows(diarios, headers = getCsvHeaders()) {
   const rows = [];
 
   for (const d of diarios) {
+    normalizeDiarioFechado(d);
     const maestria = normalizeMaestria(d.maestria);
     const base = [
       d.data,
+      d.diaFechado ? '1' : '0',
+      d.diaFechadoMotivo ?? '',
       d.scoreProntidao ?? '',
       d.statusOperacao ?? '',
       (d.planoEstrategias || []).join('|'),
@@ -2945,10 +3536,12 @@ function diariosToDataRows(diarios, headers = getCsvHeaders()) {
 
     const filledTrades = (d.trades || []).filter(isTradeFilled);
     if (filledTrades.length === 0) {
-      rows.push([...base, ...pront, '', '', '', '', '', '', '', '']);
+      rows.push([...base, ...pront, '', '', '', '', '', '', '', '', '']);
     } else {
       for (const t of filledTrades) {
         normalizeTradeSelections(t);
+        normalizeTradeHora(t);
+        normalizeTradeLado(t);
         rows.push([
           ...base,
           ...pront,
@@ -2956,6 +3549,8 @@ function diariosToDataRows(diarios, headers = getCsvHeaders()) {
           t.estrategia,
           t.pontos ?? '',
           t.nota,
+          t.lado || '',
+          t.horaAtiva ? (t.hora || '') : '',
           formatTradeSelectionsExport(t.falhas, t.falhaOutro),
           t.conducao,
           formatTradeSelectionsExport(t.aspectosPositivos, t.aspectoOutro),
@@ -3348,10 +3943,10 @@ async function unlinkBackupJsonFile() {
 
 function prepareDiariosForBackup(diarios) {
   return diarios.map((d) => {
-    const prepared = {
+    const prepared = stripSyncedChartViewFields({
       ...d,
       prontidao: normalizeProntidao(d.prontidao)
-    };
+    });
     const result = calcScoreProntidao(prepared.prontidao);
     if (result.score !== null) {
       prepared.scoreProntidao = result.score;
@@ -3395,6 +3990,7 @@ async function importJSON(fileOrText) {
   if (!Array.isArray(records)) throw new Error('Formato inválido');
   records.forEach((r) => {
     r.prontidao = normalizeProntidao(r.prontidao);
+    stripChartViewFromDiario(r);
   });
   await importDiarios(records);
   return records.length;
@@ -3487,6 +4083,9 @@ function csvRowsToDiarios(parsed) {
       });
 
       const diario = emptyDiario(dateId);
+      const fechadoRaw = get(row, 'dia_fechado') || get(row, 'feriado');
+      diario.diaFechado = ['1', 'true', 'sim', 's'].includes(String(fechadoRaw || '').trim().toLowerCase());
+      diario.diaFechadoMotivo = get(row, 'dia_fechado_motivo') || get(row, 'feriado_motivo') || '';
       diario.prontidao = normalizeProntidao(prontidao);
       diario.scoreProntidao = parseOptionalNumber(get(row, 'score_disposicao'));
       diario.statusOperacao = get(row, 'status_operacao') || null;
@@ -3522,6 +4121,9 @@ function csvRowsToDiarios(parsed) {
       estrategia: get(row, 'estrategia') || '',
       pontos: parseOptionalNumber(get(row, 'pontos')),
       nota: get(row, 'nota') || '',
+      lado: get(row, 'lado') || '',
+      hora: get(row, 'hora_trade') || TRADE_HORA_DEFAULT,
+      horaAtiva: !!String(get(row, 'hora_trade') || '').trim(),
       falhas: falha.values,
       falhaOutro: falha.outro,
       conducao: get(row, 'conducao') || '',
@@ -3545,7 +4147,10 @@ function csvRowsToDiarios(parsed) {
         numero: num,
         estrategia: '',
         pontos: null,
+        lado: '',
         nota: '',
+        hora: TRADE_HORA_DEFAULT,
+        horaAtiva: false,
         falhas: [],
         falhaOutro: '',
         conducao: '',
@@ -3554,7 +4159,11 @@ function csvRowsToDiarios(parsed) {
         comentario: ''
       };
     });
-    diario.trades.forEach(normalizeTradeSelections);
+    diario.trades.forEach((t) => {
+      normalizeTradeSelections(t);
+      normalizeTradeHora(t);
+      normalizeTradeLado(t);
+    });
 
     const result = calcScoreProntidao(diario.prontidao);
     if (result.score !== null) {
@@ -3593,14 +4202,21 @@ async function restoreBackupCsv({ preferLinked = true } = {}) {
   return { count, source: file.name };
 }
 
-function calcStats(diarios, periodFrom, periodTo) {
-  const withScore = diarios
-    .map((d) => {
-      const result = calcScoreProntidao(d.prontidao);
-      return result.score !== null ? result.score : d.scoreProntidao;
-    })
-    .filter((score) => score !== null && score !== undefined);
-  const allTrades = diarios.flatMap((d) => (d.trades || []).filter(isTradeFilled));
+function calcStats(diariosInRange, periodFrom, periodTo) {
+  const diarioMap = buildDiarioMap(diariosInRange);
+  const periodDays = iterPeriodDays(periodFrom, periodTo, diarioMap);
+
+  let diasAbertosSemOperacao = 0;
+  let diasComRegistro = 0;
+  for (const { dateId, diario } of periodDays) {
+    if (!isDiaAberto(dateId, diario)) continue;
+    if (diarioHasRegistroEmDiaAberto(dateId, diario)) diasComRegistro++;
+    const tradeCount = countFilledTrades(diario);
+    if (tradeCount === 0) diasAbertosSemOperacao++;
+  }
+
+  const tradingDiarios = diariosInRange.filter((d) => !isDiarioFechado(d));
+  const allTrades = tradingDiarios.flatMap((d) => (d.trades || []).filter(isTradeFilled));
 
   const estrategiaCount = {};
   const estrategiaPontos = {};
@@ -3621,9 +4237,24 @@ function calcStats(diarios, periodFrom, periodTo) {
   }
 
   const totalPontos = allTrades.reduce((s, t) => s + (Number(t.pontos) || 0), 0);
+  let totalPontosPositivos = 0;
+  let totalPontosNegativos = 0;
+  let tradesPositivos = 0;
+  let tradesNegativos = 0;
+  for (const t of allTrades) {
+    const pts = Number(t.pontos);
+    if (!Number.isFinite(pts)) continue;
+    if (pts > 0) {
+      totalPontosPositivos += pts;
+      tradesPositivos++;
+    } else if (pts < 0) {
+      totalPontosNegativos += pts;
+      tradesNegativos++;
+    }
+  }
 
   const semaforo = { excelente: 0, normal: 0, cautela: 0, defensivo: 0, nao_operar: 0 };
-  for (const d of diarios) {
+  for (const d of tradingDiarios) {
     const result = calcScoreProntidao(d.prontidao);
     const status = result.score !== null ? result.status : d.statusOperacao;
     if (status === 'verde' || status === 'neutra') semaforo.normal++;
@@ -3632,21 +4263,20 @@ function calcStats(diarios, periodFrom, periodTo) {
     else if (status && semaforo[status] !== undefined) semaforo[status]++;
   }
 
-  const diasComTrades = diarios.filter((d) => (d.trades || []).some(isTradeFilled)).length;
-  const mediaPontosDia = diasComTrades
-    ? Math.round(totalPontos / diasComTrades)
-    : '—';
-
   return {
-    diasComRegistro: diarios.filter(diarioHasContent).length,
-    diasComProntidao: withScore.length,
-    diasAptos: semaforo.excelente + semaforo.normal,
+    diasComRegistro,
     totalTrades: allTrades.length,
+    tradesPositivos,
+    tradesNegativos,
+    diasAbertosSemOperacao,
     totalPontos,
-    mediaPontosDia,
-    topEstrategia: topEstrategia ? `${topEstrategia[0]} (${topEstrategia[1]}x)` : '—',
+    totalPontosPositivos,
+    totalPontosNegativos,
+    topEstrategia: topEstrategia
+      ? `${topEstrategia[0]} · ${topEstrategia[1]} · ${Math.round(estrategiaPontos[topEstrategia[0]] || 0)}`
+      : '—',
     topEstrategiaPontos: topEstrategiaPontos
-      ? `${topEstrategiaPontos[0]} (${Math.round(topEstrategiaPontos[1])} pts)`
+      ? `${topEstrategiaPontos[0]} · ${Math.round(topEstrategiaPontos[1])}`
       : '—',
     notas: notaMap,
     semaforo
@@ -4011,6 +4641,13 @@ async function buildDayPdf(diario) {
   pdf.addLine(formatDateBR(dateId));
   pdf.addSpacer(6);
 
+  normalizeDiarioFechado(diario);
+  if (diario.diaFechado) {
+    pdf.addHeading('Sem operação');
+    pdf.addLine(diario.diaFechadoMotivo?.trim() || 'Dia sem operação registrado.');
+    return pdf.build();
+  }
+
   pdf.addHeading('Disposição para operar');
   const dispResult = calcScoreProntidao(diario.prontidao);
   if (dispResult.score !== null) {
@@ -4022,7 +4659,7 @@ async function buildDayPdf(diario) {
     pdf.addLine(`Restrições: ${dispResult.restricao}`, 12);
     pdf.addLine(`Recomendações: ${dispResult.acao}`, 12);
   } else {
-    pdf.addLine('IDO: —/28 · Respostas incompletas');
+    pdf.addLine('IDO: —/24 · Respostas incompletas');
   }
 
   const prontidao = normalizeProntidao(diario.prontidao);
@@ -4056,9 +4693,14 @@ async function buildDayPdf(diario) {
   } else {
     trades.forEach((trade) => {
       normalizeTradeSelections(trade);
+      normalizeTradeLado(trade);
       pdf.addLine(`Trade ${trade.numero}`, 8);
       pdf.addLine(`Estratégia: ${trade.estrategia || '—'}`, 12);
       pdf.addLine(`Pontos: ${trade.pontos ?? '—'} · Nota: ${trade.nota || '—'}`, 12);
+      const ladoLabel = formatTradeLadoLabel(trade);
+      if (ladoLabel) pdf.addLine(`Lado: ${ladoLabel}`, 12);
+      const horaLabel = formatTradeHoraDisplay(trade);
+      if (horaLabel) pdf.addLine(`Hora: ${horaLabel}`, 12);
       if (trade.falhas?.length) {
         pdf.addLine(`Falha: ${formatTradeSelectionsDisplay(trade.falhas, trade.falhaOutro)}`, 12);
       }
@@ -4198,15 +4840,31 @@ let selectedDateId = null;
 let viewYear = null;
 let viewMonth = null;
 let filledDates = new Set();
+let closedDates = new Set();
+let openWeekendDates = new Set();
 let statusByDate = {};
 
 async function refreshCalendarDates() {
   const all = await getAllDiarios();
   filledDates = new Set();
+  closedDates = new Set();
+  openWeekendDates = new Set();
   statusByDate = {};
   for (const d of all) {
+    const date = getDiarioDate(d);
+    if (!date) continue;
+
+    if (isDiarioFechado(d)) {
+      closedDates.add(date);
+      filledDates.add(date);
+      continue;
+    }
+
+    if (isWeekend(date)) {
+      openWeekendDates.add(date);
+    }
+
     if (diarioHasContent(d)) {
-      const date = getDiarioDate(d);
       filledDates.add(date);
       const result = calcScoreProntidao(d.prontidao);
       if (result.score !== null) statusByDate[date] = result.status;
@@ -4228,6 +4886,7 @@ async function loadDay(dateId) {
   await flushSave();
 
   let diario = await getDiario(dateId);
+  const isNew = !diario;
   if (!diario) diario = emptyDiario(dateId);
 
   selectedDateId = dateId;
@@ -4236,9 +4895,12 @@ async function loadDay(dateId) {
   viewMonth = m - 1;
 
   populateForm(diario);
+  await refreshMaestriaFocoReminder();
   updateEditingBanner();
   renderCalendar();
   setSaveStatus('Pronto');
+
+  if (isNew && diario.diaFechado) scheduleSave();
 }
 
 function updateEditingBanner() {
@@ -4276,6 +4938,8 @@ function renderCalendar() {
     const isToday = dateId === today;
     const isSelected = dateId === selectedDateId;
     const hasEntry = filledDates.has(dateId);
+    const isClosed = closedDates.has(dateId)
+      || (isWeekend(dateId) && !openWeekendDates.has(dateId));
     const status = statusByDate[dateId];
 
     const classes = [
@@ -4284,7 +4948,8 @@ function renderCalendar() {
       isToday ? 'cal-day--today' : '',
       isSelected ? 'cal-day--selected' : '',
       hasEntry ? 'cal-day--filled' : '',
-      status ? `cal-day--${getStatusCssClass(status)}` : ''
+      isClosed ? 'cal-day--fechado' : '',
+      !isClosed && status ? `cal-day--${getStatusCssClass(status)}` : ''
     ].filter(Boolean).join(' ');
 
     html += `
@@ -4361,8 +5026,27 @@ function diarioHasMaestriaRecord(d) {
   return !!(d && maestriaHasContent(d.maestria));
 }
 
+function diarioHasGraficoRecord(d) {
+  return !!(d && d.graficoDia);
+}
+
+function getLastGraficaSessionRange(allDiarios) {
+  const withGrafico = allDiarios.filter(diarioHasGraficoRecord);
+  if (!withGrafico.length) return { from: null, to: null };
+
+  const lastDate = withGrafico
+    .map((d) => getDiarioDate(d))
+    .filter(Boolean)
+    .sort()
+    .pop();
+
+  return { from: lastDate, to: lastDate };
+}
+
 function historyDayQualifies(d, viewMode = 'trading') {
-  return viewMode === 'maestria' ? diarioHasMaestriaRecord(d) : diarioHasTradingContent(d);
+  if (viewMode === 'maestria') return diarioHasMaestriaRecord(d);
+  if (viewMode === 'grafica') return diarioHasGraficoRecord(d);
+  return diarioHasTradingContent(d);
 }
 
 const HISTORY_PRESET_LABELS = {
@@ -4377,12 +5061,20 @@ const HISTORY_PRESET_LABELS = {
     'last-week': 'Últimos 7 dias',
     'last-month': 'Últimos 30 dias',
     custom: 'Período personalizado'
+  },
+  grafica: {
+    'last-session': 'Último gráfico salvo',
+    'last-week': 'Últimos 7 dias',
+    'last-month': 'Últimos 30 dias',
+    custom: 'Período personalizado'
   }
 };
 
 function getHistoryViewMode() {
   const active = document.querySelector('.history-view-tabs .tab.active');
-  return active?.dataset.historyView === 'maestria' ? 'maestria' : 'trading';
+  if (active?.dataset.historyView === 'maestria') return 'maestria';
+  if (active?.dataset.historyView === 'grafica') return 'grafica';
+  return 'trading';
 }
 
 function updateHistoryPresetOptions(viewMode = getHistoryViewMode()) {
@@ -4408,9 +5100,9 @@ function getPeriodRange(preset, allDiarios, customFrom, customTo, viewMode = 'tr
 
   switch (preset) {
     case 'last-session':
-      return viewMode === 'maestria'
-        ? getLastMaestriaSessionRange(allDiarios)
-        : getLastTradingSessionRange(allDiarios);
+      if (viewMode === 'maestria') return getLastMaestriaSessionRange(allDiarios);
+      if (viewMode === 'grafica') return getLastGraficaSessionRange(allDiarios);
+      return getLastTradingSessionRange(allDiarios);
     case 'last-week':
       return { from: addDaysToDateId(today, -6), to: today };
     case 'last-month':
@@ -4422,9 +5114,9 @@ function getPeriodRange(preset, allDiarios, customFrom, customTo, viewMode = 'tr
       return normalizeDateRange(customFrom, customTo);
     }
     default:
-      return viewMode === 'maestria'
-        ? getLastMaestriaSessionRange(allDiarios)
-        : getLastTradingSessionRange(allDiarios);
+      if (viewMode === 'maestria') return getLastMaestriaSessionRange(allDiarios);
+      if (viewMode === 'grafica') return getLastGraficaSessionRange(allDiarios);
+      return getLastTradingSessionRange(allDiarios);
   }
 }
 
@@ -4465,7 +5157,7 @@ function buildHistoryDayList(allInRange, from, to, preset, viewMode = 'trading')
       cursor = addDaysToDateId(cursor, 1);
     }
 
-    if (viewMode === 'maestria') {
+    if (viewMode === 'maestria' || viewMode === 'grafica') {
       days = days.filter(({ diario }) => qualifies(diario));
     }
   }
@@ -4562,11 +5254,11 @@ function renderIdoCorStatHtml(semaforo) {
 function renderStatsGrid(stats) {
   const grid = document.getElementById('statsGrid');
   grid.innerHTML = `
-    <div class="stat-card"><span class="stat-value">${stats.diasComRegistro}</span><span class="stat-label">Dias com registro</span></div>
-    <div class="stat-card"><span class="stat-value">${stats.diasAptos}</span><span class="stat-label">Dias aptos</span></div>
-    <div class="stat-card"><span class="stat-value">${stats.totalTrades}</span><span class="stat-label">Trades</span></div>
-    <div class="stat-card"><span class="stat-value">${stats.totalPontos}</span><span class="stat-label">Pontos totais</span></div>
-    <div class="stat-card"><span class="stat-value">${stats.mediaPontosDia}</span><span class="stat-label">Média pts/dia</span></div>
+    <div class="stat-card"><span class="stat-value">${stats.diasComRegistro}</span><span class="stat-label">Dias ativos</span></div>
+    <div class="stat-card"><span class="stat-value">${stats.diasAbertosSemOperacao}</span><span class="stat-label">Dias sem operação</span></div>
+    <div class="stat-card"><span class="stat-value">${stats.totalTrades} · ${stats.totalPontos}</span><span class="stat-label">Total</span></div>
+    <div class="stat-card"><span class="stat-value">${stats.tradesPositivos} · ${stats.totalPontosPositivos}</span><span class="stat-label">Gain</span></div>
+    <div class="stat-card"><span class="stat-value">${stats.tradesNegativos} · ${Math.abs(stats.totalPontosNegativos)}</span><span class="stat-label">Loss</span></div>
     <div class="stat-card"><span class="stat-value">${stats.topEstrategia}</span><span class="stat-label">Estratégia + usada</span></div>
     <div class="stat-card"><span class="stat-value">${stats.topEstrategiaPontos}</span><span class="stat-label">Estratégia + pontos</span></div>
     <div class="stat-card"><span class="stat-value">A:${stats.notas.A} B:${stats.notas.B} C:${stats.notas.C}</span><span class="stat-label">Notas</span></div>
@@ -4577,6 +5269,11 @@ function renderStatsGrid(stats) {
 function createChartElement(d, dateId) {
   const chartWrap = document.createElement('div');
   chartWrap.className = 'history-day-chart';
+
+  if (isDiarioFechado(d)) {
+    chartWrap.innerHTML = '<div class="history-card-no-img history-card-no-img--fechado"><span>🔒</span><small>Sem operação</small></div>';
+    return chartWrap;
+  }
 
   if (d?.graficoDia) {
     const img = document.createElement('img');
@@ -4646,6 +5343,10 @@ function buildTradingExpandableContent(d) {
     const est = CONFIG.estrategias.find((s) => s.id === t.estrategia);
     parts.push(`Estratégia: ${est ? `${est.label} — ${est.desc}` : (t.estrategia || '—')}`);
     parts.push(`Pontos: ${t.pontos ?? '—'} · Nota: ${t.nota || '—'}`);
+    const ladoLabel = formatTradeLadoLabel(t);
+    if (ladoLabel) parts.push(`Lado: ${ladoLabel}`);
+    const horaLabel = formatTradeHoraDisplay(t);
+    if (horaLabel) parts.push(`Hora: ${horaLabel}`);
     if (t.falhas?.length) {
       parts.push(`Falha: ${formatTradeSelectionsDisplay(t.falhas, t.falhaOutro)}`);
     }
@@ -4679,7 +5380,57 @@ function buildMaestriaExpandableContent(d) {
   return hasContent ? panel : null;
 }
 
+function createDiaFechadoDayCard(d, dateId) {
+  normalizeDiarioFechado(d);
+  const article = document.createElement('article');
+  article.className = 'history-day-card history-day-card--fechado';
+
+  article.appendChild(createChartElement(d, dateId));
+
+  const body = document.createElement('div');
+  body.className = 'history-day-body';
+
+  const content = document.createElement('div');
+  content.className = 'history-day-content';
+
+  const head = document.createElement('div');
+  head.className = 'history-day-head';
+  head.innerHTML = `
+    <h3>${formatDateShort(getDiarioDate(d) || dateId)}</h3>
+    <span class="status-pill status-pill--fechado">Sem operação</span>
+  `;
+  content.appendChild(head);
+
+  const p = document.createElement('p');
+  p.className = 'history-day-line';
+  p.textContent = getDiaFechadoDisplayText(d);
+  content.appendChild(p);
+
+  const hint = document.createElement('p');
+  hint.className = 'history-day-comment';
+  hint.textContent = 'Sem operação — disposição, trades e análise Maestria não se aplicam.';
+  content.appendChild(hint);
+
+  body.appendChild(content);
+
+  const actions = document.createElement('div');
+  actions.className = 'history-day-actions';
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn btn-ghost btn-sm history-open-day';
+  btn.dataset.id = getDiarioDate(d) || dateId;
+  btn.textContent = 'Abrir dia';
+  actions.appendChild(btn);
+
+  body.appendChild(actions);
+  article.appendChild(body);
+  return article;
+}
+
 function createMaestriaDayCard(d, dateId) {
+  if (isDiarioFechado(d)) return createDiaFechadoDayCard(d, dateId);
+
   const article = document.createElement('article');
   const hasMaestria = diarioHasMaestriaRecord(d);
   article.className = hasMaestria
@@ -4780,8 +5531,25 @@ function createMaestriaDayCard(d, dateId) {
   return article;
 }
 
+function createGraficaDayCard(d, dateId) {
+  const article = document.createElement('article');
+  article.className = 'history-chart-card history-open-day';
+  article.dataset.id = getDiarioDate(d) || dateId;
+  article.dataset.openTab = 'pos';
+
+  const header = document.createElement('div');
+  header.className = 'history-chart-card-header';
+  header.innerHTML = `<h3>${formatDateShort(getDiarioDate(d) || dateId)}</h3>`;
+  article.appendChild(header);
+
+  article.appendChild(createChartElement(d, dateId));
+  return article;
+}
+
 function createDayCard(d, dateId, viewMode = 'trading') {
   if (viewMode === 'maestria') return createMaestriaDayCard(d, dateId);
+  if (viewMode === 'grafica') return createGraficaDayCard(d, dateId);
+  if (d && isDiarioFechado(d)) return createDiaFechadoDayCard(d, dateId);
 
   const article = document.createElement('article');
   const hasTrading = diarioHasTradingContent(d);
@@ -4816,8 +5584,8 @@ function createDayCard(d, dateId, viewMode = 'trading') {
     content.appendChild(head);
 
     const dispLine = idoPercent !== null
-      ? `IDO ${idoScore ?? '—'}/28 (${idoPercent}%) · ${escapeHtml(nivelLabel)}`
-      : `IDO ${idoScore ?? '—'}/28 · ${escapeHtml(nivelLabel)}`;
+      ? `IDO ${idoScore ?? '—'}/24 (${idoPercent}%) · ${escapeHtml(nivelLabel)}`
+      : `IDO ${idoScore ?? '—'}/24 · ${escapeHtml(nivelLabel)}`;
 
     const lines = [
       ['Disposição', dispLine],
@@ -4842,7 +5610,9 @@ function createDayCard(d, dateId, viewMode = 'trading') {
         btn.className = 'history-day-selectable history-open-trade';
         btn.dataset.id = getDiarioDate(d) || dateId;
         btn.dataset.tradeIndex = String(index);
-        btn.textContent = `T${t.numero} ${t.estrategia || '—'} · ${t.pontos ?? 0} pts · Nota ${t.nota || '—'}`;
+        const horaLabel = formatTradeHoraDisplay(t);
+        const ladoLabel = formatTradeLadoDisplay(t);
+        btn.textContent = `T${t.numero} ${t.estrategia || '—'} · ${t.pontos ?? 0} pts · Nota ${t.nota || '—'}${ladoLabel ? ` · ${ladoLabel}` : ''}${horaLabel ? ` · ${horaLabel}` : ''}`;
         li.appendChild(btn);
         ul.appendChild(li);
       });
@@ -4927,12 +5697,16 @@ function renderHistoryGallery(allInRange, from, to, preset = 'custom', viewMode 
   if (daysInPeriod.length === 0) {
     gallery.innerHTML = viewMode === 'maestria'
       ? '<p class="empty-msg">Nenhuma análise Maestria encontrada no período.</p>'
-      : '<p class="empty-msg">Selecione um período válido.</p>';
+      : viewMode === 'grafica'
+        ? '<p class="empty-msg">Nenhum gráfico salvo encontrado no período.</p>'
+        : '<p class="empty-msg">Selecione um período válido.</p>';
     return;
   }
 
   const track = document.createElement('div');
-  track.className = 'history-gallery-track';
+  track.className = viewMode === 'grafica'
+    ? 'history-gallery-track history-gallery-track--charts'
+    : 'history-gallery-track';
 
   daysInPeriod.forEach(({ dateId, diario }) => {
     track.appendChild(createDayCard(diario, dateId, viewMode));
@@ -4984,7 +5758,11 @@ async function renderHistory() {
   setHistoryStatsVisible(showStats);
 
   document.getElementById('historyGalleryTitle').textContent =
-    viewMode === 'maestria' ? 'Análises do período' : 'Dias do período';
+    viewMode === 'maestria'
+      ? 'Análises do período'
+      : viewMode === 'grafica'
+        ? 'Gráficos do período'
+        : 'Dias do período';
 
   const range = getPeriodRange(preset, all, customFrom, customTo, viewMode);
   const { from, to, needsDates } = range;
@@ -4994,8 +5772,9 @@ async function renderHistory() {
       'Período personalizado · selecione a data inicial e final';
     if (showStats) {
       renderStatsGrid({
-        diasComRegistro: 0, diasAptos: 0, totalTrades: 0,
-        totalPontos: 0, mediaPontosDia: '—', topEstrategia: '—', topEstrategiaPontos: '—',
+        diasComRegistro: 0, diasAbertosSemOperacao: 0,
+        totalTrades: 0, tradesPositivos: 0, tradesNegativos: 0,
+        totalPontos: 0, totalPontosPositivos: 0, totalPontosNegativos: 0, topEstrategia: '—', topEstrategiaPontos: '—',
         notas: { A: 0, B: 0, C: 0 }, semaforo: { excelente: 0, normal: 0, cautela: 0, defensivo: 0, nao_operar: 0 }
       });
     }
@@ -5007,14 +5786,19 @@ async function renderHistory() {
     document.getElementById('historyPeriodLabel').textContent = 'Nenhum período com registros';
     if (showStats) {
       renderStatsGrid({
-        diasComRegistro: 0, diasAptos: 0, totalTrades: 0,
-        totalPontos: 0, mediaPontosDia: '—', topEstrategia: '—', topEstrategiaPontos: '—',
+        diasComRegistro: 0, diasAbertosSemOperacao: 0,
+        totalTrades: 0, tradesPositivos: 0, tradesNegativos: 0,
+        totalPontos: 0, totalPontosPositivos: 0, totalPontosNegativos: 0, topEstrategia: '—', topEstrategiaPontos: '—',
         notas: { A: 0, B: 0, C: 0 }, semaforo: { excelente: 0, normal: 0, cautela: 0, defensivo: 0, nao_operar: 0 }
       });
     }
-    showHistoryEmpty(viewMode === 'maestria'
-      ? 'Nenhuma análise Maestria encontrada. Preencha a aba Análise Maestria para ver o histórico.'
-      : 'Nenhum registro encontrado. Preencha o diário para ver o histórico.');
+    showHistoryEmpty(
+      viewMode === 'maestria'
+        ? 'Nenhuma análise Maestria encontrada. Preencha a aba Análise Maestria para ver o histórico.'
+        : viewMode === 'grafica'
+          ? 'Nenhum gráfico encontrado. Adicione prints dos gráficos para ver o histórico.'
+          : 'Nenhum registro encontrado. Preencha o diário para ver o histórico.'
+    );
     return;
   }
 
@@ -5025,8 +5809,7 @@ async function renderHistory() {
     formatPeriodLabel(from, to, preset, viewMode);
 
   if (showStats) {
-    const statsDiarios = getHistoryStatsDiarios(allInRange, from, to, preset, viewMode);
-    const stats = calcStats(statsDiarios, from, to);
+    const stats = calcStats(allInRange, from, to);
     renderStatsGrid(stats);
   }
 
@@ -5036,7 +5819,9 @@ async function renderHistory() {
     const label = document.getElementById('historyPeriodLabel');
     label.textContent += viewMode === 'maestria'
       ? ' · nenhuma análise Maestria no período'
-      : ' · nenhum dia com registro no período';
+      : viewMode === 'grafica'
+        ? ' · nenhum gráfico salvo no período'
+        : ' · nenhum dia com registro no período';
   }
 }
 
@@ -5104,6 +5889,28 @@ function initHistory() {
   <script>let currentDiario = null;
 let saveTimer = null;
 
+async function refreshMaestriaFocoReminder() {
+  const wrap = document.getElementById('maestriaFocoReminder');
+  const body = document.getElementById('maestriaFocoReminderBody');
+  if (!wrap || !body) return;
+
+  wrap.classList.add('hidden');
+
+  if (selectedDateId !== todayId()) return;
+
+  if (currentDiario && isDiarioFechado(currentDiario)) return;
+
+  const all = await getAllDiarios();
+  const session = findLastMaestriaDestaquesSession(all, todayId());
+  if (!session) return;
+
+  body.textContent = session.destaques;
+  wrap.classList.remove('hidden');
+}
+
+function initMaestriaFocoReminder() {
+}
+
 function renderDisposicao(prontidao = {}) {
   const container = document.getElementById('disposicaoContextos');
   const normalized = normalizeProntidao(prontidao);
@@ -5135,12 +5942,13 @@ function renderDisposicao(prontidao = {}) {
     btn.addEventListener('click', () => {
       const qId = btn.dataset.q;
       const item = btn.closest('.disposicao-item');
+      const wasSelected = btn.classList.contains('selected');
       item.querySelectorAll('.option-btn').forEach((b) => b.classList.remove('selected'));
-      btn.classList.add('selected');
+      if (!wasSelected) btn.classList.add('selected');
       if (!currentDiario.prontidao[qId]) {
         currentDiario.prontidao[qId] = { valor: null, nota: '' };
       }
-      currentDiario.prontidao[qId].valor = Number(btn.dataset.value);
+      currentDiario.prontidao[qId].valor = wasSelected ? null : Number(btn.dataset.value);
       updateSemaforo();
       scheduleSave();
     });
@@ -5179,6 +5987,111 @@ function renderEstrategias(selected = []) {
       currentDiario.planoEstrategias = ids;
       scheduleSave();
     });
+  });
+}
+
+function normalizeTradeHora(trade) {
+  if (!trade || typeof trade !== 'object') return trade;
+
+  if (trade.horaAtiva === undefined) {
+    trade.horaAtiva = !!(trade.hora && String(trade.hora).trim());
+  } else {
+    trade.horaAtiva = !!trade.horaAtiva;
+  }
+
+  const horaRaw = String(trade.hora || '').trim();
+  trade.hora = horaRaw && /^\d{2}:\d{2}$/.test(horaRaw) ? horaRaw : TRADE_HORA_DEFAULT;
+  return trade;
+}
+
+function normalizeTradeLado(trade) {
+  if (!trade || typeof trade !== 'object') return trade;
+
+  const raw = String(trade.lado ?? '').trim().toLowerCase();
+  if (raw === 'c' || raw === 'compra') trade.lado = 'compra';
+  else if (raw === 'v' || raw === 'venda') trade.lado = 'venda';
+  else trade.lado = '';
+
+  return trade;
+}
+
+function formatTradeLadoDisplay(trade) {
+  normalizeTradeLado(trade);
+  if (trade.lado === 'compra') return 'C';
+  if (trade.lado === 'venda') return 'V';
+  return '';
+}
+
+function formatTradeLadoLabel(trade) {
+  normalizeTradeLado(trade);
+  if (trade.lado === 'compra') return 'Compra';
+  if (trade.lado === 'venda') return 'Venda';
+  return '';
+}
+
+function formatTradeHoraDisplay(trade) {
+  normalizeTradeHora(trade);
+  return trade.horaAtiva ? trade.hora : '';
+}
+
+function updateTradeHoraUI(index, input, wrap, resetBtn) {
+  const trade = currentDiario?.trades?.[index];
+  if (!trade || !input) return;
+  normalizeTradeHora(trade);
+  input.value = trade.horaAtiva ? trade.hora : TRADE_HORA_DEFAULT;
+  input.classList.toggle('trade-hora-input--active', trade.horaAtiva);
+  resetBtn?.classList.toggle('hidden', !trade.horaAtiva);
+}
+
+function deactivateTradeHora(index, input, wrap, resetBtn) {
+  const trade = currentDiario?.trades?.[index];
+  if (!trade || !trade.horaAtiva) return;
+  trade.horaAtiva = false;
+  trade.hora = TRADE_HORA_DEFAULT;
+  input?.blur();
+  updateTradeHoraUI(index, input, wrap, resetBtn);
+}
+
+function activateTradeHora(index, input, wrap, resetBtn) {
+  const trade = currentDiario?.trades?.[index];
+  if (!trade || trade.horaAtiva) return;
+  trade.horaAtiva = true;
+  trade.hora = input?.value || TRADE_HORA_DEFAULT;
+  updateTradeHoraUI(index, input, wrap, resetBtn);
+}
+
+function bindTradeHoraInput(index, accordion) {
+  const wrap = accordion.querySelector('.trade-hora-wrap');
+  const input = wrap?.querySelector('input[type="time"][data-field="hora"]');
+  const resetBtn = wrap?.querySelector('.trade-hora-reset');
+  if (!input || !wrap) return;
+
+  resetBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    deactivateTradeHora(index, input, wrap, resetBtn);
+    scheduleSave();
+  });
+
+  input.addEventListener('pointerdown', () => {
+    if (!currentDiario?.trades?.[index]?.horaAtiva) {
+      activateTradeHora(index, input, wrap, resetBtn);
+      scheduleSave();
+    }
+  });
+
+  input.addEventListener('focus', () => {
+    if (!currentDiario?.trades?.[index]?.horaAtiva) {
+      activateTradeHora(index, input, wrap, resetBtn);
+      scheduleSave();
+    }
+  });
+
+  input.addEventListener('change', () => {
+    const trade = currentDiario?.trades?.[index];
+    if (!trade || !trade.horaAtiva) return;
+    trade.hora = input.value || TRADE_HORA_DEFAULT;
+    scheduleSave();
   });
 }
 
@@ -5355,7 +6268,11 @@ function bindTradeMultiPickers(index) {
 }
 
 function renderTrades(trades = []) {
-  trades.forEach(normalizeTradeSelections);
+  trades.forEach((trade) => {
+    normalizeTradeSelections(trade);
+    normalizeTradeHora(trade);
+    normalizeTradeLado(trade);
+  });
   const container = document.getElementById('tradesContainer');
   container.innerHTML = trades.map((trade, i) => buildTradeAccordion(trade, i)).join('');
 
@@ -5366,7 +6283,12 @@ function renderTrades(trades = []) {
 }
 
 function buildTradeAccordion(trade, index) {
+  normalizeTradeHora(trade);
+  normalizeTradeLado(trade);
   const filled = isTradeFilled(trade);
+  const horaValue = trade.horaAtiva ? trade.hora : TRADE_HORA_DEFAULT;
+  const horaActiveClass = trade.horaAtiva ? 'trade-hora-input--active' : '';
+  const horaResetHiddenClass = trade.horaAtiva ? '' : 'hidden';
   return `
     <details class="trade-accordion" data-trade="${index}" ${filled ? 'open' : ''}>
       <summary class="trade-summary" onclick="return false">
@@ -5386,13 +6308,43 @@ function buildTradeAccordion(trade, index) {
             </select>
           </div>
           <div class="field field-sm">
-            <label>Pontos obtidos</label>
+            <label>Pontuação</label>
             <input type="number" step="0.25" data-trade="${index}" data-field="pontos"
               value="${trade.pontos ?? ''}" placeholder="+12 / -5">
           </div>
         </div>
 
-        <div class="field">
+        <div class="trade-lado-hora-field">
+          <div class="trade-lado-hora-labels">
+            <label>Lado da operação</label>
+            <label>Hora do trade</label>
+          </div>
+          <div class="trade-lado-hora-controls">
+            <div class="lado-group" data-trade="${index}" data-field="lado">
+              <button type="button" class="lado-btn lado-btn--compra ${trade.lado === 'compra' ? 'selected' : ''}"
+                data-lado="compra" title="Compra" aria-label="Compra">C</button>
+              <button type="button" class="lado-btn lado-btn--venda ${trade.lado === 'venda' ? 'selected' : ''}"
+                data-lado="venda" title="Venda" aria-label="Venda">V</button>
+            </div>
+            <div class="hora-group">
+              <div class="trade-hora-wrap">
+                <button type="button" class="trade-hora-reset ${horaResetHiddenClass}"
+                  title="Remover horário" aria-label="Remover horário">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M3 12a9 9 0 1 0 3-6.7"/>
+                    <polyline points="3 4 3 9 8 9"/>
+                  </svg>
+                </button>
+                <input type="time" class="trade-hora-input ${horaActiveClass}"
+                  data-trade="${index}" data-field="hora" value="${horaValue}"
+                  title="Clique para definir o horário">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="trade-nota-field">
           <label>Nota do trade</label>
           <div class="nota-group" data-trade="${index}" data-field="nota">
             ${CONFIG.notas.map((n) => `
@@ -5408,6 +6360,13 @@ function buildTradeAccordion(trade, index) {
           outroField: 'falhaOutro'
         })}
 
+        ${buildTradeMultiField(index, trade, {
+          label: 'Aspecto positivo — continuar fazendo',
+          options: CONFIG.aspectosPositivos,
+          field: 'aspectosPositivos',
+          outroField: 'aspectoOutro'
+        })}
+
         <div class="field">
           <label>Condução</label>
           <select data-trade="${index}" data-field="conducao">
@@ -5415,13 +6374,6 @@ function buildTradeAccordion(trade, index) {
             ${CONFIG.conducoes.map((c) => `<option value="${c}" ${trade.conducao === c ? 'selected' : ''}>${c}</option>`).join('')}
           </select>
         </div>
-
-        ${buildTradeMultiField(index, trade, {
-          label: 'Aspecto positivo — continuar fazendo',
-          options: CONFIG.aspectosPositivos,
-          field: 'aspectosPositivos',
-          outroField: 'aspectoOutro'
-        })}
 
         <div class="field">
           <label>Comentário sobre o trade</label>
@@ -5461,12 +6413,29 @@ function bindTradeEvents(index, trade) {
 
   bindTradeMultiPickers(index);
 
+  bindTradeHoraInput(index, accordion);
+
   accordion.querySelectorAll('.nota-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
+      const wasSelected = btn.classList.contains('selected');
       accordion.querySelectorAll('.nota-btn').forEach((b) => b.classList.remove('selected'));
-      btn.classList.add('selected');
-      currentDiario.trades[index].nota = btn.dataset.nota;
+      if (!wasSelected) btn.classList.add('selected');
+      currentDiario.trades[index].nota = wasSelected ? '' : btn.dataset.nota;
       updateTradeHeader(index);
+      scheduleSave();
+    });
+  });
+
+  accordion.querySelectorAll('.lado-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const wasSelected = btn.classList.contains('selected');
+      accordion.querySelectorAll('.lado-btn').forEach((b) => b.classList.remove('selected'));
+      if (!wasSelected) {
+        btn.classList.add('selected');
+        currentDiario.trades[index].lado = btn.dataset.lado;
+      } else {
+        currentDiario.trades[index].lado = '';
+      }
       scheduleSave();
     });
   });
@@ -5539,17 +6508,35 @@ function clampChartStretchX(stretchX) {
 }
 
 const CHART_VIEW_STORAGE_KEY = 'trader-diary-chart-view';
+const CHART_VIEW_SCOPE_KEY = 'trader-diary-view-scope';
+
+function getChartViewScope() {
+  let scope = localStorage.getItem(CHART_VIEW_SCOPE_KEY);
+  if (!scope) {
+    scope = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `dev-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem(CHART_VIEW_SCOPE_KEY, scope);
+  }
+  return scope;
+}
+
+function getChartViewStorageKey() {
+  return `${CHART_VIEW_STORAGE_KEY}::${getChartViewScope()}`;
+}
 
 function getChartViewStore() {
   try {
-    return JSON.parse(localStorage.getItem(CHART_VIEW_STORAGE_KEY) || '{}');
+    const scoped = localStorage.getItem(getChartViewStorageKey());
+    const legacy = localStorage.getItem(CHART_VIEW_STORAGE_KEY);
+    return JSON.parse(scoped || legacy || '{}');
   } catch {
     return {};
   }
 }
 
 function saveChartViewStore(store) {
-  localStorage.setItem(CHART_VIEW_STORAGE_KEY, JSON.stringify(store));
+  localStorage.setItem(getChartViewStorageKey(), JSON.stringify(store));
 }
 
 function getChartViewDateId(diario = currentDiario) {
@@ -5586,11 +6573,32 @@ function deleteLocalChartView(dateId) {
   saveChartViewStore(store);
 }
 
+function stripChartViewFromDiario(diario) {
+  if (!diario || typeof diario !== 'object') return diario;
+  delete diario.graficoZoom;
+  delete diario.graficoStretchX;
+  delete diario.graficoFillMode;
+  delete diario.graficoDisplayWidth;
+  delete diario.graficoDisplayHeight;
+  return diario;
+}
+
+function applyLocalChartViewToDiario(diario) {
+  if (!diario || typeof diario !== 'object') return diario;
+  stripChartViewFromDiario(diario);
+  if (diario.graficoDia) {
+    const view = getLocalChartView(getChartViewDateId(diario));
+    diario.graficoZoom = view.zoom;
+    diario.graficoStretchX = view.stretchX;
+  } else {
+    diario.graficoZoom = 100;
+    diario.graficoStretchX = 100;
+  }
+  return diario;
+}
+
 function loadLocalChartViewIntoDiario(diario) {
-  const view = getLocalChartView(getChartViewDateId(diario));
-  diario.graficoZoom = view.zoom;
-  diario.graficoStretchX = view.stretchX;
-  return view;
+  return applyLocalChartViewToDiario(diario);
 }
 
 function persistCurrentChartView() {
@@ -5602,13 +6610,7 @@ function persistCurrentChartView() {
 }
 
 function stripSyncedChartViewFields(record) {
-  const payload = { ...record };
-  delete payload.graficoZoom;
-  delete payload.graficoStretchX;
-  delete payload.graficoFillMode;
-  delete payload.graficoDisplayWidth;
-  delete payload.graficoDisplayHeight;
-  return payload;
+  return stripChartViewFromDiario({ ...record });
 }
 
 function applyChartZoom(zoom) {
@@ -5883,13 +6885,105 @@ function initGraficoDia() {
   });
 }
 
+let fechadoLastToggleAt = 0;
+
+function updateDiaFechadoUI() {
+  const isFechado = !!currentDiario?.diaFechado;
+  const main = document.getElementById('mainContent');
+  const motivoBar = document.getElementById('diaFechadoMotivoBar');
+  const motivoInput = document.getElementById('diaFechadoMotivo');
+  const notice = document.getElementById('dayFechadoNotice');
+  const btn = document.getElementById('btnFecharDia');
+  const motivo = motivoInput?.value.trim() || '';
+
+  main?.classList.toggle('main-content--fechado', isFechado);
+  motivoBar?.classList.toggle('hidden', !isFechado);
+  notice?.classList.toggle('hidden', !isFechado);
+
+  if (btn) {
+    btn.title = isFechado ? 'Reabrir dia' : 'Fechar dia';
+    btn.setAttribute('aria-label', btn.title);
+    btn.setAttribute('aria-pressed', String(isFechado));
+    btn.classList.toggle('btn-fechar-dia--fechado', isFechado);
+  }
+
+  const noticeText = document.getElementById('dayFechadoNoticeText');
+  if (noticeText) {
+    noticeText.textContent = motivo
+      ? motivo
+      : 'Sem operação neste dia. Clique no cadeado para reabrir e registrar normalmente.';
+  }
+}
+
+function toggleDiaFechado() {
+  if (!currentDiario) return;
+
+  const now = Date.now();
+  if (now - fechadoLastToggleAt < 400) return;
+  fechadoLastToggleAt = now;
+
+  const dateId = getDiarioDate(currentDiario);
+  currentDiario.diaFechado = !currentDiario.diaFechado;
+
+  if (currentDiario.diaFechado) {
+    if (isWeekend(dateId) && !String(currentDiario.diaFechadoMotivo || '').trim()) {
+      currentDiario.diaFechadoMotivo = WEEKEND_FECHADO_MOTIVO;
+    }
+  } else if (currentDiario.diaFechadoMotivo === WEEKEND_FECHADO_MOTIVO) {
+    currentDiario.diaFechadoMotivo = '';
+  }
+
+  const motivoInput = document.getElementById('diaFechadoMotivo');
+  if (motivoInput) motivoInput.value = currentDiario.diaFechadoMotivo || '';
+
+  updateDiaFechadoUI();
+  void refreshMaestriaFocoReminder();
+
+  if (currentDiario.diaFechado) {
+    closedDates.add(dateId);
+    openWeekendDates.delete(dateId);
+    filledDates.add(dateId);
+  } else {
+    closedDates.delete(dateId);
+    if (isWeekend(dateId)) openWeekendDates.add(dateId);
+  }
+  renderCalendar();
+
+  if (currentDiario.diaFechado) motivoInput?.focus();
+  scheduleSave();
+}
+
+function initDiaFechado() {
+  const btn = document.getElementById('btnFecharDia');
+  const motivo = document.getElementById('diaFechadoMotivo');
+  if (!btn) return;
+
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    toggleDiaFechado();
+  });
+
+  motivo?.addEventListener('input', () => {
+    if (currentDiario) currentDiario.diaFechadoMotivo = motivo.value;
+    updateDiaFechadoUI();
+    scheduleSave();
+  });
+}
+
 function populateForm(diario) {
+  normalizeDiarioFechado(diario);
   currentDiario = diario;
   if (!('graficoDia' in currentDiario)) currentDiario.graficoDia = null;
+  if (!('diaFechado' in currentDiario)) currentDiario.diaFechado = getDefaultDiaFechado(diario.data);
+  if (!('diaFechadoMotivo' in currentDiario)) {
+    currentDiario.diaFechadoMotivo = getDefaultDiaFechadoMotivo(diario.data);
+  }
   loadLocalChartViewIntoDiario(currentDiario);
   if (!('comentarioPreTrade' in currentDiario)) currentDiario.comentarioPreTrade = '';
   currentDiario.prontidao = normalizeProntidao(diario.prontidao);
   document.getElementById('headerDate').textContent = formatDateBR(diario.data);
+  document.getElementById('diaFechadoMotivo').value = diario.diaFechadoMotivo || '';
+  updateDiaFechadoUI();
   renderDisposicao(currentDiario.prontidao);
   renderEstrategias(diario.planoEstrategias);
   renderTrades(diario.trades);
@@ -5902,6 +6996,11 @@ function populateForm(diario) {
 }
 
 function collectFormData() {
+  if (currentDiario) {
+    currentDiario.diaFechado = !!currentDiario.diaFechado;
+    currentDiario.diaFechadoMotivo = document.getElementById('diaFechadoMotivo')?.value || '';
+  }
+  normalizeDiarioFechado(currentDiario);
   currentDiario.comentarioPreTrade = document.getElementById('comentarioPreTrade').value;
   currentDiario.comentarioGeral = document.getElementById('comentarioGeral').value;
   currentDiario.maestria = {
@@ -5959,6 +7058,8 @@ function setSaveStatus(msg) {
   initMaestriaGrafico();
   initMaestriaTendencia();
   initCalendar();
+  initDiaFechado();
+  initMaestriaFocoReminder();
   initHistory();
   await loadDay(todayId());
 
@@ -6145,7 +7246,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!currentDiario) return;
     const nextNum = currentDiario.trades.length + 1;
     currentDiario.trades.push({
-      numero: nextNum, estrategia: '', pontos: null, nota: '',
+      numero: nextNum, estrategia: '', pontos: null, lado: '', nota: '',
+      hora: TRADE_HORA_DEFAULT, horaAtiva: false,
       falhas: [], falhaOutro: '', conducao: '',
       aspectosPositivos: [], aspectoOutro: '', comentario: ''
     });
