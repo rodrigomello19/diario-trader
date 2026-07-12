@@ -1613,9 +1613,8 @@ body.modal-open { overflow: hidden; }
 }
 
 @media (min-width: 701px) {
-  .history-chart-card .history-day-chart {
-    border-right: none;
-    border-bottom: none;
+  .history-chart-card .history-day-chart,
+  .history-day-card .history-day-chart {
     height: 320px;
     min-height: 320px;
     max-height: 320px;
@@ -1624,7 +1623,13 @@ body.modal-open { overflow: hidden; }
     overflow: hidden;
   }
 
-  .history-chart-card .history-card-img {
+  .history-chart-card .history-day-chart {
+    border-right: none;
+    border-bottom: none;
+  }
+
+  .history-chart-card .history-card-img,
+  .history-day-card .history-card-img {
     width: 100%;
     height: 100%;
     max-height: none;
@@ -2247,10 +2252,6 @@ body.modal-open { overflow: hidden; }
     border-right: none;
     border-bottom: 1px solid var(--border);
     min-height: 180px;
-  }
-
-  .history-day-card .history-card-img {
-    max-height: 280px;
   }
 }
 
@@ -5614,7 +5615,7 @@ function createDayCard(d, dateId, viewMode = 'trading') {
         btn.dataset.id = getDiarioDate(d) || dateId;
         btn.dataset.tradeIndex = String(index);
         const horaLabel = formatTradeHoraDisplay(t);
-        const ladoLabel = formatTradeLadoDisplay(t);
+        const ladoLabel = formatTradeLadoLabel(t);
         btn.textContent = `T${t.numero} ${t.estrategia || '—'} · ${t.pontos ?? 0} pts · Nota ${t.nota || '—'}${ladoLabel ? ` · ${ladoLabel}` : ''}${horaLabel ? ` · ${horaLabel}` : ''}`;
         li.appendChild(btn);
         ul.appendChild(li);
@@ -6016,13 +6017,6 @@ function normalizeTradeLado(trade) {
   else trade.lado = '';
 
   return trade;
-}
-
-function formatTradeLadoDisplay(trade) {
-  normalizeTradeLado(trade);
-  if (trade.lado === 'compra') return 'C';
-  if (trade.lado === 'venda') return 'V';
-  return '';
 }
 
 function formatTradeLadoLabel(trade) {
