@@ -2778,12 +2778,12 @@ body.modal-open { overflow: hidden; }
           id: 'influenciaPregaoAnterior',
           weight: 1,
           critical: false,
-          label: 'O pregão anterior ainda influencia você?',
-          hint: 'Reflita se o resultado de ontem ainda desperta vontade de recuperar perdas, provar algo ou interfere nas decisões de hoje.',
+          label: 'Resíduo do pregão anterior',
+          hint: 'Você sente risco de agir por impulso por causa do resultado de ontem?',
           options: [
-            { label: 'Sim', value: 0, score: 0 },
-            { label: 'Pouco', value: 1, score: 1 },
-            { label: 'Não', value: 2, score: 2 }
+            { label: 'Não', value: 2, score: 2 },
+            { label: 'Um pouco', value: 1, score: 1 },
+            { label: 'Muito', value: 0, score: 0 }
           ]
         },
         {
@@ -3433,9 +3433,10 @@ function getStatusLabel(status) {
 }
 
 const MIGRATION_TENSO_SCORE_KEY = 'migrationIdoTensoScore1';
+const MIGRATION_RESIDUO_PREGAO_KEY = 'migrationIdoResiduoPregaoV1';
 
-async function migrateIdoTensoScoreRecords() {
-  const done = await getSetting(MIGRATION_TENSO_SCORE_KEY);
+async function migrateIdoScoreRecords(migrationKey) {
+  const done = await getSetting(migrationKey);
   if (done === '1' || done === 1 || done === true) return { updated: 0, skipped: true };
 
   const all = await getAllDiarios();
@@ -3457,8 +3458,16 @@ async function migrateIdoTensoScoreRecords() {
     updated++;
   }
 
-  await setSetting(MIGRATION_TENSO_SCORE_KEY, '1');
+  await setSetting(migrationKey, '1');
   return { updated, skipped: false };
+}
+
+async function migrateIdoTensoScoreRecords() {
+  return migrateIdoScoreRecords(MIGRATION_TENSO_SCORE_KEY);
+}
+
+async function migrateIdoResiduoPregaoRecords() {
+  return migrateIdoScoreRecords(MIGRATION_RESIDUO_PREGAO_KEY);
 }
 
 function calcScoreProntidao(prontidao) {
@@ -7114,8 +7123,9 @@ function setSaveStatus(msg) {
   initHistory();
   try {
     await migrateIdoTensoScoreRecords();
+    await migrateIdoResiduoPregaoRecords();
   } catch (err) {
-    console.error('Falha ao migrar pontuação IDO (Tenso):', err);
+    console.error('Falha ao migrar pontuação IDO:', err);
   }
   await loadDay(todayId());
 
