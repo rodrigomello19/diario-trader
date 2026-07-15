@@ -6,6 +6,7 @@
   <meta name="description" content="Diário de Trading — registro diário de operações">
   <meta name="theme-color" content="#0f172a">
   <title>Diário de Trading</title>
+  <link rel="icon" type="image/png" href="assets/logo-trade-a.png">
   <style>
 :root,
 [data-theme="light"] {
@@ -355,6 +356,27 @@ body {
   justify-content: space-between;
   margin-bottom: 24px;
   gap: 16px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.header-logo {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  object-fit: cover;
+  display: block;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
+}
+
+.header-brand {
+  min-width: 0;
 }
 
 .header h1 {
@@ -2373,8 +2395,11 @@ body.modal-open { overflow: hidden; }
 
     <header class="header">
       <div class="header-left">
-        <h1>Diário de Trading</h1>
-        <p class="header-date" id="headerDate"></p>
+        <img class="header-logo" src="assets/logo-trade-a.png" alt="Trade A" width="56" height="56">
+        <div class="header-brand">
+          <h1>Diário de Trading</h1>
+          <p class="header-date" id="headerDate"></p>
+        </div>
       </div>
       <div class="header-actions">
         <button type="button" class="btn btn-ghost" id="btnTheme" title="Tema claro">☀️</button>
@@ -2708,7 +2733,7 @@ body.modal-open { overflow: hidden; }
           label: 'Como você está agora?',
           hint: 'Avalie seu estado emocional neste momento. O ideal é estar calmo, equilibrado e sem excesso de medo ou euforia.',
           options: [
-            { label: 'Tenso', value: 0, score: 0 },
+            { label: 'Tenso', value: 0, score: 1 },
             { label: 'Calmo', value: 1, score: 2 },
             { label: 'Agitado', value: 2, score: 0 }
           ]
@@ -3405,6 +3430,35 @@ function getZonaLabel(status) {
 
 function getStatusLabel(status) {
   return getNivelOperacional(status);
+}
+
+const MIGRATION_TENSO_SCORE_KEY = 'migrationIdoTensoScore1';
+
+async function migrateIdoTensoScoreRecords() {
+  const done = await getSetting(MIGRATION_TENSO_SCORE_KEY);
+  if (done === '1' || done === 1 || done === true) return { updated: 0, skipped: true };
+
+  const all = await getAllDiarios();
+  let updated = 0;
+
+  for (const d of all) {
+    if (!d || typeof d !== 'object') continue;
+    d.prontidao = normalizeProntidao(d.prontidao);
+    const result = calcScoreProntidao(d.prontidao);
+    const nextScore = result.score;
+    const nextStatus = result.status;
+
+    if (d.scoreProntidao === nextScore && d.statusOperacao === nextStatus) continue;
+
+    d.scoreProntidao = nextScore;
+    d.statusOperacao = nextStatus;
+    d.atualizadoEm = new Date().toISOString();
+    await saveDiario(d);
+    updated++;
+  }
+
+  await setSetting(MIGRATION_TENSO_SCORE_KEY, '1');
+  return { updated, skipped: false };
 }
 
 function calcScoreProntidao(prontidao) {
@@ -7058,6 +7112,11 @@ function setSaveStatus(msg) {
   initDiaFechado();
   initMaestriaFocoReminder();
   initHistory();
+  try {
+    await migrateIdoTensoScoreRecords();
+  } catch (err) {
+    console.error('Falha ao migrar pontuação IDO (Tenso):', err);
+  }
   await loadDay(todayId());
 
   document.getElementById('btnSave').addEventListener('click', saveCurrent);
