@@ -6,7 +6,6 @@
   <meta name="description" content="Diário de Trading — registro diário de operações">
   <meta name="theme-color" content="#0f172a">
   <title>Diário de Trading</title>
-  <link rel="icon" type="image/png" href="assets/logo-trade-a.png">
   <style>
 :root,
 [data-theme="light"] {
@@ -356,27 +355,6 @@ body {
   justify-content: space-between;
   margin-bottom: 24px;
   gap: 16px;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  min-width: 0;
-}
-
-.header-logo {
-  width: 56px;
-  height: 56px;
-  flex-shrink: 0;
-  border-radius: 12px;
-  object-fit: cover;
-  display: block;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
-}
-
-.header-brand {
-  min-width: 0;
 }
 
 .header h1 {
@@ -1630,7 +1608,7 @@ body.modal-open { overflow: hidden; }
 }
 
 .history-chart-card-header h3 {
-  font-size: 0.95rem;
+  font-size: calc(0.95rem + 1px);
   font-weight: 600;
 }
 
@@ -1706,7 +1684,7 @@ body.modal-open { overflow: hidden; }
   gap: 8px;
   color: var(--text-muted);
   padding: 24px;
-  font-size: 0.85rem;
+  font-size: calc(0.85rem + 1px);
 }
 
 .history-card-no-img span { font-size: 2rem; opacity: 0.5; }
@@ -1734,12 +1712,12 @@ body.modal-open { overflow: hidden; }
 }
 
 .history-day-head h3 {
-  font-size: 0.95rem;
+  font-size: calc(0.95rem + 1px);
   font-weight: 600;
 }
 
 .status-pill {
-  font-size: 0.75rem;
+  font-size: calc(0.75rem + 1px);
   font-weight: 700;
   padding: 3px 8px;
   border-radius: 999px;
@@ -1754,14 +1732,14 @@ body.modal-open { overflow: hidden; }
 .status-pill.vermelho { color: var(--danger); border-color: var(--danger); background: var(--danger-bg); }
 
 .history-day-line {
-  font-size: 0.8rem;
+  font-size: calc(0.8rem + 1px);
   color: var(--text-muted);
   line-height: 1.4;
 }
 
 .history-day-trades {
   list-style: none;
-  font-size: 0.78rem;
+  font-size: calc(0.78rem + 1px);
   color: var(--text-muted);
   margin: 4px 0;
   padding: 0;
@@ -1778,7 +1756,7 @@ body.modal-open { overflow: hidden; }
   list-style: none;
   margin: 8px 0 0;
   padding: 0;
-  font-size: 0.85rem;
+  font-size: calc(0.85rem + 1px);
 }
 
 .history-day-maestria li {
@@ -1809,7 +1787,7 @@ body.modal-open { overflow: hidden; }
 .history-card-empty { font-style: italic; }
 
 .history-day-comment {
-  font-size: 0.78rem;
+  font-size: calc(0.78rem + 1px);
   color: var(--text-muted);
   font-style: italic;
   margin-top: 12px;
@@ -1848,6 +1826,10 @@ body.modal-open { overflow: hidden; }
   margin-top: 8px;
   padding-top: 8px;
   flex-shrink: 0;
+}
+
+.history-day-actions .btn-sm {
+  font-size: calc(0.85rem + 1px);
 }
 
 .history-open-day { align-self: auto; }
@@ -2394,12 +2376,9 @@ body.modal-open { overflow: hidden; }
   <div id="app">
 
     <header class="header">
-      <div class="header-left">
-        <img class="header-logo" src="assets/logo-trade-a.png" alt="Trade A" width="56" height="56">
-        <div class="header-brand">
-          <h1>Diário de Trading</h1>
-          <p class="header-date" id="headerDate"></p>
-        </div>
+      <div>
+        <h1>Diário de Trading</h1>
+        <p class="header-date" id="headerDate"></p>
       </div>
       <div class="header-actions">
         <button type="button" class="btn btn-ghost" id="btnTheme" title="Tema claro">☀️</button>
