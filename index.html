@@ -856,10 +856,13 @@ body {
 }
 
 .notes-item-title {
+  flex: 1;
+  min-width: 0;
   font-size: 1rem;
   font-weight: 650;
   margin: 0;
-  word-break: break-word;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .notes-item-meta {
@@ -881,6 +884,32 @@ body {
   flex-wrap: wrap;
   gap: 6px;
   flex-shrink: 0;
+}
+
+@media (max-width: 700px) {
+  .notes-toolbar {
+    padding: 12px 16px;
+  }
+
+  .notes-body,
+  .notes-editor {
+    padding: 12px 16px 20px;
+  }
+
+  .notes-item-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .notes-item-title {
+    width: 100%;
+    flex: none;
+  }
+
+  .notes-item-actions {
+    width: 100%;
+  }
 }
 
 .notes-empty {
