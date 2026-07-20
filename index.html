@@ -82,13 +82,24 @@ body {
 }
 
 .maestria-foco-reminder--sidebar {
+  margin-top: 0;
+  align-self: stretch;
+  width: 100%;
+}
+
+.sidebar-reminders {
   position: sticky;
   top: 24px;
   z-index: 2;
   margin-top: 16px;
   align-self: flex-start;
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
+
+.sidebar-reminders:empty { display: none; }
 
 /* Editing banner */
 .editing-banner {
@@ -667,6 +678,226 @@ body {
 
 .calendar-sidebar .maestria-foco-reminder-title {
   font-size: 0.875rem;
+}
+
+/* Intenção do dia */
+.intencao-reminder {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(59, 130, 246, 0.03));
+}
+
+.intencao-reminder.hidden { display: none; }
+
+.intencao-reminder--sidebar {
+  margin-top: 0;
+  align-self: stretch;
+  width: 100%;
+}
+
+.intencao-reminder-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.intencao-reminder-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #3b82f6;
+  margin: 0;
+}
+
+.calendar-sidebar .intencao-reminder-title {
+  font-size: 0.875rem;
+}
+
+.intencao-reminder-body {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+.calendar-sidebar .intencao-reminder-body {
+  font-size: 0.8125rem;
+}
+
+.intencao-expand-btn {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+}
+
+.intencao-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.intencao-overlay[hidden] { display: none !important; }
+
+.intencao-overlay-card {
+  width: min(920px, 100%);
+  min-height: min(70vh, 640px);
+  max-height: 90vh;
+  overflow: auto;
+  background: var(--bg-card);
+  border: 2px solid rgba(59, 130, 246, 0.45);
+  border-radius: calc(var(--radius) + 4px);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+  padding: 36px 40px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.intencao-overlay-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.intencao-overlay-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #3b82f6;
+  margin: 0;
+}
+
+.intencao-overlay-body {
+  flex: 1;
+  font-size: clamp(1.75rem, 4vw, 2.75rem);
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  white-space: pre-wrap;
+  margin: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* Anotações importantes */
+.notes-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.notes-search {
+  flex: 1;
+  min-width: 180px;
+}
+
+.notes-body {
+  padding: 16px 24px 24px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.notes-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  padding: 14px 16px;
+}
+
+.notes-item--pinned {
+  border-color: rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.notes-item-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.notes-item-title {
+  font-size: 1rem;
+  font-weight: 650;
+  margin: 0;
+  word-break: break-word;
+}
+
+.notes-item-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.notes-item-text {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: var(--text);
+  margin: 0;
+}
+
+.notes-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.notes-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 40px 16px;
+  font-size: 0.9rem;
+}
+
+.notes-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 24px 24px;
+}
+
+.notes-editor.hidden { display: none; }
+
+.notes-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.notes-list-wrap.hidden { display: none; }
+
+.notes-pin-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
 }
 
 /* Semáforo */
@@ -2152,6 +2383,18 @@ body.modal-open { overflow: hidden; }
   .maestria-foco-reminder--sidebar {
     position: static;
     max-width: 340px;
+    margin: 0 auto;
+  }
+
+  .intencao-reminder--sidebar {
+    position: static;
+    max-width: 340px;
+    margin: 0 auto;
+  }
+
+  .sidebar-reminders {
+    position: static;
+    max-width: 340px;
     margin: 16px auto 0;
   }
 
@@ -2188,6 +2431,14 @@ body.modal-open { overflow: hidden; }
   }
 
   .maestria-foco-reminder--sidebar {
+    top: auto;
+  }
+
+  .intencao-reminder--sidebar {
+    top: auto;
+  }
+
+  .sidebar-reminders {
     top: 16px;
   }
 
@@ -2406,6 +2657,7 @@ body.modal-open { overflow: hidden; }
             <path d="M8 11V8a4 4 0 0 1 8 0v3"></path>
           </svg>
         </button>
+        <button type="button" class="btn btn-ghost" id="btnNotes">Anotações</button>
         <button type="button" class="btn btn-ghost" id="btnHistory">Histórico</button>
         <button type="button" class="btn btn-ghost" id="btnExport">Exportar</button>
       </div>
@@ -2443,9 +2695,18 @@ body.modal-open { overflow: hidden; }
           <button type="button" class="btn btn-primary btn-block" id="btnGoToday">Ir para hoje</button>
           <button type="button" class="btn btn-ghost btn-block btn-sync-cal" id="btnSync">🔄 Sincronizar</button>
         </div>
-        <div id="maestriaFocoReminder" class="maestria-foco-reminder maestria-foco-reminder--sidebar hidden" aria-live="polite">
-          <h3 class="maestria-foco-reminder-title">Foco de hoje</h3>
-          <p class="maestria-foco-reminder-body" id="maestriaFocoReminderBody"></p>
+        <div class="sidebar-reminders">
+          <div id="intencaoReminder" class="intencao-reminder intencao-reminder--sidebar hidden" aria-live="polite">
+            <div class="intencao-reminder-head">
+              <h3 class="intencao-reminder-title">Intenção do dia</h3>
+              <button type="button" class="btn btn-ghost btn-sm intencao-expand-btn" id="btnExpandIntencao" title="Ampliar mensagem">Ampliar</button>
+            </div>
+            <p class="intencao-reminder-body" id="intencaoReminderBody"></p>
+          </div>
+          <div id="maestriaFocoReminder" class="maestria-foco-reminder maestria-foco-reminder--sidebar hidden" aria-live="polite">
+            <h3 class="maestria-foco-reminder-title">Foco de hoje</h3>
+            <p class="maestria-foco-reminder-body" id="maestriaFocoReminderBody"></p>
+          </div>
         </div>
       </aside>
 
@@ -2495,6 +2756,12 @@ body.modal-open { overflow: hidden; }
               <h2>Rotina e preparação pré-trade</h2>
               <textarea id="comentarioPreTrade" rows="5"
                 placeholder="Ex.: análise do gráfico, leitura de contexto, revisão do plano, alongamento, meditação..."></textarea>
+            </div>
+
+            <div class="card">
+              <h2>Intenção do dia</h2>
+              <textarea id="intencaoDoDia" rows="3"
+                placeholder="Ex.: Defender. Buscar Trade A. Ter paciência."></textarea>
             </div>
           </section>
 
@@ -2697,6 +2964,48 @@ body.modal-open { overflow: hidden; }
       </div>
     </div>
 
+    <!-- Modal Anotações importantes -->
+    <div id="notesModal" class="modal-overlay" hidden>
+      <div class="modal-panel modal-lg" role="dialog" aria-modal="true" aria-labelledby="notesTitle">
+        <div class="modal-header">
+          <h2 id="notesTitle">Anotações importantes</h2>
+          <button type="button" class="btn btn-ghost modal-close" aria-label="Fechar">✕</button>
+        </div>
+        <div class="notes-list-wrap" id="notesListWrap">
+          <div class="notes-toolbar">
+            <input type="search" id="notesSearch" class="notes-search" placeholder="Buscar anotações..." aria-label="Buscar anotações">
+            <button type="button" class="btn btn-primary" id="btnNotesNew">Nova anotação</button>
+          </div>
+          <div class="notes-body">
+            <div class="notes-list" id="notesList"></div>
+            <p class="notes-empty hidden" id="notesEmpty">Nenhuma anotação ainda. Crie a primeira para guardar ideias, regras e lembretes.</p>
+          </div>
+        </div>
+        <div class="notes-editor hidden" id="notesEditor">
+          <input type="text" id="notesEditorTitle" placeholder="Título" maxlength="120" aria-label="Título da anotação">
+          <textarea id="notesEditorText" rows="10" placeholder="Escreva a anotação..." aria-label="Texto da anotação"></textarea>
+          <label class="notes-pin-label">
+            <input type="checkbox" id="notesEditorPinned"> Fixar no topo
+          </label>
+          <div class="notes-editor-actions">
+            <button type="button" class="btn btn-ghost" id="btnNotesCancel">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="btnNotesSave">Salvar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Overlay Intenção do dia (card gigante) -->
+    <div id="intencaoOverlay" class="intencao-overlay" hidden>
+      <div class="intencao-overlay-card" role="dialog" aria-modal="true" aria-labelledby="intencaoOverlayTitle">
+        <div class="intencao-overlay-head">
+          <h2 class="intencao-overlay-title" id="intencaoOverlayTitle">Intenção do dia</h2>
+          <button type="button" class="btn btn-ghost" id="btnCloseIntencaoOverlay" aria-label="Fechar">✕</button>
+        </div>
+        <p class="intencao-overlay-body" id="intencaoOverlayBody"></p>
+      </div>
+    </div>
+
   </div>
 
   <script>const CONFIG = {
@@ -2889,6 +3198,243 @@ async function deleteSetting(key) {
   });
 }
 
+function parseSettingJson(value, fallback) {
+  if (value == null || value === '') return fallback;
+  if (typeof value === 'object') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
+const ANOTACOES_IMPORTANTES_KEY = 'anotacoes_importantes';
+let notesCache = null;
+let notesEditingId = null;
+
+function createNoteId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return `note_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function normalizeNotesList(raw) {
+  const list = Array.isArray(raw) ? raw : [];
+  return list
+    .filter((n) => n && typeof n === 'object')
+    .map((n) => ({
+      id: String(n.id || createNoteId()),
+      titulo: String(n.titulo || '').trim(),
+      texto: String(n.texto || ''),
+      pinned: !!n.pinned,
+      criadoEm: n.criadoEm || new Date().toISOString(),
+      atualizadoEm: n.atualizadoEm || n.criadoEm || new Date().toISOString()
+    }));
+}
+
+async function loadNotes() {
+  if (notesCache) return notesCache;
+  const raw = await getSetting(ANOTACOES_IMPORTANTES_KEY);
+  notesCache = normalizeNotesList(parseSettingJson(raw, []));
+  return notesCache;
+}
+
+async function saveNotes(list) {
+  notesCache = normalizeNotesList(list);
+  await setSetting(ANOTACOES_IMPORTANTES_KEY, notesCache);
+  return notesCache;
+}
+
+function formatNoteDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function sortNotes(list) {
+  return [...list].sort((a, b) => {
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    return String(b.atualizadoEm || '').localeCompare(String(a.atualizadoEm || ''));
+  });
+}
+
+function showNotesListView() {
+  document.getElementById('notesListWrap')?.classList.remove('hidden');
+  document.getElementById('notesEditor')?.classList.add('hidden');
+  notesEditingId = null;
+}
+
+function showNotesEditorView() {
+  document.getElementById('notesListWrap')?.classList.add('hidden');
+  document.getElementById('notesEditor')?.classList.remove('hidden');
+}
+
+function openNotesEditor(note = null) {
+  notesEditingId = note?.id || null;
+  document.getElementById('notesEditorTitle').value = note?.titulo || '';
+  document.getElementById('notesEditorText').value = note?.texto || '';
+  document.getElementById('notesEditorPinned').checked = !!note?.pinned;
+  showNotesEditorView();
+  document.getElementById('notesEditorTitle')?.focus();
+}
+
+async function renderNotesList() {
+  const listEl = document.getElementById('notesList');
+  const emptyEl = document.getElementById('notesEmpty');
+  if (!listEl || !emptyEl) return;
+
+  const query = (document.getElementById('notesSearch')?.value || '').trim().toLowerCase();
+  const all = sortNotes(await loadNotes());
+  const filtered = query
+    ? all.filter((n) =>
+      n.titulo.toLowerCase().includes(query) ||
+      n.texto.toLowerCase().includes(query)
+    )
+    : all;
+
+  listEl.innerHTML = '';
+  emptyEl.classList.toggle('hidden', filtered.length > 0);
+  if (!filtered.length && !query) {
+    emptyEl.textContent = 'Nenhuma anotação ainda. Crie a primeira para guardar ideias, regras e lembretes.';
+  } else if (!filtered.length) {
+    emptyEl.textContent = 'Nenhuma anotação encontrada para esta busca.';
+    emptyEl.classList.remove('hidden');
+  }
+
+  filtered.forEach((note) => {
+    const item = document.createElement('article');
+    item.className = `notes-item${note.pinned ? ' notes-item--pinned' : ''}`;
+    item.dataset.id = note.id;
+
+    const head = document.createElement('div');
+    head.className = 'notes-item-head';
+
+    const title = document.createElement('h3');
+    title.className = 'notes-item-title';
+    title.textContent = note.titulo || '(Sem título)';
+    head.appendChild(title);
+
+    const actions = document.createElement('div');
+    actions.className = 'notes-item-actions';
+
+    const pinBtn = document.createElement('button');
+    pinBtn.type = 'button';
+    pinBtn.className = 'btn btn-ghost btn-sm';
+    pinBtn.textContent = note.pinned ? 'Desafixar' : 'Fixar';
+    pinBtn.addEventListener('click', async () => {
+      const list = await loadNotes();
+      const target = list.find((n) => n.id === note.id);
+      if (!target) return;
+      target.pinned = !target.pinned;
+      target.atualizadoEm = new Date().toISOString();
+      await saveNotes(list);
+      await renderNotesList();
+    });
+
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'btn btn-ghost btn-sm';
+    editBtn.textContent = 'Editar';
+    editBtn.addEventListener('click', () => openNotesEditor(note));
+
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'btn btn-ghost btn-sm btn-danger';
+    delBtn.textContent = 'Excluir';
+    delBtn.addEventListener('click', async () => {
+      if (!confirm('Excluir esta anotação?')) return;
+      const list = (await loadNotes()).filter((n) => n.id !== note.id);
+      await saveNotes(list);
+      await renderNotesList();
+    });
+
+    actions.append(pinBtn, editBtn, delBtn);
+    head.appendChild(actions);
+    item.appendChild(head);
+
+    const meta = document.createElement('p');
+    meta.className = 'notes-item-meta';
+    meta.textContent = `Atualizado em ${formatNoteDate(note.atualizadoEm)}`;
+    item.appendChild(meta);
+
+    const text = document.createElement('p');
+    text.className = 'notes-item-text';
+    text.textContent = note.texto || '';
+    item.appendChild(text);
+
+    listEl.appendChild(item);
+  });
+}
+
+async function openNotesModal() {
+  showNotesListView();
+  const search = document.getElementById('notesSearch');
+  if (search) search.value = '';
+  await renderNotesList();
+  openModal('notesModal');
+}
+
+async function saveNotesEditor() {
+  const titulo = document.getElementById('notesEditorTitle').value.trim();
+  const texto = document.getElementById('notesEditorText').value;
+  const pinned = document.getElementById('notesEditorPinned').checked;
+  if (!titulo && !texto.trim()) {
+    alert('Escreva um título ou o texto da anotação.');
+    return;
+  }
+
+  const list = await loadNotes();
+  const now = new Date().toISOString();
+  if (notesEditingId) {
+    const target = list.find((n) => n.id === notesEditingId);
+    if (target) {
+      target.titulo = titulo;
+      target.texto = texto;
+      target.pinned = pinned;
+      target.atualizadoEm = now;
+    }
+  } else {
+    list.push({
+      id: createNoteId(),
+      titulo,
+      texto,
+      pinned,
+      criadoEm: now,
+      atualizadoEm: now
+    });
+  }
+
+  await saveNotes(list);
+  showNotesListView();
+  await renderNotesList();
+}
+
+function initNotes() {
+  document.getElementById('btnNotes')?.addEventListener('click', () => {
+    openNotesModal().catch((err) => {
+      console.error(err);
+      alert('Erro ao abrir anotações: ' + err.message);
+    });
+  });
+  document.getElementById('btnNotesNew')?.addEventListener('click', () => openNotesEditor());
+  document.getElementById('btnNotesCancel')?.addEventListener('click', showNotesListView);
+  document.getElementById('btnNotesSave')?.addEventListener('click', () => {
+    saveNotesEditor().catch((err) => {
+      console.error(err);
+      alert('Erro ao salvar anotação: ' + err.message);
+    });
+  });
+  document.getElementById('notesSearch')?.addEventListener('input', () => {
+    renderNotesList().catch(console.error);
+  });
+}
+
 const CSV_BACKUP_AT_KEY  = 'csvBackupAt';
 const JSON_BACKUP_AT_KEY = 'jsonBackupAt';
 
@@ -3052,6 +3598,7 @@ function diarioHasContent(d) {
   return !!(
     d.diaFechado         ||
     d.comentarioPreTrade ||
+    d.intencaoDoDia ||
     d.comentarioGeral    ||
     d.graficoDia         ||
     (d.planoEstrategias && d.planoEstrategias.length) ||
@@ -3065,6 +3612,7 @@ function diarioHasTradingContent(d) {
   if (!d) return false;
   return !!(
     d.comentarioPreTrade ||
+    d.intencaoDoDia ||
     d.comentarioGeral ||
     d.graficoDia ||
     (d.planoEstrategias && d.planoEstrategias.length) ||
@@ -3173,6 +3721,7 @@ function emptyDiario(id = todayId()) {
     graficoZoom: 100,
     graficoStretchX: 100,
     comentarioPreTrade: '',
+    intencaoDoDia: '',
     comentarioGeral: '',
     maestria: emptyMaestria(),
     criadoEm: new Date().toISOString(),
@@ -3541,7 +4090,7 @@ function prontidaoHasAnswers(prontidao) {
   const dispHeaders = dispIds.flatMap((id) => [`${id}_valor`, `${id}_nota`]);
   return [
     'data', 'dia_fechado', 'dia_fechado_motivo', 'score_disposicao', 'status_operacao',
-    'plano_estrategias', 'comentario_pre_trade', 'comentario_geral',
+    'plano_estrategias', 'comentario_pre_trade', 'intencao_do_dia', 'comentario_geral',
     'maestria_contexto_macro', 'maestria_contexto_macro_nota',
     'maestria_micro_ciclo', 'maestria_micro_ciclo_nota',
     'maestria_analise', 'maestria_destaques',
@@ -3566,6 +4115,7 @@ function diariosToDataRows(diarios, headers = getCsvHeaders()) {
       d.statusOperacao ?? '',
       (d.planoEstrategias || []).join('|'),
       d.comentarioPreTrade ?? '',
+      d.intencaoDoDia ?? '',
       d.comentarioGeral ?? '',
       maestria.contextoMacro,
       maestria.contextoMacroNota,
@@ -4143,6 +4693,7 @@ function csvRowsToDiarios(parsed) {
         ? get(row, 'plano_estrategias').split('|').filter(Boolean)
         : [];
       diario.comentarioPreTrade = get(row, 'comentario_pre_trade') || '';
+      diario.intencaoDoDia = get(row, 'intencao_do_dia') || '';
       diario.comentarioGeral = get(row, 'comentario_geral') || '';
       diario.maestria = normalizeMaestria({
         contextoMacro: get(row, 'maestria_contexto_macro') || '',
@@ -4734,6 +5285,11 @@ async function buildDayPdf(diario) {
   pdf.addHeading('Plano de trader');
   pdf.addLine((diario.planoEstrategias || []).join(', ') || '—');
 
+  if (diario.intencaoDoDia?.trim()) {
+    pdf.addHeading('Intenção do dia');
+    pdf.addLine(diario.intencaoDoDia.trim());
+  }
+
   if (diario.comentarioPreTrade?.trim()) {
     pdf.addHeading('Rotina e preparação pré-trade');
     pdf.addLine(diario.comentarioPreTrade.trim());
@@ -4884,6 +5440,11 @@ function initModals() {
 
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
+    const intencaoOverlay = document.getElementById('intencaoOverlay');
+    if (intencaoOverlay && !intencaoOverlay.hidden) {
+      closeIntencaoOverlay();
+      return;
+    }
     document.querySelectorAll('.modal-overlay:not([hidden])').forEach((o) => closeModal(o));
   });
 }
@@ -4954,6 +5515,7 @@ async function loadDay(dateId) {
   viewMonth = m - 1;
 
   populateForm(diario);
+  refreshIntencaoReminder();
   await refreshMaestriaFocoReminder();
   updateEditingBanner();
   renderCalendar();
@@ -5663,6 +6225,9 @@ function createDayCard(d, dateId, viewMode = 'trading') {
       ['Plano', (d.planoEstrategias || []).join(', ') || '—'],
       ['Resumo', `${trades.length} trade(s) · ${pts} pts`]
     ];
+    if (d.intencaoDoDia?.trim()) {
+      lines.splice(2, 0, ['Intenção', escapeHtml(d.intencaoDoDia.trim())]);
+    }
 
     lines.forEach(([label, value]) => {
       const p = document.createElement('p');
@@ -5967,16 +6532,84 @@ async function refreshMaestriaFocoReminder() {
 
   wrap.classList.add('hidden');
 
-  if (selectedDateId !== todayId()) return;
+  if (selectedDateId !== todayId()) {
+    updateSidebarRemindersVisibility();
+    return;
+  }
 
-  if (currentDiario && isDiarioFechado(currentDiario)) return;
+  if (currentDiario && isDiarioFechado(currentDiario)) {
+    updateSidebarRemindersVisibility();
+    return;
+  }
 
   const all = await getAllDiarios();
   const session = findLastMaestriaDestaquesSession(all, todayId());
-  if (!session) return;
+  if (!session) {
+    updateSidebarRemindersVisibility();
+    return;
+  }
 
   body.textContent = session.destaques;
   wrap.classList.remove('hidden');
+  updateSidebarRemindersVisibility();
+}
+
+function refreshIntencaoReminder() {
+  const wrap = document.getElementById('intencaoReminder');
+  const body = document.getElementById('intencaoReminderBody');
+  if (!wrap || !body) return;
+
+  const text = (currentDiario?.intencaoDoDia || '').trim();
+  if (!text || (currentDiario && isDiarioFechado(currentDiario))) {
+    wrap.classList.add('hidden');
+    body.textContent = '';
+  } else {
+    body.textContent = text;
+    wrap.classList.remove('hidden');
+  }
+  updateSidebarRemindersVisibility();
+}
+
+function updateSidebarRemindersVisibility() {
+  const container = document.querySelector('.sidebar-reminders');
+  if (!container) return;
+  const hasVisible = [...container.children].some((el) => !el.classList.contains('hidden'));
+  container.style.display = hasVisible ? '' : 'none';
+}
+
+function openIntencaoOverlay() {
+  const text = (currentDiario?.intencaoDoDia || '').trim();
+  if (!text) return;
+  const overlay = document.getElementById('intencaoOverlay');
+  const body = document.getElementById('intencaoOverlayBody');
+  if (!overlay || !body) return;
+  body.textContent = text;
+  overlay.hidden = false;
+  document.body.classList.add('modal-open');
+}
+
+function closeIntencaoOverlay() {
+  const overlay = document.getElementById('intencaoOverlay');
+  if (!overlay) return;
+  overlay.hidden = true;
+  const anyOpen = document.querySelector('.modal-overlay:not([hidden])');
+  if (!anyOpen) document.body.classList.remove('modal-open');
+}
+
+function initIntencaoDoDia() {
+  const field = document.getElementById('intencaoDoDia');
+  field?.addEventListener('input', () => {
+    if (!currentDiario) return;
+    currentDiario.intencaoDoDia = field.value;
+    refreshIntencaoReminder();
+    scheduleSave();
+  });
+
+  document.getElementById('btnExpandIntencao')?.addEventListener('click', openIntencaoOverlay);
+  document.getElementById('btnCloseIntencaoOverlay')?.addEventListener('click', closeIntencaoOverlay);
+  document.getElementById('intencaoOverlay')?.addEventListener('click', (e) => {
+    if (e.target.id === 'intencaoOverlay') closeIntencaoOverlay();
+  });
 }
 
 function initMaestriaFocoReminder() {
@@ -7001,6 +7634,7 @@ function toggleDiaFechado() {
   if (motivoInput) motivoInput.value = currentDiario.diaFechadoMotivo || '';
 
   updateDiaFechadoUI();
+  refreshIntencaoReminder();
   void refreshMaestriaFocoReminder();
 
   if (currentDiario.diaFechado) {
@@ -7044,6 +7678,7 @@ function populateForm(diario) {
   }
   loadLocalChartViewIntoDiario(currentDiario);
   if (!('comentarioPreTrade' in currentDiario)) currentDiario.comentarioPreTrade = '';
+  if (!('intencaoDoDia' in currentDiario)) currentDiario.intencaoDoDia = '';
   currentDiario.prontidao = normalizeProntidao(diario.prontidao);
   document.getElementById('headerDate').textContent = formatDateBR(diario.data);
   document.getElementById('diaFechadoMotivo').value = diario.diaFechadoMotivo || '';
@@ -7056,7 +7691,9 @@ function populateForm(diario) {
   populateMaestriaForm(diario);
 
   document.getElementById('comentarioPreTrade').value = diario.comentarioPreTrade || '';
+  document.getElementById('intencaoDoDia').value = diario.intencaoDoDia || '';
   document.getElementById('comentarioGeral').value = diario.comentarioGeral || '';
+  refreshIntencaoReminder();
 }
 
 function collectFormData() {
@@ -7066,6 +7703,7 @@ function collectFormData() {
   }
   normalizeDiarioFechado(currentDiario);
   currentDiario.comentarioPreTrade = document.getElementById('comentarioPreTrade').value;
+  currentDiario.intencaoDoDia = document.getElementById('intencaoDoDia').value;
   currentDiario.comentarioGeral = document.getElementById('comentarioGeral').value;
   currentDiario.maestria = {
     contextoMacro: getMaestriaTrendFromGroup('maestriaContextoMacroGroup'),
@@ -7124,6 +7762,8 @@ function setSaveStatus(msg) {
   initCalendar();
   initDiaFechado();
   initMaestriaFocoReminder();
+  initIntencaoDoDia();
+  initNotes();
   initHistory();
   try {
     await migrateIdoTensoScoreRecords();
