@@ -815,6 +815,7 @@ body {
   gap: 10px;
   padding: 16px 24px;
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .notes-search {
@@ -919,11 +920,24 @@ body {
   font-size: 0.9rem;
 }
 
+.notes-list-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.notes-list-wrap.hidden { display: none; }
+
 .notes-editor {
   display: flex;
   flex-direction: column;
   gap: 12px;
   padding: 16px 24px 24px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .notes-editor.hidden { display: none; }
@@ -934,8 +948,6 @@ body {
   gap: 8px;
   justify-content: flex-end;
 }
-
-.notes-list-wrap.hidden { display: none; }
 
 .notes-pin-label {
   display: inline-flex;
@@ -1577,6 +1589,19 @@ input:focus, select:focus, textarea:focus {
 }
 
 textarea { resize: vertical; min-height: 80px; }
+
+@media (min-width: 1024px) {
+  #comentarioPreTrade,
+  #intencaoDoDia,
+  #comentarioGeral,
+  #maestriaAnalise,
+  #maestriaDestaques {
+    font-family: var(--font);
+    font-size: 1.1rem;
+    font-weight: 400;
+    font-style: italic;
+  }
+}
 
 .outro-input { margin-top: 8px; }
 .outro-input.hidden { display: none; }
