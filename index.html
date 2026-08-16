@@ -3228,14 +3228,45 @@ function getAllDisposicaoQuestions() {
 const SUPABASE_URL = 'https://xwglwypaossvukgexlcm.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3Z2x3eXBhb3NzdnVrZ2V4bGNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3NDM3MjQsImV4cCI6MjA5ODMxOTcyNH0.ZRcOCENuMEoydmvmvOZo9xVbYjhtFOgQr3oWa__paQw';
 
+const SB_PAGE_SIZE = 1000;
+const DIARIO_META_PAYLOAD_FIELDS = [
+  'diaFechado', 'diaFechadoMotivo', 'feriado', 'feriadoMotivo',
+  'prontidao', 'scoreProntidao', 'statusOperacao', 'planoEstrategias', 'trades',
+  'graficoThumb', 'hasGrafico',
+  'comentarioPreTrade', 'intencaoDoDia', 'comentarioGeral', 'maestria',
+  'criadoEm', 'atualizadoEm'
+];
+
+const settingsCache = new Map();
+let settingsLoaded = false;
+let settingsLoadPromise = null;
+
+const diarioFullMem = new Map();
+let diariosMetaCache = null;
+let diariosMetaInflight = null;
+let pendingMetaUpserts = [];
+let idbPromise = null;
+
+function cloneDiario(diario) {
+  return diario ? JSON.parse(JSON.stringify(diario)) : diario;
+}
+
 function sbHeaders(extra = {}) {
   return {
     'Content-Type': 'application/json',
     'apikey': SUPABASE_KEY,
     'Authorization': 'Bearer ' + SUPABASE_KEY,
-    'Prefer': 'return=representation',
     ...extra
   };
+}
+
+function sbPath(path, params = {}) {
+  const qs = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') qs.set(key, value);
+  });
+  const query = qs.toString();
+  return query ? `${path}?${query}` : path;
 }
 
 async function sbFetch(path, options = {}) {
@@ -3248,12 +3279,280 @@ async function sbFetch(path, options = {}) {
   return text ? JSON.parse(text) : null;
 }
 
-// ── Settings ─────────────────────────────────────────────────
-async function getSetting(key) {
-  const data = await sbFetch('/rest/v1/settings?key=eq.' + encodeURIComponent(key) + '&select=value', {
-    headers: sbHeaders()
+async function sbFetchAll(path, options = {}) {
+  const all = [];
+  let from = 0;
+  while (true) {
+    const headers = sbHeaders({
+      Range: `${from}-${from + SB_PAGE_SIZE - 1}`,
+      Prefer: 'count=none',
+      ...(options.headers || {})
+    });
+    const chunk = await sbFetch(path, { ...options, headers });
+    if (!Array.isArray(chunk) || chunk.length === 0) break;
+    all.push(...chunk);
+    if (chunk.length < SB_PAGE_SIZE) break;
+    from += SB_PAGE_SIZE;
+  }
+  return all;
+}
+
+function openDiarioCacheDb() {
+  if (idbPromise) return idbPromise;
+  idbPromise = new Promise((resolve) => {
+    if (typeof indexedDB === 'undefined') {
+      resolve(null);
+      return;
+    }
+    try {
+      const req = indexedDB.open('diario-trader-cache', 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains('diarios')) {
+          db.createObjectStore('diarios', { keyPath: 'id' });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
   });
-  return data && data.length ? data[0].value : null;
+  return idbPromise;
+}
+
+async function idbGetDiario(id) {
+  const db = await openDiarioCacheDb();
+  if (!db) return null;
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction('diarios', 'readonly');
+      const req = tx.objectStore('diarios').get(id);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+async function idbPutDiario(entry) {
+  const db = await openDiarioCacheDb();
+  if (!db || !entry?.id) return;
+  try {
+    const tx = db.transaction('diarios', 'readwrite');
+    tx.objectStore('diarios').put(entry);
+  } catch {
+    /* cache is optional */
+  }
+}
+
+async function idbDeleteDiario(id) {
+  const db = await openDiarioCacheDb();
+  if (!db) return;
+  try {
+    const tx = db.transaction('diarios', 'readwrite');
+    tx.objectStore('diarios').delete(id);
+  } catch {
+    /* cache is optional */
+  }
+}
+
+function rememberFullDiario(diario, atualizadoEm) {
+  if (!diario?.id) return;
+  const entry = {
+    id: diario.id,
+    atualizado_em: atualizadoEm || diario.atualizadoEm || null,
+    diario: cloneDiario(diario)
+  };
+  diarioFullMem.set(diario.id, entry);
+  idbPutDiario(entry);
+}
+
+function forgetFullDiario(id) {
+  diarioFullMem.delete(id);
+  idbDeleteDiario(id);
+}
+
+function invalidateDiariosMetaCache() {
+  diariosMetaCache = null;
+  pendingMetaUpserts = [];
+}
+
+function applyMetaUpsert(meta) {
+  if (!diariosMetaCache || !meta) return;
+  const idx = diariosMetaCache.findIndex((d) => d.id === meta.id);
+  if (idx >= 0) diariosMetaCache[idx] = meta;
+  else diariosMetaCache.push(meta);
+  diariosMetaCache.sort((a, b) => String(b.data || '').localeCompare(String(a.data || '')));
+}
+
+function upsertDiariosMetaCache(record) {
+  const meta = toDiarioMeta(record);
+  if (!diariosMetaCache) {
+    pendingMetaUpserts.push(meta);
+    return;
+  }
+  applyMetaUpsert(meta);
+}
+
+function flushPendingMetaUpserts() {
+  if (!diariosMetaCache || !pendingMetaUpserts.length) return;
+  pendingMetaUpserts.forEach(applyMetaUpsert);
+  pendingMetaUpserts = [];
+}
+
+function cachedFullMatches(entry, atualizadoEm) {
+  if (!entry?.diario) return false;
+  if (!atualizadoEm || !entry.atualizado_em) return true;
+  return entry.atualizado_em === atualizadoEm;
+}
+
+async function getCachedFullDiario(id, atualizadoEm) {
+  const mem = diarioFullMem.get(id);
+  if (cachedFullMatches(mem, atualizadoEm)) return cloneDiario(mem.diario);
+  const stored = await idbGetDiario(id);
+  if (cachedFullMatches(stored, atualizadoEm)) {
+    diarioFullMem.set(id, stored);
+    return cloneDiario(stored.diario);
+  }
+  return null;
+}
+
+function diariosMetaSelect() {
+  const payloadSelect = DIARIO_META_PAYLOAD_FIELDS
+    .map((field) => `${field}:payload->${field}`)
+    .join(',');
+  return `id,data,atualizado_em,${payloadSelect}`;
+}
+
+function toDiarioMeta(source) {
+  const diario = source && typeof source === 'object' ? source : {};
+  const id = diario.id || diario.data;
+  return {
+    id,
+    data: diario.data || id,
+    diaFechado: diario.diaFechado,
+    diaFechadoMotivo: diario.diaFechadoMotivo,
+    feriado: diario.feriado,
+    feriadoMotivo: diario.feriadoMotivo,
+    prontidao: diario.prontidao,
+    scoreProntidao: diario.scoreProntidao,
+    statusOperacao: diario.statusOperacao,
+    planoEstrategias: diario.planoEstrategias,
+    trades: diario.trades,
+    graficoThumb: diario.graficoThumb || null,
+    hasGrafico: !!(diario.hasGrafico || diario.graficoThumb || diario.graficoDia),
+    comentarioPreTrade: diario.comentarioPreTrade,
+    intencaoDoDia: diario.intencaoDoDia,
+    comentarioGeral: diario.comentarioGeral,
+    maestria: diario.maestria,
+    criadoEm: diario.criadoEm,
+    atualizadoEm: diario.atualizado_em || diario.atualizadoEm || null
+  };
+}
+
+function rowToDiarioMeta(row, chartIds) {
+  const id = row.id || row.data;
+  const hasGrafico = !!(
+    row.hasGrafico ||
+    row.graficoThumb ||
+    (chartIds && chartIds.has(id))
+  );
+  return {
+    id,
+    data: row.data || id,
+    diaFechado: row.diaFechado,
+    diaFechadoMotivo: row.diaFechadoMotivo,
+    feriado: row.feriado,
+    feriadoMotivo: row.feriadoMotivo,
+    prontidao: row.prontidao,
+    scoreProntidao: row.scoreProntidao,
+    statusOperacao: row.statusOperacao,
+    planoEstrategias: row.planoEstrategias,
+    trades: row.trades,
+    graficoThumb: row.graficoThumb || null,
+    hasGrafico,
+    comentarioPreTrade: row.comentarioPreTrade,
+    intencaoDoDia: row.intencaoDoDia,
+    comentarioGeral: row.comentarioGeral,
+    maestria: row.maestria,
+    criadoEm: row.criadoEm,
+    atualizadoEm: row.atualizado_em || row.atualizadoEm || null
+  };
+}
+
+async function fetchChartIdSet() {
+  try {
+    const rows = await sbFetchAll(sbPath('/rest/v1/diarios', {
+      select: 'id',
+      'payload->graficoDia': 'not.is.null',
+      order: 'data.desc'
+    }));
+    return new Set((rows || []).map((row) => row.id).filter(Boolean));
+  } catch (err) {
+    console.warn('Não foi possível listar dias com gráfico:', err);
+    return new Set();
+  }
+}
+
+async function fetchDiariosMetaRows() {
+  try {
+    return await sbFetchAll(sbPath('/rest/v1/diarios', {
+      select: diariosMetaSelect(),
+      order: 'data.desc'
+    }));
+  } catch (err) {
+    console.warn('Select enxuto falhou, baixando payload e descartando prints:', err);
+    const rows = await sbFetchAll(sbPath('/rest/v1/diarios', {
+      select: 'id,data,atualizado_em,payload',
+      order: 'data.desc'
+    }));
+    return (rows || []).map((row) => {
+      const payload = row.payload && typeof row.payload === 'object' ? row.payload : {};
+      const { graficoDia, ...rest } = payload;
+      return {
+        id: row.id,
+        data: row.data,
+        atualizado_em: row.atualizado_em,
+        ...rest,
+        hasGrafico: !!(payload.hasGrafico || payload.graficoThumb || graficoDia),
+        graficoThumb: payload.graficoThumb || null
+      };
+    });
+  }
+}
+
+// ── Settings ─────────────────────────────────────────────────
+async function ensureSettingsLoaded() {
+  if (settingsLoaded) return;
+  if (settingsLoadPromise) {
+    await settingsLoadPromise;
+    return;
+  }
+  settingsLoadPromise = (async () => {
+    const data = await sbFetch(sbPath('/rest/v1/settings', { select: 'key,value' }), {
+      headers: sbHeaders()
+    });
+    (data || []).forEach((row) => {
+      if (row && row.key != null && !settingsCache.has(row.key)) {
+        settingsCache.set(row.key, row.value);
+      }
+    });
+    settingsLoaded = true;
+  })();
+  try {
+    await settingsLoadPromise;
+  } finally {
+    settingsLoadPromise = null;
+  }
+}
+
+async function getSetting(key) {
+  if (settingsCache.has(key)) return settingsCache.get(key);
+  await ensureSettingsLoaded();
+  if (settingsCache.has(key)) return settingsCache.get(key);
+  return null;
 }
 
 async function setSetting(key, value) {
@@ -3262,17 +3561,19 @@ async function setSetting(key, value) {
   const strValue = typeof value === 'string' ? value : JSON.stringify(value);
   await sbFetch('/rest/v1/settings', {
     method: 'POST',
-    headers: sbHeaders({ 'Prefer': 'resolution=merge-duplicates,return=representation' }),
+    headers: sbHeaders({ 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
     body: JSON.stringify({ key, value: strValue })
   });
+  settingsCache.set(key, strValue);
   return value;
 }
 
 async function deleteSetting(key) {
-  await sbFetch('/rest/v1/settings?key=eq.' + encodeURIComponent(key), {
+  await sbFetch(sbPath('/rest/v1/settings', { key: `eq.${key}` }), {
     method: 'DELETE',
-    headers: sbHeaders()
+    headers: sbHeaders({ Prefer: 'return=minimal' })
   });
+  settingsCache.delete(key);
 }
 
 function parseSettingJson(value, fallback) {
@@ -3521,49 +3822,165 @@ async function getLastJsonBackupAt()    { return getSetting(JSON_BACKUP_AT_KEY);
 async function setLastJsonBackupAt(iso) { return setSetting(JSON_BACKUP_AT_KEY, iso); }
 
 // ── Diários ──────────────────────────────────────────────────
-async function getDiario(id) {
-  const data = await sbFetch('/rest/v1/diarios?id=eq.' + encodeURIComponent(id) + '&select=payload', {
-    headers: sbHeaders()
-  });
+function normalizeStoredPayload(payload, fallbackId) {
+  if (!payload || typeof payload !== 'object') return null;
+  const diario = { ...payload };
+  diario.id = diario.id || fallbackId;
+  diario.data = diario.data || fallbackId;
+  diario.hasGrafico = !!(diario.hasGrafico || diario.graficoThumb || diario.graficoDia);
+  return applyLocalChartViewToDiario(diario);
+}
+
+async function fetchDiarioPayload(id) {
+  const data = await sbFetch(sbPath('/rest/v1/diarios', {
+    id: `eq.${id}`,
+    select: 'payload,atualizado_em'
+  }), { headers: sbHeaders() });
   if (!data || !data.length) return null;
-  return applyLocalChartViewToDiario(data[0].payload);
+  const diario = normalizeStoredPayload(data[0].payload, id);
+  if (!diario) return null;
+  rememberFullDiario(diario, data[0].atualizado_em);
+  return diario;
+}
+
+async function preserveExistingChart(payload) {
+  const chartMissing = !Object.prototype.hasOwnProperty.call(payload, 'graficoDia')
+    || payload.graficoDia === undefined;
+  if (!chartMissing || !payload.id) return payload;
+
+  const existing = await getCachedFullDiario(payload.id)
+    || await fetchDiarioPayload(payload.id);
+  if (!existing) return payload;
+
+  payload.graficoDia = existing.graficoDia ?? null;
+  if (!payload.graficoThumb) payload.graficoThumb = existing.graficoThumb ?? null;
+  return payload;
+}
+
+async function getDiario(id) {
+  const cached = await getCachedFullDiario(id);
+  if (cached) {
+    const meta = await sbFetch(sbPath('/rest/v1/diarios', {
+      id: `eq.${id}`,
+      select: 'atualizado_em'
+    }), { headers: sbHeaders() });
+    if (!meta || !meta.length) {
+      forgetFullDiario(id);
+      return null;
+    }
+    const cachedAt = diarioFullMem.get(id)?.atualizado_em || cached.atualizadoEm;
+    if (cachedAt === meta[0].atualizado_em) {
+      return applyLocalChartViewToDiario(cached);
+    }
+  }
+  const diario = await fetchDiarioPayload(id);
+  return diario ? applyLocalChartViewToDiario(diario) : null;
 }
 
 async function saveDiario(record) {
-  const payload = stripSyncedChartViewFields(record);
+  const payload = await preserveExistingChart(stripSyncedChartViewFields(record));
+  payload.hasGrafico = !!payload.graficoDia;
+  if (!payload.graficoDia) payload.graficoThumb = null;
+  const atualizadoEm = new Date().toISOString();
+  payload.atualizadoEm = atualizadoEm;
   await sbFetch('/rest/v1/diarios', {
     method: 'POST',
-    headers: sbHeaders({ 'Prefer': 'resolution=merge-duplicates,return=representation' }),
+    headers: sbHeaders({ 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
     body: JSON.stringify({
       id: record.id,
       data: record.data,
       payload,
-      atualizado_em: new Date().toISOString()
+      atualizado_em: atualizadoEm
     })
   });
+  record.atualizadoEm = atualizadoEm;
+  record.hasGrafico = payload.hasGrafico;
+  record.graficoThumb = payload.graficoThumb;
+  if (payload.graficoDia !== undefined) record.graficoDia = payload.graficoDia;
+  rememberFullDiario(payload, atualizadoEm);
+  upsertDiariosMetaCache(payload);
   return record;
 }
 
+async function getAllDiariosMeta({ force = false } = {}) {
+  if (!force && diariosMetaCache) return diariosMetaCache.map(cloneDiario);
+  if (!force && diariosMetaInflight) return (await diariosMetaInflight).map(cloneDiario);
+
+  diariosMetaInflight = (async () => {
+    const [rows, chartIds] = await Promise.all([
+      fetchDiariosMetaRows(),
+      fetchChartIdSet()
+    ]);
+    const list = (rows || [])
+      .map((row) => rowToDiarioMeta(row, chartIds))
+      .sort((a, b) => String(b.data || '').localeCompare(String(a.data || '')));
+    diariosMetaCache = list;
+    flushPendingMetaUpserts();
+    return diariosMetaCache;
+  })();
+
+  try {
+    return (await diariosMetaInflight).map(cloneDiario);
+  } finally {
+    diariosMetaInflight = null;
+  }
+}
+
+async function fetchPayloadsByIds(ids) {
+  const result = [];
+  for (let i = 0; i < ids.length; i += 50) {
+    const batch = ids.slice(i, i + 50);
+    const rows = await sbFetch(sbPath('/rest/v1/diarios', {
+      id: `in.(${batch.map((id) => `"${String(id).replace(/"/g, '')}"`).join(',')})`,
+      select: 'id,payload,atualizado_em'
+    }), { headers: sbHeaders() });
+    (rows || []).forEach((row) => {
+      const diario = normalizeStoredPayload(row.payload, row.id);
+      if (!diario) return;
+      rememberFullDiario(diario, row.atualizado_em);
+      result.push(diario);
+    });
+  }
+  return result;
+}
+
 async function getAllDiarios() {
-  const data = await sbFetch('/rest/v1/diarios?select=payload&order=data.desc', {
-    headers: sbHeaders()
-  });
-  if (!data) return [];
-  return data
-    .map((r) => applyLocalChartViewToDiario(r.payload))
-    .sort((a, b) => b.data.localeCompare(a.data));
+  const metas = await getAllDiariosMeta();
+  const missing = [];
+  const byId = new Map();
+
+  for (const meta of metas) {
+    const cached = await getCachedFullDiario(meta.id, meta.atualizadoEm);
+    if (cached) byId.set(meta.id, applyLocalChartViewToDiario(cached));
+    else missing.push(meta.id);
+  }
+
+  if (missing.length) {
+    const fetched = await fetchPayloadsByIds(missing);
+    fetched.forEach((diario) => byId.set(diario.id, diario));
+  }
+
+  return metas
+    .map((meta) => byId.get(meta.id) || meta)
+    .sort((a, b) => String(b.data || '').localeCompare(String(a.data || '')));
 }
 
 async function deleteDiario(id) {
-  await sbFetch('/rest/v1/diarios?id=eq.' + encodeURIComponent(id), {
+  await sbFetch(sbPath('/rest/v1/diarios', { id: `eq.${id}` }), {
     method: 'DELETE',
-    headers: sbHeaders()
+    headers: sbHeaders({ Prefer: 'return=minimal' })
   });
+  forgetFullDiario(id);
+  if (diariosMetaCache) {
+    diariosMetaCache = diariosMetaCache.filter((d) => d.id !== id);
+  }
 }
 
 async function importDiarios(records) {
   const rows = records.map((r) => {
     const payload = stripSyncedChartViewFields(r);
+    payload.hasGrafico = !!payload.graficoDia;
+    if (!payload.graficoDia) payload.graficoThumb = null;
     return {
       id: r.id,
       data: r.data,
@@ -3571,15 +3988,17 @@ async function importDiarios(records) {
       atualizado_em: r.atualizadoEm || new Date().toISOString()
     };
   });
-  // Envia em lotes de 50 para não estourar limite da API
   for (let i = 0; i < rows.length; i += 50) {
     const batch = rows.slice(i, i + 50);
     await sbFetch('/rest/v1/diarios', {
       method: 'POST',
-      headers: sbHeaders({ 'Prefer': 'resolution=merge-duplicates,return=representation' }),
+      headers: sbHeaders({ 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
       body: JSON.stringify(batch)
     });
+    batch.forEach((row) => rememberFullDiario(row.payload, row.atualizado_em));
   }
+  invalidateDiariosMetaCache();
+  pendingMetaUpserts = [];
   return records.length;
 }
 
@@ -3669,6 +4088,10 @@ function normalizeDiarioFechado(diario) {
   return diario;
 }
 
+function diarioHasChart(d) {
+  return !!(d && (d.graficoDia || d.graficoThumb || d.hasGrafico));
+}
+
 function diarioHasContent(d) {
   if (!d) return false;
   normalizeDiarioFechado(d);
@@ -3677,7 +4100,7 @@ function diarioHasContent(d) {
     d.comentarioPreTrade ||
     d.intencaoDoDia ||
     d.comentarioGeral    ||
-    d.graficoDia         ||
+    diarioHasChart(d)    ||
     (d.planoEstrategias && d.planoEstrategias.length) ||
     prontidaoHasAnswers(d.prontidao) ||
     maestriaHasContent(d.maestria) ||
@@ -3691,7 +4114,7 @@ function diarioHasTradingContent(d) {
     d.comentarioPreTrade ||
     d.intencaoDoDia ||
     d.comentarioGeral ||
-    d.graficoDia ||
+    diarioHasChart(d) ||
     (d.planoEstrategias && d.planoEstrategias.length) ||
     prontidaoHasAnswers(d.prontidao) ||
     (d.trades || []).some(isTradeFilled)
@@ -3795,6 +4218,8 @@ function emptyDiario(id = todayId()) {
       comentario: ''
     })),
     graficoDia: null,
+    graficoThumb: null,
+    hasGrafico: false,
     graficoZoom: 100,
     graficoStretchX: 100,
     comentarioPreTrade: '',
@@ -4058,7 +4483,7 @@ async function migrateIdoScoreRecords(migrationKey) {
   const done = await getSetting(migrationKey);
   if (done === '1' || done === 1 || done === true) return { updated: 0, skipped: true };
 
-  const all = await getAllDiarios();
+  const all = await getAllDiariosMeta();
   let updated = 0;
 
   for (const d of all) {
@@ -4070,10 +4495,13 @@ async function migrateIdoScoreRecords(migrationKey) {
 
     if (d.scoreProntidao === nextScore && d.statusOperacao === nextStatus) continue;
 
-    d.scoreProntidao = nextScore;
-    d.statusOperacao = nextStatus;
-    d.atualizadoEm = new Date().toISOString();
-    await saveDiario(d);
+    const full = await getDiario(d.id);
+    if (!full) continue;
+    full.prontidao = normalizeProntidao(full.prontidao);
+    full.scoreProntidao = nextScore;
+    full.statusOperacao = nextStatus;
+    full.atualizadoEm = new Date().toISOString();
+    await saveDiario(full);
     updated++;
   }
 
@@ -4267,7 +4695,7 @@ function downloadFile(content, filename, mime) {
 }
 
 async function exportCSV() {
-  const diarios = await getAllDiarios();
+  const diarios = await getAllDiariosMeta();
   const csv = diariosToCSV(diarios.filter(diarioHasContent));
   downloadFile(csv, `diario-trader-${todayId()}.csv`, 'text/csv;charset=utf-8');
 }
@@ -4383,9 +4811,9 @@ async function flushPendingSave() {
   }
 }
 
-async function getDiariosForIncrementalBackup(getLastBackupAt) {
+async function getDiariosForIncrementalBackup(getLastBackupAt, { includeCharts = false } = {}) {
   await flushPendingSave();
-  const all = (await getAllDiarios()).filter(diarioHasContent);
+  const all = (includeCharts ? await getAllDiarios() : await getAllDiariosMeta()).filter(diarioHasContent);
   const lastAt = await getLastBackupAt();
   if (!lastAt) return { diarios: all, isFirst: true };
 
@@ -4424,9 +4852,10 @@ async function runIncrementalBackup({
   mergeContent,
   fallbackFilename,
   fallbackMime,
-  refreshStatus
+  refreshStatus,
+  includeCharts = false
 }) {
-  const { diarios, isFirst } = await getDiariosForIncrementalBackup(getLastBackupAt);
+  const { diarios, isFirst } = await getDiariosForIncrementalBackup(getLastBackupAt, { includeCharts });
 
   if (!isFirst && diarios.length === 0) {
     return { updated: 0, days: [], message: 'Nenhum dado novo ou alterado desde o último backup.' };
@@ -4567,7 +4996,8 @@ async function backupJSON() {
     mergeContent: mergeBackupJson,
     fallbackFilename: 'diario-trader-backup.json',
     fallbackMime: 'application/json',
-    refreshStatus: refreshBackupJsonStatus
+    refreshStatus: refreshBackupJsonStatus,
+    includeCharts: true
   });
 }
 async function linkBackupCsvFile() {
@@ -5542,7 +5972,7 @@ let openWeekendDates = new Set();
 let statusByDate = {};
 
 async function refreshCalendarDates() {
-  const all = await getAllDiarios();
+  const all = await getAllDiariosMeta();
   filledDates = new Set();
   closedDates = new Set();
   openWeekendDates = new Set();
@@ -5584,7 +6014,18 @@ async function loadDay(dateId) {
 
   let diario = await getDiario(dateId);
   const isNew = !diario;
-  if (!diario) diario = emptyDiario(dateId);
+  let chartOptimized = false;
+  if (!diario) {
+    diario = emptyDiario(dateId);
+  } else {
+    try {
+      const optimized = await ensureOptimizedChart(diario);
+      diario = optimized.diario;
+      chartOptimized = optimized.changed;
+    } catch (err) {
+      console.warn('Não foi possível otimizar o gráfico do dia:', err);
+    }
+  }
 
   selectedDateId = dateId;
   const [y, m] = dateId.split('-').map(Number);
@@ -5598,7 +6039,7 @@ async function loadDay(dateId) {
   renderCalendar();
   setSaveStatus('Pronto');
 
-  if (isNew && diario.diaFechado) scheduleSave();
+  if ((isNew && diario.diaFechado) || chartOptimized) scheduleSave();
 }
 
 function updateEditingBanner() {
@@ -5725,7 +6166,7 @@ function diarioHasMaestriaRecord(d) {
 }
 
 function diarioHasGraficoRecord(d) {
-  return !!(d && d.graficoDia);
+  return diarioHasChart(d);
 }
 
 function getLastGraficaSessionRange(allDiarios) {
@@ -5985,13 +6426,15 @@ function createChartElement(d, dateId) {
     return chartWrap;
   }
 
-  if (d?.graficoDia) {
+  if (d?.graficoThumb || d?.graficoDia) {
     const img = document.createElement('img');
     img.className = 'history-card-img';
     img.alt = `Gráfico ${formatDateShort(dateId)}`;
     img.loading = 'lazy';
-    img.src = d.graficoDia;
+    img.src = d.graficoThumb || d.graficoDia;
     chartWrap.appendChild(img);
+  } else if (diarioHasChart(d)) {
+    chartWrap.innerHTML = '<div class="history-card-no-img"><span>📈</span><small>Print salvo — abra o dia para gerar a prévia</small></div>';
   } else {
     chartWrap.innerHTML = d
       ? '<div class="history-card-no-img"><span>📈</span><small>Sem print do gráfico</small></div>'
@@ -6461,7 +6904,7 @@ function showHistoryEmpty(message) {
 }
 
 async function renderHistory() {
-  const all = await getAllDiarios();
+  const all = await getAllDiariosMeta();
   const viewMode = getHistoryViewMode();
   const preset = document.getElementById('historyPreset').value;
   const customFrom = document.getElementById('historyDateFrom').value;
@@ -6560,7 +7003,7 @@ function toggleCustomRange() {
 }
 
 async function openHistory() {
-  const all = await getAllDiarios();
+  const all = await getAllDiariosMeta();
   const session = getLastTradingSessionRange(all);
   const today = todayId();
 
@@ -6619,7 +7062,7 @@ async function refreshMaestriaFocoReminder() {
     return;
   }
 
-  const all = await getAllDiarios();
+  const all = await getAllDiariosMeta();
   const session = findLastMaestriaDestaquesSession(all, todayId());
   if (!session) {
     updateSidebarRemindersVisibility();
@@ -7545,30 +7988,92 @@ function initMaestriaGrafico() {
   });
 }
 
-function compressImage(file, maxWidth = 1600) {
+const CHART_MAX_WIDTH = 1280;
+const CHART_JPEG_QUALITY = 0.7;
+const CHART_THUMB_WIDTH = 480;
+const CHART_THUMB_QUALITY = 0.52;
+const CHART_RECOMPRESS_CHARS = 280000;
+
+function loadImageFromDataUrl(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Imagem inválida'));
+    img.src = dataUrl;
+  });
+}
+
+function canvasToJpeg(img, maxWidth, quality) {
+  let w = img.width;
+  let h = img.height;
+  if (w > maxWidth) {
+    h = Math.round((h * maxWidth) / w);
+    w = maxWidth;
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(img, 0, 0, w, h);
+  return canvas.toDataURL('image/jpeg', quality);
+}
+
+async function compressDataUrl(dataUrl, maxWidth, quality) {
+  const img = await loadImageFromDataUrl(dataUrl);
+  return canvasToJpeg(img, maxWidth, quality);
+}
+
+function compressImage(file, maxWidth = CHART_MAX_WIDTH, quality = CHART_JPEG_QUALITY) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        let w = img.width;
-        let h = img.height;
-        if (w > maxWidth) {
-          h = Math.round((h * maxWidth) / w);
-          w = maxWidth;
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', 0.82));
-      };
-      img.onerror = () => reject(new Error('Imagem inválida'));
-      img.src = e.target.result;
+    reader.onload = async (e) => {
+      try {
+        resolve(await compressDataUrl(e.target.result, maxWidth, quality));
+      } catch (err) {
+        reject(err);
+      }
     };
     reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
     reader.readAsDataURL(file);
   });
+}
+
+async function makeGraficoThumb(dataUrl) {
+  if (!dataUrl) return null;
+  return compressDataUrl(dataUrl, CHART_THUMB_WIDTH, CHART_THUMB_QUALITY);
+}
+
+function chartNeedsRecompress(dataUrl) {
+  if (!dataUrl || typeof dataUrl !== 'string') return false;
+  if (!dataUrl.startsWith('data:image/jpeg')) return true;
+  return dataUrl.length > CHART_RECOMPRESS_CHARS;
+}
+
+async function ensureOptimizedChart(diario) {
+  if (!diario || typeof diario !== 'object') return { diario, changed: false };
+  if (!diario.graficoDia) {
+    const hadThumb = !!diario.graficoThumb || !!diario.hasGrafico;
+    diario.graficoThumb = null;
+    diario.hasGrafico = false;
+    return { diario, changed: hadThumb };
+  }
+
+  let changed = false;
+  if (chartNeedsRecompress(diario.graficoDia)) {
+    diario.graficoDia = await compressDataUrl(diario.graficoDia, CHART_MAX_WIDTH, CHART_JPEG_QUALITY);
+    changed = true;
+  }
+  if (!diario.graficoThumb || changed) {
+    diario.graficoThumb = await makeGraficoThumb(diario.graficoDia);
+    changed = true;
+  }
+  if (!diario.hasGrafico) {
+    diario.hasGrafico = true;
+    changed = true;
+  }
+  return { diario, changed };
 }
 
 async function setGraficoDia(file) {
@@ -7576,6 +8081,8 @@ async function setGraficoDia(file) {
   try {
     const dataUrl = await compressImage(file);
     currentDiario.graficoDia = dataUrl;
+    currentDiario.graficoThumb = await makeGraficoThumb(dataUrl);
+    currentDiario.hasGrafico = true;
     currentDiario.graficoZoom = 100;
     currentDiario.graficoStretchX = 100;
     setLocalChartView(getChartViewDateId(), { zoom: 100, stretchX: 100 });
@@ -7590,6 +8097,8 @@ async function setGraficoDia(file) {
 function removeGraficoDia() {
   const dateId = getChartViewDateId();
   currentDiario.graficoDia = null;
+  currentDiario.graficoThumb = null;
+  currentDiario.hasGrafico = false;
   currentDiario.graficoZoom = 100;
   currentDiario.graficoStretchX = 100;
   deleteLocalChartView(dateId);
@@ -7749,6 +8258,8 @@ function populateForm(diario) {
   normalizeDiarioFechado(diario);
   currentDiario = diario;
   if (!('graficoDia' in currentDiario)) currentDiario.graficoDia = null;
+  if (!('graficoThumb' in currentDiario)) currentDiario.graficoThumb = null;
+  if (!('hasGrafico' in currentDiario)) currentDiario.hasGrafico = !!currentDiario.graficoDia;
   if (!('diaFechado' in currentDiario)) currentDiario.diaFechado = getDefaultDiaFechado(diario.data);
   if (!('diaFechadoMotivo' in currentDiario)) {
     currentDiario.diaFechadoMotivo = getDefaultDiaFechadoMotivo(diario.data);
@@ -7795,6 +8306,8 @@ function collectFormData() {
     currentDiario.graficoStretchX = Number(document.getElementById('chartStretchXRange').value) || 100;
     persistCurrentChartView();
   }
+  currentDiario.hasGrafico = !!currentDiario.graficoDia;
+  if (!currentDiario.graficoDia) currentDiario.graficoThumb = null;
   currentDiario.atualizadoEm = new Date().toISOString();
   return currentDiario;
 }
