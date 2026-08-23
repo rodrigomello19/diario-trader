@@ -407,6 +407,7 @@ body {
 /* Tabs */
 .tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -417,7 +418,7 @@ body {
 }
 
 .tab {
-  flex: 1;
+  flex: 1 1 140px;
   padding: 10px 16px;
   border: none;
   background: transparent;
@@ -1178,6 +1179,77 @@ body {
 
 .maestria-chart-empty.hidden { display: none; }
 
+.minute-log {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.minute-log-row {
+  display: grid;
+  grid-template-columns: 58px 84px 1fr;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.minute-log-time {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 42px;
+  padding: 0 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  line-height: 1.2;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.minute-log-time:hover {
+  border-color: var(--border-strong);
+}
+
+.minute-log-time--trade {
+  color: var(--success);
+  background: var(--success-bg);
+  border-color: var(--success);
+}
+
+.minute-log-time--trade::after {
+  content: ' ✓';
+}
+
+.minute-log-row textarea {
+  min-height: 42px;
+  resize: vertical;
+}
+
+.minute-log-estrategia {
+  min-height: 42px;
+  padding: 0 6px !important;
+  text-align: center;
+  text-transform: uppercase;
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.minute-log-estrategia::placeholder {
+  text-transform: none;
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Chart upload */
 .chart-upload {
   margin-top: 4px;
@@ -1595,7 +1667,9 @@ textarea { resize: vertical; min-height: 80px; }
   #intencaoDoDia,
   #comentarioGeral,
   #maestriaAnalise,
-  #maestriaDestaques {
+  #maestriaDestaques,
+  #analiseMercadoContexto,
+  #analiseMercadoGeral {
     font-family: var(--font);
     font-size: 1.1rem;
     font-weight: 400;
@@ -2791,13 +2865,14 @@ body.modal-open { overflow: hidden; }
         <div id="dayFechadoNotice" class="day-fechado-notice hidden" aria-live="polite">
           <div class="day-fechado-notice-icon" aria-hidden="true">🔒</div>
           <h3>Sem operação</h3>
-          <p id="dayFechadoNoticeText">Sem operação neste dia — não é necessário registrar disposição, trades nem análise Maestria. Clique no cadeado para reabrir.</p>
+          <p id="dayFechadoNoticeText">Sem operação neste dia — não é necessário registrar disposição, trades nem análises. Clique no cadeado para reabrir.</p>
         </div>
 
         <nav class="tabs" role="tablist">
           <button type="button" class="tab active" data-tab="pre" role="tab">Pré-trade</button>
           <button type="button" class="tab" data-tab="pos" role="tab">Pós-trade</button>
           <button type="button" class="tab" data-tab="maestria" role="tab">Análise Maestria</button>
+          <button type="button" class="tab" data-tab="analise" role="tab">Minha análise</button>
         </nav>
 
         <main>
@@ -2951,6 +3026,51 @@ body.modal-open { overflow: hidden; }
               <button type="button" class="btn btn-primary" id="btnSaveMaestria">Salvar análise</button>
             </div>
           </section>
+
+          <!-- MINHA ANÁLISE -->
+          <section id="tab-analise" class="tab-panel">
+            <div class="card">
+              <h2>Gráfico do dia</h2>
+              <div class="chart-view chart-view--readonly" id="analiseMercadoChartView">
+                <p class="maestria-chart-empty" id="analiseMercadoChartEmpty">Adicione o print na aba Pós-trade para analisar aqui.</p>
+                <div class="chart-preview-frame hidden" id="analiseMercadoChartPreviewFrame">
+                  <img id="analiseMercadoChartPreview" class="chart-preview" alt="Gráfico do dia">
+                </div>
+              </div>
+              <div class="chart-zoom-row hidden" id="analiseMercadoChartZoomRow">
+                <label for="analiseMercadoChartZoomRange">Ampliação</label>
+                <input type="range" id="analiseMercadoChartZoomRange" min="50" max="500" step="5" value="100">
+                <span class="chart-zoom-value" id="analiseMercadoChartZoomValue">100%</span>
+                <label for="analiseMercadoChartStretchXRange">Esticar horizontal</label>
+                <input type="range" id="analiseMercadoChartStretchXRange" min="50" max="300" step="5" value="100">
+                <span class="chart-zoom-value" id="analiseMercadoChartStretchXValue">100%</span>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>Contexto do mercado</h2>
+              <p class="card-hint">Cenário, notícias, viés e o que você está observando antes e durante a janela.</p>
+              <textarea id="analiseMercadoContexto" rows="4"
+                placeholder="Ex.: gap de abertura, fluxo, noticiário, viés do dia..."></textarea>
+            </div>
+
+            <div class="card">
+              <h2>Análise minuto a minuto</h2>
+              <div class="minute-log" id="analiseMercadoMinutos"></div>
+            </div>
+
+            <div class="card">
+              <h2>Análise geral / comentários</h2>
+              <p class="card-hint">Síntese da janela, o que funcionou, o que não funcionou e o que levar para o próximo dia.</p>
+              <textarea id="analiseMercadoGeral" rows="6"
+                placeholder="Comentário geral da análise..."></textarea>
+            </div>
+
+            <div class="save-bar">
+              <span class="save-status" id="saveStatusAnalise">Pronto</span>
+              <button type="button" class="btn btn-primary" id="btnSaveAnalise">Salvar análise</button>
+            </div>
+          </section>
         </main>
       </div>
     </div>
@@ -2965,7 +3085,7 @@ body.modal-open { overflow: hidden; }
         <div class="history-view-tabs" role="tablist" aria-label="Tipo de histórico">
           <button type="button" class="tab active" data-history-view="trading" role="tab" aria-selected="true">Trading</button>
           <button type="button" class="tab" data-history-view="maestria" role="tab" aria-selected="false">Maestria</button>
-          <button type="button" class="tab" data-history-view="grafica" role="tab" aria-selected="false">Análise Gráfica</button>
+          <button type="button" class="tab" data-history-view="grafica" role="tab" aria-selected="false">Minha análise</button>
         </div>
         <div class="history-toolbar">
           <select id="historyPreset" class="history-select" aria-label="Período do histórico">
@@ -3233,7 +3353,7 @@ const DIARIO_META_PAYLOAD_FIELDS = [
   'diaFechado', 'diaFechadoMotivo', 'feriado', 'feriadoMotivo',
   'prontidao', 'scoreProntidao', 'statusOperacao', 'planoEstrategias', 'trades',
   'graficoThumb', 'hasGrafico',
-  'comentarioPreTrade', 'intencaoDoDia', 'comentarioGeral', 'maestria',
+  'comentarioPreTrade', 'intencaoDoDia', 'comentarioGeral', 'maestria', 'analiseMercado',
   'criadoEm', 'atualizadoEm'
 ];
 
@@ -3447,6 +3567,7 @@ function toDiarioMeta(source) {
     intencaoDoDia: diario.intencaoDoDia,
     comentarioGeral: diario.comentarioGeral,
     maestria: diario.maestria,
+    analiseMercado: diario.analiseMercado,
     criadoEm: diario.criadoEm,
     atualizadoEm: diario.atualizado_em || diario.atualizadoEm || null
   };
@@ -3477,6 +3598,7 @@ function rowToDiarioMeta(row, chartIds) {
     intencaoDoDia: row.intencaoDoDia,
     comentarioGeral: row.comentarioGeral,
     maestria: row.maestria,
+    analiseMercado: row.analiseMercado,
     criadoEm: row.criadoEm,
     atualizadoEm: row.atualizado_em || row.atualizadoEm || null
   };
@@ -4104,6 +4226,7 @@ function diarioHasContent(d) {
     (d.planoEstrategias && d.planoEstrategias.length) ||
     prontidaoHasAnswers(d.prontidao) ||
     maestriaHasContent(d.maestria) ||
+    analiseMercadoHasContent(d.analiseMercado) ||
     (d.trades || []).some(isTradeFilled)
   );
 }
@@ -4226,6 +4349,7 @@ function emptyDiario(id = todayId()) {
     intencaoDoDia: '',
     comentarioGeral: '',
     maestria: emptyMaestria(),
+    analiseMercado: emptyAnaliseMercado(),
     criadoEm: new Date().toISOString(),
     atualizadoEm: new Date().toISOString()
   };
@@ -4300,6 +4424,86 @@ function maestriaHasContent(maestria) {
     m.microCicloNota.trim() ||
     m.analise.trim() ||
     m.destaques.trim()
+  );
+}
+
+const ANALISE_MERCADO_MINUTOS = Array.from({ length: 30 }, (_, i) => {
+  const minute = 30 + i;
+  return `10:${String(minute).padStart(2, '0')}`;
+});
+
+function emptyAnaliseMercadoMinutos() {
+  return Object.fromEntries(ANALISE_MERCADO_MINUTOS.map((hora) => [hora, '']));
+}
+
+function emptyAnaliseMercadoTrades() {
+  return Object.fromEntries(ANALISE_MERCADO_MINUTOS.map((hora) => [hora, false]));
+}
+
+function emptyAnaliseMercadoEstrategias() {
+  return Object.fromEntries(ANALISE_MERCADO_MINUTOS.map((hora) => [hora, '']));
+}
+
+function emptyAnaliseMercado() {
+  return {
+    contexto: '',
+    minutos: emptyAnaliseMercadoMinutos(),
+    trades: emptyAnaliseMercadoTrades(),
+    estrategias: emptyAnaliseMercadoEstrategias(),
+    geral: ''
+  };
+}
+
+function normalizeAnaliseMercadoEstrategia(value) {
+  return String(value || '').trim().toUpperCase().slice(0, 8);
+}
+
+function normalizeAnaliseMercado(raw) {
+  const empty = emptyAnaliseMercado();
+  if (!raw || typeof raw !== 'object') return empty;
+  const minutos = emptyAnaliseMercadoMinutos();
+  const trades = emptyAnaliseMercadoTrades();
+  const estrategias = emptyAnaliseMercadoEstrategias();
+  const sourceMinutos = raw.minutos && typeof raw.minutos === 'object' ? raw.minutos : {};
+  const sourceTrades = raw.trades && typeof raw.trades === 'object' ? raw.trades : {};
+  const sourceEstrategias = raw.estrategias && typeof raw.estrategias === 'object' ? raw.estrategias : {};
+  ANALISE_MERCADO_MINUTOS.forEach((hora) => {
+    minutos[hora] = String(sourceMinutos[hora] || '');
+    trades[hora] = sourceTrades[hora] === true || sourceTrades[hora] === 'true' || sourceTrades[hora] === '1';
+    estrategias[hora] = normalizeAnaliseMercadoEstrategia(sourceEstrategias[hora]);
+  });
+  return {
+    contexto: String(raw.contexto || ''),
+    minutos,
+    trades,
+    estrategias,
+    geral: String(raw.geral || '')
+  };
+}
+
+function analiseMercadoFilledMinutes(analise) {
+  const m = normalizeAnaliseMercado(analise);
+  return ANALISE_MERCADO_MINUTOS.filter((hora) => m.minutos[hora].trim());
+}
+
+function analiseMercadoTradeMinutes(analise) {
+  const m = normalizeAnaliseMercado(analise);
+  return ANALISE_MERCADO_MINUTOS.filter((hora) => m.trades[hora]);
+}
+
+function analiseMercadoEstrategiaMinutes(analise) {
+  const m = normalizeAnaliseMercado(analise);
+  return ANALISE_MERCADO_MINUTOS.filter((hora) => m.estrategias[hora]);
+}
+
+function analiseMercadoHasContent(analise) {
+  const m = normalizeAnaliseMercado(analise);
+  return !!(
+    m.contexto.trim() ||
+    m.geral.trim() ||
+    analiseMercadoFilledMinutes(m).length ||
+    analiseMercadoTradeMinutes(m).length ||
+    analiseMercadoEstrategiaMinutes(m).length
   );
 }
 
@@ -4589,6 +4793,35 @@ function isTradeFilled(trade) {
 function prontidaoHasAnswers(prontidao) {
   return getAllDisposicaoQuestions().some((q) => getProntidaoValor(prontidao, q.id) !== null);
 }
+
+function parseAnaliseMercadoFromCsv(contexto, minutosRaw, geral, tradesRaw, estrategiasRaw) {
+  const analise = emptyAnaliseMercado();
+  analise.contexto = String(contexto || '');
+  analise.geral = String(geral || '');
+  String(minutosRaw || '').split('|').forEach((part) => {
+    const text = part.trim();
+    if (!text) return;
+    const match = text.match(/^(10:[3-5]\d)\s+([\s\S]+)$/);
+    if (match && analise.minutos[match[1]] !== undefined) {
+      analise.minutos[match[1]] = match[2].trim();
+    }
+  });
+  String(tradesRaw || '').split('|').forEach((part) => {
+    const hora = part.trim();
+    if (hora && analise.trades[hora] !== undefined) {
+      analise.trades[hora] = true;
+    }
+  });
+  String(estrategiasRaw || '').split('|').forEach((part) => {
+    const text = part.trim();
+    if (!text) return;
+    const match = text.match(/^(10:[3-5]\d)\s+([\s\S]+)$/);
+    if (match && analise.estrategias[match[1]] !== undefined) {
+      analise.estrategias[match[1]] = normalizeAnaliseMercadoEstrategia(match[2]);
+    }
+  });
+  return analise;
+}
 </script>
   <script>function getCsvHeaders() {
   const dispIds = getAllDisposicaoQuestions().map((q) => q.id);
@@ -4599,6 +4832,8 @@ function prontidaoHasAnswers(prontidao) {
     'maestria_contexto_macro', 'maestria_contexto_macro_nota',
     'maestria_micro_ciclo', 'maestria_micro_ciclo_nota',
     'maestria_analise', 'maestria_destaques',
+    'analise_mercado_contexto', 'analise_mercado_minutos', 'analise_mercado_trades',
+    'analise_mercado_estrategias', 'analise_mercado_geral',
     ...dispHeaders,
     'trade_num', 'estrategia', 'pontos', 'nota', 'lado', 'hora_trade', 'falha', 'conducao',
     'aspecto_positivo', 'comentario_trade'
@@ -4612,6 +4847,10 @@ function diariosToDataRows(diarios, headers = getCsvHeaders()) {
   for (const d of diarios) {
     normalizeDiarioFechado(d);
     const maestria = normalizeMaestria(d.maestria);
+    const analiseMercado = normalizeAnaliseMercado(d.analiseMercado);
+    const filledMinutes = analiseMercadoFilledMinutes(analiseMercado).map((hora) => `${hora} ${analiseMercado.minutos[hora].trim()}`);
+    const tradeMinutes = analiseMercadoTradeMinutes(analiseMercado);
+    const estrategiaMinutes = analiseMercadoEstrategiaMinutes(analiseMercado).map((hora) => `${hora} ${analiseMercado.estrategias[hora]}`);
     const base = [
       d.data,
       d.diaFechado ? '1' : '0',
@@ -4627,7 +4866,12 @@ function diariosToDataRows(diarios, headers = getCsvHeaders()) {
       maestria.microCiclo,
       maestria.microCicloNota,
       maestria.analise,
-      maestria.destaques
+      maestria.destaques,
+      analiseMercado.contexto,
+      filledMinutes.join(' | '),
+      tradeMinutes.join('|'),
+      estrategiaMinutes.join(' | '),
+      analiseMercado.geral
     ];
 
     const pront = dispIds.flatMap((id) => {
@@ -5210,6 +5454,13 @@ function csvRowsToDiarios(parsed) {
         analise: get(row, 'maestria_analise') || '',
         destaques: get(row, 'maestria_destaques') || ''
       });
+      diario.analiseMercado = parseAnaliseMercadoFromCsv(
+        get(row, 'analise_mercado_contexto'),
+        get(row, 'analise_mercado_minutos'),
+        get(row, 'analise_mercado_geral'),
+        get(row, 'analise_mercado_trades'),
+        get(row, 'analise_mercado_estrategias')
+      );
       diario.trades = [];
       byDate.set(dateId, diario);
     }
@@ -5864,6 +6115,44 @@ async function buildDayPdf(diario) {
     }
   }
 
+  const analiseMercado = normalizeAnaliseMercado(diario.analiseMercado);
+  if (analiseMercadoHasContent(analiseMercado)) {
+    pdf.addHeading('Minha análise');
+    if (analiseMercado.contexto.trim()) {
+      pdf.addLine('Contexto do mercado', 8);
+      pdf.addLine(analiseMercado.contexto.trim(), 12);
+      pdf.addSpacer(4);
+    }
+    const tradeMinutos = analiseMercadoTradeMinutes(analiseMercado);
+    if (tradeMinutos.length) {
+      pdf.addLine('Trades marcados', 8);
+      pdf.addLine(tradeMinutos.join(', '), 12);
+      pdf.addSpacer(4);
+    }
+    const estrategiaMinutos = analiseMercadoEstrategiaMinutes(analiseMercado);
+    if (estrategiaMinutos.length) {
+      pdf.addLine('Estratégias marcadas', 8);
+      pdf.addLine(estrategiaMinutos.map((hora) => `${hora} ${analiseMercado.estrategias[hora]}`).join(', '), 12);
+      pdf.addSpacer(4);
+    }
+    const minutosRelevantes = ANALISE_MERCADO_MINUTOS.filter((hora) =>
+      analiseMercado.minutos[hora].trim() || analiseMercado.trades[hora] || analiseMercado.estrategias[hora]
+    );
+    if (minutosRelevantes.length) {
+      pdf.addLine('Análise minuto a minuto', 8);
+      minutosRelevantes.forEach((hora) => {
+        const marker = analiseMercado.trades[hora] ? ' [TRADE]' : '';
+        const estrategia = analiseMercado.estrategias[hora] ? ` [${analiseMercado.estrategias[hora]}]` : '';
+        pdf.addLine(`${hora}${marker}${estrategia} ${analiseMercado.minutos[hora].trim()}`, 12);
+      });
+      pdf.addSpacer(4);
+    }
+    if (analiseMercado.geral.trim()) {
+      pdf.addLine('Análise geral', 8);
+      pdf.addLine(analiseMercado.geral.trim(), 12);
+    }
+  }
+
   const exportedAt = new Date().toLocaleString('pt-BR');
   pdf.addSpacer(10);
   pdf.addLine(`Exportado em ${exportedAt}`, 0);
@@ -6166,7 +6455,7 @@ function diarioHasMaestriaRecord(d) {
 }
 
 function diarioHasGraficoRecord(d) {
-  return diarioHasChart(d);
+  return analiseMercadoHasContent(d?.analiseMercado) || diarioHasChart(d);
 }
 
 function getLastGraficaSessionRange(allDiarios) {
@@ -6206,7 +6495,7 @@ const HISTORY_PRESET_LABELS = {
     custom: 'Período personalizado'
   },
   grafica: {
-    'last-session': 'Último gráfico salvo',
+    'last-session': 'Última análise própria',
     'last-week': 'Últimos 7 dias',
     'last-2-weeks': 'Últimas 2 semanas',
     'last-3-weeks': 'Últimas 3 semanas',
@@ -6561,7 +6850,7 @@ function createDiaFechadoDayCard(d, dateId) {
 
   const hint = document.createElement('p');
   hint.className = 'history-day-comment';
-  hint.textContent = 'Sem operação — disposição, trades e análise Maestria não se aplicam.';
+  hint.textContent = 'Sem operação — disposição, trades e análises não se aplicam.';
   content.appendChild(hint);
 
   body.appendChild(content);
@@ -6685,18 +6974,144 @@ function createMaestriaDayCard(d, dateId) {
 }
 
 function createGraficaDayCard(d, dateId) {
-  const article = document.createElement('article');
-  article.className = 'history-chart-card history-open-day';
-  article.dataset.id = getDiarioDate(d) || dateId;
-  article.dataset.openTab = 'pos';
+  if (isDiarioFechado(d)) return createDiaFechadoDayCard(d, dateId);
 
-  const header = document.createElement('div');
-  header.className = 'history-chart-card-header';
-  header.innerHTML = `<h3>${formatDateShort(getDiarioDate(d) || dateId)}</h3>`;
-  article.appendChild(header);
+  const article = document.createElement('article');
+  const hasAnalise = analiseMercadoHasContent(d?.analiseMercado);
+  article.className = hasAnalise
+    ? 'history-day-card'
+    : 'history-day-card history-day-card--empty';
 
   article.appendChild(createChartElement(d, dateId));
+
+  const body = document.createElement('div');
+  body.className = 'history-day-body';
+
+  const content = document.createElement('div');
+  content.className = 'history-day-content';
+
+  const head = document.createElement('div');
+  head.className = 'history-day-head';
+  head.innerHTML = `<h3>${formatDateShort(getDiarioDate(d) || dateId)}</h3>`;
+  content.appendChild(head);
+
+  if (hasAnalise) {
+    const analise = normalizeAnaliseMercado(d.analiseMercado);
+    const filled = analiseMercadoFilledMinutes(analise);
+    const tradeMinutos = analiseMercadoTradeMinutes(analise);
+    const estrategiaMinutos = analiseMercadoEstrategiaMinutes(analise);
+    const lines = [];
+    if (analise.contexto.trim()) {
+      const preview = analise.contexto.trim().replace(/\s+/g, ' ');
+      lines.push(['Contexto', preview.length > 90 ? `${preview.slice(0, 90)}…` : preview]);
+    }
+    if (tradeMinutos.length) {
+      lines.push(['Trades', tradeMinutos.join(', ')]);
+    }
+    if (estrategiaMinutos.length) {
+      const counts = new Map();
+      estrategiaMinutos.forEach((hora) => {
+        const estrategia = analise.estrategias[hora];
+        counts.set(estrategia, (counts.get(estrategia) || 0) + 1);
+      });
+      const summary = [...counts.entries()].map(([estrategia, n]) => (n > 1 ? `${estrategia} (${n})` : estrategia)).join(', ');
+      lines.push(['Estratégias', summary]);
+    }
+    if (filled.length) {
+      lines.push(['Minutos', `${filled.length} comentário(s) entre ${filled[0]} e ${filled[filled.length - 1]}`]);
+    }
+    if (analise.geral.trim()) {
+      const preview = analise.geral.trim().replace(/\s+/g, ' ');
+      lines.push(['Geral', preview.length > 90 ? `${preview.slice(0, 90)}…` : preview]);
+    }
+    lines.forEach(([label, value]) => {
+      const p = document.createElement('p');
+      p.className = 'history-day-line';
+      p.innerHTML = `<strong>${label}:</strong> ${escapeHtml(value)}`;
+      content.appendChild(p);
+    });
+  } else {
+    const p = document.createElement('p');
+    p.className = 'history-day-line';
+    p.textContent = diarioHasChart(d)
+      ? 'Gráfico salvo — ainda sem análise própria neste dia.'
+      : 'Nenhuma análise própria neste dia.';
+    content.appendChild(p);
+  }
+
+  let expandableContent = null;
+  if (hasAnalise) {
+    expandableContent = buildAnaliseMercadoExpandableContent(d);
+    if (expandableContent) content.appendChild(expandableContent);
+  }
+
+  body.appendChild(content);
+
+  const actions = document.createElement('div');
+  actions.className = 'history-day-actions';
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn btn-ghost btn-sm history-open-day';
+  btn.dataset.id = getDiarioDate(d) || dateId;
+  btn.dataset.openTab = 'analise';
+  btn.textContent = hasAnalise ? 'Abrir análise' : 'Criar análise';
+  actions.appendChild(btn);
+
+  if (hasAnalise && expandableContent) {
+    const expandBtn = document.createElement('button');
+    expandBtn.type = 'button';
+    expandBtn.className = 'btn btn-ghost btn-sm history-expand-day';
+    expandBtn.textContent = 'Expandir';
+    expandBtn.setAttribute('aria-expanded', 'false');
+    expandBtn.addEventListener('click', () => {
+      const opening = !article.classList.contains('history-day-card--text-expanded');
+      article.classList.toggle('history-day-card--text-expanded', opening);
+      expandableContent.hidden = !opening;
+      expandBtn.textContent = opening ? 'Recolher' : 'Expandir';
+      expandBtn.setAttribute('aria-expanded', String(opening));
+    });
+    actions.appendChild(expandBtn);
+  }
+
+  body.appendChild(actions);
+  article.appendChild(body);
   return article;
+}
+
+function buildAnaliseMercadoExpandableContent(d) {
+  const panel = document.createElement('div');
+  panel.className = 'history-day-expandable';
+  panel.hidden = true;
+  let hasContent = false;
+  const analise = normalizeAnaliseMercado(d.analiseMercado);
+
+  if (analise.contexto.trim()) {
+    appendExpandableLine(panel, 'Contexto do mercado', analise.contexto.trim());
+    hasContent = true;
+  }
+  const tradeMinutos = analiseMercadoTradeMinutes(analise);
+  if (tradeMinutos.length) {
+    appendExpandableLine(panel, 'Trades marcados', tradeMinutos.join(', '));
+    hasContent = true;
+  }
+  const estrategiaMinutos = analiseMercadoEstrategiaMinutes(analise);
+  if (estrategiaMinutos.length) {
+    appendExpandableLine(panel, 'Estratégias marcadas', estrategiaMinutos.map((hora) => `${hora} ${analise.estrategias[hora]}`).join(', '));
+    hasContent = true;
+  }
+  const relevantMinutes = new Set([...analiseMercadoFilledMinutes(analise), ...tradeMinutos, ...estrategiaMinutos]);
+  ANALISE_MERCADO_MINUTOS.filter((hora) => relevantMinutes.has(hora)).forEach((hora) => {
+    const estrategia = analise.estrategias[hora] ? ` [${analise.estrategias[hora]}]` : '';
+    const label = analise.trades[hora] ? `${hora} 🟢 trade${estrategia}` : `${hora}${estrategia}`;
+    appendExpandableLine(panel, label, analise.minutos[hora].trim());
+    hasContent = true;
+  });
+  if (analise.geral.trim()) {
+    appendExpandableLine(panel, 'Análise geral', analise.geral.trim());
+    hasContent = true;
+  }
+  return hasContent ? panel : null;
 }
 
 function createDayCard(d, dateId, viewMode = 'trading') {
@@ -6854,15 +7269,13 @@ function renderHistoryGallery(allInRange, from, to, preset = 'custom', viewMode 
     gallery.innerHTML = viewMode === 'maestria'
       ? '<p class="empty-msg">Nenhuma análise Maestria encontrada no período.</p>'
       : viewMode === 'grafica'
-        ? '<p class="empty-msg">Nenhum gráfico salvo encontrado no período.</p>'
+        ? '<p class="empty-msg">Nenhuma análise própria encontrada no período.</p>'
         : '<p class="empty-msg">Selecione um período válido.</p>';
     return;
   }
 
   const track = document.createElement('div');
-  track.className = viewMode === 'grafica'
-    ? 'history-gallery-track history-gallery-track--charts'
-    : 'history-gallery-track';
+  track.className = 'history-gallery-track';
 
   daysInPeriod.forEach(({ dateId, diario }) => {
     track.appendChild(createDayCard(diario, dateId, viewMode));
@@ -6917,7 +7330,7 @@ async function renderHistory() {
     viewMode === 'maestria'
       ? 'Análises do período'
       : viewMode === 'grafica'
-        ? 'Gráficos do período'
+        ? 'Análises do período'
         : 'Dias do período';
 
   const range = getPeriodRange(preset, all, customFrom, customTo, viewMode);
@@ -6952,7 +7365,7 @@ async function renderHistory() {
       viewMode === 'maestria'
         ? 'Nenhuma análise Maestria encontrada. Preencha a aba Análise Maestria para ver o histórico.'
         : viewMode === 'grafica'
-          ? 'Nenhum gráfico encontrado. Adicione prints dos gráficos para ver o histórico.'
+          ? 'Nenhuma análise própria encontrada. Preencha a aba Minha análise para ver o histórico.'
           : 'Nenhum registro encontrado. Preencha o diário para ver o histórico.'
     );
     return;
@@ -7856,7 +8269,7 @@ function applyChartViewState() {
   const z = zoom / 100;
   const sx = stretchX / 100;
 
-  ['chartPreview', 'maestriaChartPreview'].forEach((id) => {
+  ['chartPreview', 'maestriaChartPreview', 'analiseMercadoChartPreview'].forEach((id) => {
     const preview = document.getElementById(id);
     if (!preview) return;
     if (!preview.src) {
@@ -7869,8 +8282,10 @@ function applyChartViewState() {
   [
     ['chartZoomRange', 'chartZoomValue', zoom],
     ['maestriaChartZoomRange', 'maestriaChartZoomValue', zoom],
+    ['analiseMercadoChartZoomRange', 'analiseMercadoChartZoomValue', zoom],
     ['chartStretchXRange', 'chartStretchXValue', stretchX],
-    ['maestriaChartStretchXRange', 'maestriaChartStretchXValue', stretchX]
+    ['maestriaChartStretchXRange', 'maestriaChartStretchXValue', stretchX],
+    ['analiseMercadoChartStretchXRange', 'analiseMercadoChartStretchXValue', stretchX]
   ].forEach(([rangeId, valueId, val]) => {
     const range = document.getElementById(rangeId);
     const valueEl = document.getElementById(valueId);
@@ -7910,6 +8325,7 @@ function renderGraficoDia(dataUrl, zoom) {
   }
 
   renderMaestriaGrafico(dataUrl, zoom);
+  renderAnaliseMercadoGrafico(dataUrl, zoom);
 }
 
 function renderMaestriaGrafico(dataUrl, zoom) {
@@ -7917,6 +8333,30 @@ function renderMaestriaGrafico(dataUrl, zoom) {
   const preview = document.getElementById('maestriaChartPreview');
   const empty = document.getElementById('maestriaChartEmpty');
   const zoomRow = document.getElementById('maestriaChartZoomRow');
+
+  if (dataUrl) {
+    preview.onload = () => applyChartViewState();
+    preview.src = dataUrl;
+    frame.classList.remove('hidden');
+    empty.classList.add('hidden');
+    zoomRow.classList.remove('hidden');
+    applyChartViewState();
+  } else {
+    preview.onload = null;
+    preview.src = '';
+    preview.style.transform = '';
+    frame.classList.add('hidden');
+    empty.classList.remove('hidden');
+    zoomRow.classList.add('hidden');
+  }
+}
+
+function renderAnaliseMercadoGrafico(dataUrl, zoom) {
+  const frame = document.getElementById('analiseMercadoChartPreviewFrame');
+  const preview = document.getElementById('analiseMercadoChartPreview');
+  const empty = document.getElementById('analiseMercadoChartEmpty');
+  const zoomRow = document.getElementById('analiseMercadoChartZoomRow');
+  if (!frame || !preview || !empty || !zoomRow) return;
 
   if (dataUrl) {
     preview.onload = () => applyChartViewState();
@@ -7986,6 +8426,110 @@ function initMaestriaGrafico() {
     applyChartStretchX(Number(e.target.value));
     scheduleSave();
   });
+}
+
+function initAnaliseMercadoGrafico() {
+  document.getElementById('analiseMercadoChartZoomRange').addEventListener('input', (e) => {
+    applyChartZoom(Number(e.target.value));
+    scheduleSave();
+  });
+
+  document.getElementById('analiseMercadoChartStretchXRange').addEventListener('input', (e) => {
+    applyChartStretchX(Number(e.target.value));
+    scheduleSave();
+  });
+}
+
+function analiseMercadoMinutoInputId(hora) {
+  return `analiseMercadoMinuto_${hora.replace(':', '')}`;
+}
+
+function analiseMercadoTradeButtonId(hora) {
+  return `analiseMercadoTrade_${hora.replace(':', '')}`;
+}
+
+function analiseMercadoEstrategiaInputId(hora) {
+  return `analiseMercadoEstrategia_${hora.replace(':', '')}`;
+}
+
+function setAnaliseMercadoTradeState(btn, active) {
+  btn.dataset.trade = active ? '1' : '';
+  btn.classList.toggle('minute-log-time--trade', active);
+  btn.setAttribute('aria-pressed', String(active));
+}
+
+function renderAnaliseMercadoMinutos() {
+  const container = document.getElementById('analiseMercadoMinutos');
+  if (!container || container.dataset.built) return;
+
+  ANALISE_MERCADO_MINUTOS.forEach((hora) => {
+    const row = document.createElement('div');
+    row.className = 'minute-log-row';
+
+    const time = document.createElement('button');
+    time.type = 'button';
+    time.id = analiseMercadoTradeButtonId(hora);
+    time.className = 'minute-log-time';
+    time.textContent = hora;
+    time.dataset.minuto = hora;
+    time.title = 'Marcar/desmarcar trade neste minuto';
+    setAnaliseMercadoTradeState(time, false);
+    time.addEventListener('click', () => {
+      const active = time.dataset.trade === '1';
+      setAnaliseMercadoTradeState(time, !active);
+      if (currentDiario?.analiseMercado?.trades) {
+        currentDiario.analiseMercado.trades[hora] = !active;
+      }
+      scheduleSave();
+    });
+
+    const estrategia = document.createElement('input');
+    estrategia.type = 'text';
+    estrategia.id = analiseMercadoEstrategiaInputId(hora);
+    estrategia.className = 'minute-log-estrategia';
+    estrategia.dataset.minuto = hora;
+    estrategia.maxLength = 8;
+    estrategia.autocomplete = 'off';
+    estrategia.placeholder = 'Estratégia';
+    estrategia.title = 'Estratégia ofertada pelo mercado, ex.: PCR, FD, LK';
+    estrategia.addEventListener('input', () => {
+      const start = estrategia.selectionStart;
+      const end = estrategia.selectionEnd;
+      estrategia.value = estrategia.value.toUpperCase();
+      if (start !== null && end !== null) estrategia.setSelectionRange(start, end);
+      scheduleSave();
+    });
+
+    const textarea = document.createElement('textarea');
+    textarea.id = analiseMercadoMinutoInputId(hora);
+    textarea.dataset.minuto = hora;
+    textarea.rows = 1;
+    textarea.placeholder = 'O que aconteceu neste minuto...';
+    textarea.addEventListener('input', scheduleSave);
+
+    row.appendChild(time);
+    row.appendChild(estrategia);
+    row.appendChild(textarea);
+    container.appendChild(row);
+  });
+
+  container.dataset.built = '1';
+}
+
+function populateAnaliseMercadoForm(diario) {
+  const analise = normalizeAnaliseMercado(diario.analiseMercado);
+  currentDiario.analiseMercado = analise;
+  document.getElementById('analiseMercadoContexto').value = analise.contexto;
+  document.getElementById('analiseMercadoGeral').value = analise.geral;
+  ANALISE_MERCADO_MINUTOS.forEach((hora) => {
+    const el = document.getElementById(analiseMercadoMinutoInputId(hora));
+    if (el) el.value = analise.minutos[hora] || '';
+    const tradeBtn = document.getElementById(analiseMercadoTradeButtonId(hora));
+    if (tradeBtn) setAnaliseMercadoTradeState(tradeBtn, !!analise.trades[hora]);
+    const estrategiaEl = document.getElementById(analiseMercadoEstrategiaInputId(hora));
+    if (estrategiaEl) estrategiaEl.value = analise.estrategias[hora] || '';
+  });
+  renderAnaliseMercadoGrafico(diario.graficoDia, currentDiario.graficoZoom);
 }
 
 const CHART_MAX_WIDTH = 1280;
@@ -8277,6 +8821,7 @@ function populateForm(diario) {
   renderGraficoDia(diario.graficoDia, currentDiario.graficoZoom);
   updateSemaforo();
   populateMaestriaForm(diario);
+  populateAnaliseMercadoForm(diario);
 
   document.getElementById('comentarioPreTrade').value = diario.comentarioPreTrade || '';
   document.getElementById('intencaoDoDia').value = diario.intencaoDoDia || '';
@@ -8300,6 +8845,24 @@ function collectFormData() {
     microCicloNota: document.getElementById('maestriaMicroCicloNota').value,
     analise: document.getElementById('maestriaAnalise').value,
     destaques: document.getElementById('maestriaDestaques').value
+  };
+  const analiseMercadoMinutos = {};
+  const analiseMercadoTrades = {};
+  const analiseMercadoEstrategias = {};
+  ANALISE_MERCADO_MINUTOS.forEach((hora) => {
+    const el = document.getElementById(analiseMercadoMinutoInputId(hora));
+    analiseMercadoMinutos[hora] = el ? el.value : '';
+    const tradeBtn = document.getElementById(analiseMercadoTradeButtonId(hora));
+    analiseMercadoTrades[hora] = !!(tradeBtn && tradeBtn.dataset.trade === '1');
+    const estrategiaEl = document.getElementById(analiseMercadoEstrategiaInputId(hora));
+    analiseMercadoEstrategias[hora] = normalizeAnaliseMercadoEstrategia(estrategiaEl ? estrategiaEl.value : '');
+  });
+  currentDiario.analiseMercado = {
+    contexto: document.getElementById('analiseMercadoContexto').value,
+    minutos: analiseMercadoMinutos,
+    trades: analiseMercadoTrades,
+    estrategias: analiseMercadoEstrategias,
+    geral: document.getElementById('analiseMercadoGeral').value
   };
   if (currentDiario.graficoDia) {
     currentDiario.graficoZoom = Number(document.getElementById('chartZoomRange').value) || 100;
@@ -8335,7 +8898,7 @@ async function saveCurrent() {
 }
 
 function setSaveStatus(msg) {
-  ['saveStatus', 'saveStatusMaestria'].forEach((id) => {
+  ['saveStatus', 'saveStatusMaestria', 'saveStatusAnalise'].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.textContent = msg;
   });
@@ -8349,6 +8912,8 @@ function setSaveStatus(msg) {
   initGraficoDia();
   initMaestriaGrafico();
   initMaestriaTendencia();
+  renderAnaliseMercadoMinutos();
+  initAnaliseMercadoGrafico();
   initCalendar();
   initDiaFechado();
   initMaestriaFocoReminder();
@@ -8365,9 +8930,13 @@ function setSaveStatus(msg) {
 
   document.getElementById('btnSave').addEventListener('click', saveCurrent);
   document.getElementById('btnSaveMaestria').addEventListener('click', saveCurrent);
+  document.getElementById('btnSaveAnalise').addEventListener('click', saveCurrent);
   document.getElementById('comentarioPreTrade').addEventListener('input', scheduleSave);
   document.getElementById('comentarioGeral').addEventListener('input', scheduleSave);
   ['maestriaContextoMacroNota', 'maestriaMicroCicloNota', 'maestriaAnalise', 'maestriaDestaques'].forEach((id) => {
+    document.getElementById(id).addEventListener('input', scheduleSave);
+  });
+  ['analiseMercadoContexto', 'analiseMercadoGeral'].forEach((id) => {
     document.getElementById(id).addEventListener('input', scheduleSave);
   });
 
