@@ -3085,7 +3085,7 @@ body.modal-open { overflow: hidden; }
         <div class="history-view-tabs" role="tablist" aria-label="Tipo de histórico">
           <button type="button" class="tab active" data-history-view="trading" role="tab" aria-selected="true">Trading</button>
           <button type="button" class="tab" data-history-view="maestria" role="tab" aria-selected="false">Maestria</button>
-          <button type="button" class="tab" data-history-view="grafica" role="tab" aria-selected="false">Minha análise</button>
+          <button type="button" class="tab" data-history-view="grafica" role="tab" aria-selected="false">Análise Gráfica</button>
         </div>
         <div class="history-toolbar">
           <select id="historyPreset" class="history-select" aria-label="Período do histórico">
@@ -6424,8 +6424,17 @@ function initCalendar() {
   return { from, to };
 }
 
+function diarioHasTradingHistoryRecord(d) {
+  if (!diarioHasTradingContent(d)) return false;
+  const dateId = getDiarioDate(d);
+  if (dateId && isWeekend(dateId) && !(d.trades || []).some(isTradeFilled)) {
+    return false;
+  }
+  return true;
+}
+
 function getLastTradingSessionRange(allDiarios) {
-  const withContent = allDiarios.filter(diarioHasTradingContent);
+  const withContent = allDiarios.filter(diarioHasTradingHistoryRecord);
   if (!withContent.length) return { from: null, to: null };
 
   const lastDate = withContent
@@ -6455,7 +6464,12 @@ function diarioHasMaestriaRecord(d) {
 }
 
 function diarioHasGraficoRecord(d) {
-  return analiseMercadoHasContent(d?.analiseMercado) || diarioHasChart(d);
+  if (!diarioHasChart(d)) return false;
+  const dateId = getDiarioDate(d);
+  if (dateId && isWeekend(dateId) && !(d.trades || []).some(isTradeFilled)) {
+    return false;
+  }
+  return true;
 }
 
 function getLastGraficaSessionRange(allDiarios) {
@@ -6474,7 +6488,7 @@ function getLastGraficaSessionRange(allDiarios) {
 function historyDayQualifies(d, viewMode = 'trading') {
   if (viewMode === 'maestria') return diarioHasMaestriaRecord(d);
   if (viewMode === 'grafica') return diarioHasGraficoRecord(d);
-  return diarioHasTradingContent(d);
+  return diarioHasTradingHistoryRecord(d);
 }
 
 const HISTORY_PRESET_LABELS = {
@@ -6495,7 +6509,7 @@ const HISTORY_PRESET_LABELS = {
     custom: 'Período personalizado'
   },
   grafica: {
-    'last-session': 'Última análise própria',
+    'last-session': 'Último gráfico salvo',
     'last-week': 'Últimos 7 dias',
     'last-2-weeks': 'Últimas 2 semanas',
     'last-3-weeks': 'Últimas 3 semanas',
@@ -6974,108 +6988,17 @@ function createMaestriaDayCard(d, dateId) {
 }
 
 function createGraficaDayCard(d, dateId) {
-  if (isDiarioFechado(d)) return createDiaFechadoDayCard(d, dateId);
-
   const article = document.createElement('article');
-  const hasAnalise = analiseMercadoHasContent(d?.analiseMercado);
-  article.className = hasAnalise
-    ? 'history-day-card'
-    : 'history-day-card history-day-card--empty';
+  article.className = 'history-chart-card history-open-day';
+  article.dataset.id = getDiarioDate(d) || dateId;
+  article.dataset.openTab = 'pos';
+
+  const header = document.createElement('div');
+  header.className = 'history-chart-card-header';
+  header.innerHTML = `<h3>${formatDateShort(getDiarioDate(d) || dateId)}</h3>`;
+  article.appendChild(header);
 
   article.appendChild(createChartElement(d, dateId));
-
-  const body = document.createElement('div');
-  body.className = 'history-day-body';
-
-  const content = document.createElement('div');
-  content.className = 'history-day-content';
-
-  const head = document.createElement('div');
-  head.className = 'history-day-head';
-  head.innerHTML = `<h3>${formatDateShort(getDiarioDate(d) || dateId)}</h3>`;
-  content.appendChild(head);
-
-  if (hasAnalise) {
-    const analise = normalizeAnaliseMercado(d.analiseMercado);
-    const filled = analiseMercadoFilledMinutes(analise);
-    const tradeMinutos = analiseMercadoTradeMinutes(analise);
-    const estrategiaMinutos = analiseMercadoEstrategiaMinutes(analise);
-    const lines = [];
-    if (analise.contexto.trim()) {
-      const preview = analise.contexto.trim().replace(/\s+/g, ' ');
-      lines.push(['Contexto', preview.length > 90 ? `${preview.slice(0, 90)}…` : preview]);
-    }
-    if (tradeMinutos.length) {
-      lines.push(['Trades', tradeMinutos.join(', ')]);
-    }
-    if (estrategiaMinutos.length) {
-      const counts = new Map();
-      estrategiaMinutos.forEach((hora) => {
-        const estrategia = analise.estrategias[hora];
-        counts.set(estrategia, (counts.get(estrategia) || 0) + 1);
-      });
-      const summary = [...counts.entries()].map(([estrategia, n]) => (n > 1 ? `${estrategia} (${n})` : estrategia)).join(', ');
-      lines.push(['Estratégias', summary]);
-    }
-    if (filled.length) {
-      lines.push(['Minutos', `${filled.length} comentário(s) entre ${filled[0]} e ${filled[filled.length - 1]}`]);
-    }
-    if (analise.geral.trim()) {
-      const preview = analise.geral.trim().replace(/\s+/g, ' ');
-      lines.push(['Geral', preview.length > 90 ? `${preview.slice(0, 90)}…` : preview]);
-    }
-    lines.forEach(([label, value]) => {
-      const p = document.createElement('p');
-      p.className = 'history-day-line';
-      p.innerHTML = `<strong>${label}:</strong> ${escapeHtml(value)}`;
-      content.appendChild(p);
-    });
-  } else {
-    const p = document.createElement('p');
-    p.className = 'history-day-line';
-    p.textContent = diarioHasChart(d)
-      ? 'Gráfico salvo — ainda sem análise própria neste dia.'
-      : 'Nenhuma análise própria neste dia.';
-    content.appendChild(p);
-  }
-
-  let expandableContent = null;
-  if (hasAnalise) {
-    expandableContent = buildAnaliseMercadoExpandableContent(d);
-    if (expandableContent) content.appendChild(expandableContent);
-  }
-
-  body.appendChild(content);
-
-  const actions = document.createElement('div');
-  actions.className = 'history-day-actions';
-
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'btn btn-ghost btn-sm history-open-day';
-  btn.dataset.id = getDiarioDate(d) || dateId;
-  btn.dataset.openTab = 'analise';
-  btn.textContent = hasAnalise ? 'Abrir análise' : 'Criar análise';
-  actions.appendChild(btn);
-
-  if (hasAnalise && expandableContent) {
-    const expandBtn = document.createElement('button');
-    expandBtn.type = 'button';
-    expandBtn.className = 'btn btn-ghost btn-sm history-expand-day';
-    expandBtn.textContent = 'Expandir';
-    expandBtn.setAttribute('aria-expanded', 'false');
-    expandBtn.addEventListener('click', () => {
-      const opening = !article.classList.contains('history-day-card--text-expanded');
-      article.classList.toggle('history-day-card--text-expanded', opening);
-      expandableContent.hidden = !opening;
-      expandBtn.textContent = opening ? 'Recolher' : 'Expandir';
-      expandBtn.setAttribute('aria-expanded', String(opening));
-    });
-    actions.appendChild(expandBtn);
-  }
-
-  body.appendChild(actions);
-  article.appendChild(body);
   return article;
 }
 
@@ -7269,13 +7192,15 @@ function renderHistoryGallery(allInRange, from, to, preset = 'custom', viewMode 
     gallery.innerHTML = viewMode === 'maestria'
       ? '<p class="empty-msg">Nenhuma análise Maestria encontrada no período.</p>'
       : viewMode === 'grafica'
-        ? '<p class="empty-msg">Nenhuma análise própria encontrada no período.</p>'
+        ? '<p class="empty-msg">Nenhum gráfico salvo encontrado no período.</p>'
         : '<p class="empty-msg">Selecione um período válido.</p>';
     return;
   }
 
   const track = document.createElement('div');
-  track.className = 'history-gallery-track';
+  track.className = viewMode === 'grafica'
+    ? 'history-gallery-track history-gallery-track--charts'
+    : 'history-gallery-track';
 
   daysInPeriod.forEach(({ dateId, diario }) => {
     track.appendChild(createDayCard(diario, dateId, viewMode));
@@ -7330,7 +7255,7 @@ async function renderHistory() {
     viewMode === 'maestria'
       ? 'Análises do período'
       : viewMode === 'grafica'
-        ? 'Análises do período'
+        ? 'Gráficos do período'
         : 'Dias do período';
 
   const range = getPeriodRange(preset, all, customFrom, customTo, viewMode);
@@ -7365,7 +7290,7 @@ async function renderHistory() {
       viewMode === 'maestria'
         ? 'Nenhuma análise Maestria encontrada. Preencha a aba Análise Maestria para ver o histórico.'
         : viewMode === 'grafica'
-          ? 'Nenhuma análise própria encontrada. Preencha a aba Minha análise para ver o histórico.'
+          ? 'Nenhum gráfico encontrado. Adicione prints dos gráficos para ver o histórico.'
           : 'Nenhum registro encontrado. Preencha o diário para ver o histórico.'
     );
     return;
