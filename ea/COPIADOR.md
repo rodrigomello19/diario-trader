@@ -1,4 +1,4 @@
-# Copiador MT5 do Scalper Pro (v5.84)
+# Copiador MT5 do Scalper Pro (v5.85)
 
 Copia as posições de uma conta **mãe** para uma ou mais contas **filhas** em terminais MT5 da **mesma máquina**.
 A comunicação é feita por um arquivo em `Terminal\Common\Files`, uma pasta que todos os terminais do usuário enxergam. Não usa DLL, porta nem IP.
@@ -25,6 +25,32 @@ A mãe grava `Common\Files\SP_Copy_<canal>.txt`, e a filha lê esse arquivo a ca
 - **As cópias usam um magic próprio** (`Filha: magic`), e o comentário da ordem é `SPC|<id da mãe>`. No modo de SL/TP diferente de "LOCAL", o trailing, o TP do perfil e a reversão de SL manual do EA **não** mexem nas cópias.
 - **Log da filha:** cada cópia registra o tempo de execução e o tempo total desde a gravação da mãe.
 
+## Indicador no painel
+
+Com o copiador ligado, aparece um indicador no cabeçalho do painel, ao lado da versão. Passe o mouse sobre ele para ver os detalhes (canal, conta da mãe e filhas prontas).
+
+| Indicador | Cor | Significado |
+|---|---|---|
+| `● MAE PRONTA (n)` | verde | A mãe está publicando, e todas as `n` filhas conectadas estão prontas para receber |
+| `● MAE x/n PRONTAS` | laranja | Há filhas conectadas, mas alguma está bloqueada (AutoTrading desligado ou limite do dia) |
+| `● MAE SEM FILHA` | laranja | Nenhuma filha confirmou presença nos últimos 3 s |
+| `● MAE ERRO ARQ` | vermelho | A mãe não conseguiu gravar o arquivo do canal |
+| `● FILHA PRONTA` | verde | A filha está recebendo a mãe e pode operar |
+| `● FILHA BLOQ.` | laranja | A filha recebe a mãe, mas não pode abrir posições (AutoTrading, conta ou limite do dia) |
+| `● MAE OFFLINE` | vermelho | O arquivo da mãe está há mais de 3 s sem atualização. Novas entradas ficam suspensas. |
+| `● SEM MAE` | vermelho | O arquivo do canal ainda não existe |
+| `● CANAL INVALIDO` | vermelho | O arquivo do canal é desta mesma conta |
+
+Para a mãe saber quais filhas estão prontas, cada filha grava `Common\Files\SP_CopyAck_<canal>_<conta>.txt` a cada 500 ms.
+
+## Logs
+
+- **Mãe:** `publicado seq=... | posições | filhas prontas x/n` a cada mudança de estado. O horário dessa linha é o instante da gravação. A mãe também registra quando o número de filhas conectadas ou prontas muda.
+- **Filha:** cada abertura, fechamento e parcial registra o tempo de `execucao` e o tempo `desde gravacao da mae`. A filha também registra:
+  - quando se conecta à mãe;
+  - quando o arquivo da mãe fica sem atualização e quando ele volta;
+  - **o motivo de cada posição da mãe que não foi copiada** (arquivo desatualizado, trading bloqueado, limite do dia, nova tentativa após falha, idade máxima, lote inválido).
+
 ## Parâmetros (grupo "Copiador MT5")
 
 | Parâmetro | Lado | Descrição |
@@ -32,8 +58,8 @@ A mãe grava `Common\Files\SP_Copy_<canal>.txt`, e a filha lê esse arquivo a ca
 | Modo do copiador | ambos | Desligado / Mae / Filha |
 | Canal | ambos | Nome do canal. Tem que ser igual na mãe e nas filhas. Use canais diferentes para pares independentes. |
 | Intervalo de envio/leitura (ms) | ambos | Timer do copiador. As rotinas de 1 s do EA continuam a cada 1 s. |
-| Calculo do lote | filha | `Lote da mae x multiplicador`, `Mesma exposicao (tam. contrato) x multiplicador`, `Lote fixo` ou `Risco % do saldo ate o SL` |
-| Multiplicador / lote fixo / risco % | filha | Valor usado pelo modo de lote escolhido |
+| Calculo do lote | filha | **`Lote da boleta da filha`** (padrão: usa o lote configurado no painel da filha), `Lote da mae x multiplicador`, `Mesma exposicao (tam. contrato) x multiplicador`, `Lote fixo` ou `Risco % do saldo ate o SL` |
+| Multiplicador / lote fixo / risco % | filha | Valor usado pelo modo de lote escolhido. Não é usado no modo boleta. |
 | Lote maximo | filha | Teto do lote da cópia (0 = sem limite) |
 | Como copiar SL/TP | filha | Ver abaixo |
 | SL emergencia | filha | SL em pontos a partir da entrada da filha, usado quando a mãe não tem SL ou no modo "só fecha" (0 = não usar) |
@@ -45,12 +71,12 @@ A mãe grava `Common\Files\SP_Copy_<canal>.txt`, e a filha lê esse arquivo a ca
 
 ### Modos de SL/TP da filha
 
-- **Preco da mae + diferenca de cotacao** (padrão): SL e TP ficam no mesmo nível de mercado da mãe. A diferença entre as cotações das duas corretoras é medida no momento da cópia (bid da filha − bid da mãe). Esse modo evita a filha ser estopada num nível diferente da mãe.
+- **SL/TP/trailing da boleta da filha** (padrão): a cópia abre com o SL e o TP configurados no painel da filha, e a própria filha faz o trailing pelo perfil dela (Normal/Volátil, trail fixo ou dinâmico). A filha fecha quando a mãe fechar, ou antes, se o SL/TP dela for atingido.
+- **Preco da mae + diferenca de cotacao**: SL e TP ficam no mesmo nível de mercado da mãe. A diferença entre as cotações das duas corretoras é medida no momento da cópia (bid da filha − bid da mãe). Esse modo evita a filha ser estopada num nível diferente da mãe.
 - **Mesma distancia a partir da entrada da filha**: copia a distância em preço entre a entrada e o SL/TP da mãe. É o comportamento do DGX.
-- **SL/TP/trailing do proprio EA**: copia só entrada e saída. SL, TP e trailing seguem o perfil do Scalper na filha.
 - **Nao copia SL/TP**: a filha fecha quando a mãe fechar. Use `SL emergencia` como proteção.
 
-Se o SL/TP da mãe já estiver atingido no preço da filha, a filha fecha (ou não abre) a cópia.
+Nos modos que copiam o SL/TP da mãe, se o nível já estiver atingido no preço da filha, a filha fecha (ou não abre) a cópia.
 
 ## Limitações
 

@@ -1,13 +1,13 @@
 //+------------------------------------------------------------------+
-//|                     SCALPER PRO v5.84 - MT5                       |
+//|                     SCALPER PRO v5.85 - MT5                       |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, Scalper Pro"
-#property version       "5.84"
+#property version       "5.85"
 #property strict
 
 #include <Trade/Trade.mqh>
 
-const string SP_EA_VERSAO = "5.84";
+const string SP_EA_VERSAO = "5.85";
 
 CTrade trade;
 
@@ -35,14 +35,15 @@ enum ENUM_COPY_LOTE
    COPY_LOTE_MULT     = 0,   // Lote da mae x multiplicador
    COPY_LOTE_NOCIONAL = 1,   // Mesma exposicao (tam. contrato) x multiplicador
    COPY_LOTE_FIXO     = 2,   // Lote fixo
-   COPY_LOTE_RISCO    = 3    // Risco % do saldo ate o SL
+   COPY_LOTE_RISCO    = 3,   // Risco % do saldo ate o SL
+   COPY_LOTE_BOLETA   = 4    // Lote da boleta da filha
 };
 
 enum ENUM_COPY_SLTP
 {
    COPY_SLTP_PRECO_AJUST = 0,   // Preco da mae + diferenca de cotacao entre corretoras
    COPY_SLTP_DISTANCIA   = 1,   // Mesma distancia a partir da entrada da filha
-   COPY_SLTP_LOCAL       = 2,   // SL/TP/trailing do proprio EA na filha
+   COPY_SLTP_LOCAL       = 2,   // SL/TP/trailing da boleta da filha
    COPY_SLTP_SO_FECHA    = 3    // Nao copia SL/TP: fecha quando a mae fechar
 };
 
@@ -75,10 +76,10 @@ input group "=== Copiador MT5 (contas na mesma maquina) ==="
 input ENUM_COPY_MODO InpCopyModo          = COPY_DESLIGADO;        // Modo do copiador
 input string         InpCopyCanal         = "SP1";                 // Canal (mesmo nome na mae e nas filhas)
 input int            InpCopyIntervaloMs   = 20;                    // Intervalo de envio/leitura (ms)
-input ENUM_COPY_LOTE InpCopyLoteModo      = COPY_LOTE_MULT;        // Filha: calculo do lote
-input double         InpCopyLoteValor     = 1.0;                   // Filha: multiplicador / lote fixo / risco %
+input ENUM_COPY_LOTE InpCopyLoteModo      = COPY_LOTE_BOLETA;      // Filha: calculo do lote
+input double         InpCopyLoteValor     = 1.0;                   // Filha: multiplicador / lote fixo / risco % (fora do modo boleta)
 input double         InpCopyLoteMax       = 0;                     // Filha: lote maximo (0 = sem limite)
-input ENUM_COPY_SLTP InpCopySLTPModo      = COPY_SLTP_PRECO_AJUST; // Filha: como copiar SL/TP
+input ENUM_COPY_SLTP InpCopySLTPModo      = COPY_SLTP_LOCAL;       // Filha: como definir SL/TP
 input double         InpCopySLEmergPts    = 0;                     // Filha: SL emergencia se nao houver SL (pts, 0 = nao)
 input bool           InpCopyInverter      = false;                 // Filha: inverter direcao
 input int            InpCopyIdadeMaxSeg   = 5;                     // Filha: nao abrir posicao da mae mais antiga que (s, 0 = sem limite)
@@ -512,6 +513,17 @@ SCopyTentativa g_copyTent[];
 SCopyModify    g_copyMod[];
 ulong          g_copyUltLimpezaMs  = 0;
 bool           g_copyOfflineFechou = false;
+bool           g_copyMaeOnline     = false;
+ulong          g_copyAckUltMs      = 0;
+// mae: confirmacao das filhas / erro de gravacao
+bool           g_copyMaeErroGrav   = false;
+int            g_copyFilhasN       = 0;
+int            g_copyFilhasProntas = 0;
+ulong          g_copyFilhasLidoMs  = 0;
+// indicador no painel
+const string   OBJ_COPY_STATUS     = "SP_COPY_ST";
+string         g_copyStatusTxt     = "";
+color          g_copyStatusCor     = clrNONE;
 
 void     Status(string texto, color cor, bool eventoImportante = false, bool impedimento = false);
 void     AplicarTextoStatusUI(const string texto, const color cor);
@@ -6797,7 +6809,7 @@ bool ObjetoPainelSempreVisivel(const string name)
 {
    if(name == OBJ_BORDER || name == OBJ_BG || name == OBJ_HEADER || name == OBJ_HEADER_LINE)
       return true;
-   if(name == OBJ_SUBTITLE || name == "SP_VER")
+   if(name == OBJ_SUBTITLE || name == "SP_VER" || name == OBJ_COPY_STATUS)
       return true;
    if(name == OBJ_BTN_MINIMIZE || name == OBJ_BTN_CLOSE)
       return true;
@@ -7024,6 +7036,13 @@ void CriarPainel()
 
    CreateLabel(OBJ_SUBTITLE, PANEL_X + 12, PANEL_Y + 11, "Scalper Pro", C_NOME_COLOR, 10, true);
    CreateLabel("SP_VER", PANEL_X + 118, PANEL_Y + 14, "v" + SP_EA_VERSAO, C_LABEL_COLOR, 7);
+   g_copyStatusTxt = "";
+   if(g_copyModoEf != COPY_DESLIGADO)
+   {
+      // Texto/cor definidos pelo timer do copiador (CopyAtualizarStatusPainel)
+      CreateLabel(OBJ_COPY_STATUS, PANEL_X + 152, PANEL_Y + 13, ShortToString(0x25CF) + " COPY", C_LABEL_COLOR, 7, true);
+      ObjectSetInteger(0, OBJ_COPY_STATUS, OBJPROP_SELECTABLE, false);
+   }
    CreateButton(OBJ_BTN_MINIMIZE, PANEL_X + PANEL_W - 58, PANEL_Y + 8, 22, 20, "-", 9);
    AtualizarBotaoMinimizarPainel();
    CreateButton(OBJ_BTN_CLOSE, PANEL_X + PANEL_W - 30, PANEL_Y + 8, 22, 20, "X", 8);
@@ -7315,7 +7334,11 @@ void CarregarParametrosEntrada()
 //|  SPCOPY|1|seq|tickMs|horaServ|login|simbolo|bid|ask|contrato|n   |
 //|  P|posId|B/S|volume|entrada|sl|tp|horaAbertura   (n linhas)      |
 //|  END|seq                                                         |
+//| Cada filha grava SP_CopyAck_<canal>_<conta>.txt a cada 500 ms:   |
+//|  ACK|canal|tickMs|login|simbolo|pronta(1/0)                      |
+//| para a mae saber quantas filhas estao prontas (indicador painel).|
 //+------------------------------------------------------------------+
+const int COPY_ACK_MS           = 500;
 const int COPY_HEARTBEAT_MS     = 250;    // mae regrava mesmo sem mudanca
 const int COPY_MAE_VELHA_MS     = 3000;   // filha nao abre com arquivo mais velho que isso
 const int COPY_TENT_MAX         = 3;      // tentativas de abertura por posicao da mae
@@ -7343,12 +7366,6 @@ string CopyGvSV(const ulong tkt)  { return g_copyGv + "SV_" + IntegerToString((l
 string CopyGvOF(const ulong tkt)  { return g_copyGv + "OF_" + IntegerToString((long)tkt); }
 string CopyComentario(const ulong idMae) { return "SPC|" + IntegerToString((long)idMae); }
 
-string CopyTextoModo()
-{
-   if(g_copyModoEf == COPY_MAE)   return " MAE";
-   if(g_copyModoEf == COPY_FILHA) return " FILHA";
-   return "";
-}
 
 double CopyArredondarVol(const double vol)
 {
@@ -7385,10 +7402,11 @@ bool CopyFilha_GerenciaDeal(const ulong dealTkt)
 //+------------------------------------------------------------------+
 //| Mae                                                              |
 //+------------------------------------------------------------------+
-string CopyMae_EstadoPosicoes(int &n)
+string CopyMae_EstadoPosicoes(int &n, string &resumo)
 {
    string s = "";
    n = 0;
+   resumo = "";
    for(int i = 0; i < PositionsTotal(); i++)
    {
       ulong t = PositionGetTicket(i);
@@ -7402,6 +7420,11 @@ string CopyMae_EstadoPosicoes(int &n)
          + DoubleToString(PositionGetDouble(POSITION_SL), _Digits) + "|"
          + DoubleToString(PositionGetDouble(POSITION_TP), _Digits) + "|"
          + IntegerToString((long)PositionGetInteger(POSITION_TIME)) + "\r\n";
+      resumo += (resumo == "" ? "" : "; ") + (compra ? "BUY " : "SELL ")
+              + DoubleToString(PositionGetDouble(POSITION_VOLUME), 2)
+              + " #" + IntegerToString(PositionGetInteger(POSITION_IDENTIFIER))
+              + " SL=" + DoubleToString(PositionGetDouble(POSITION_SL), _Digits)
+              + " TP=" + DoubleToString(PositionGetDouble(POSITION_TP), _Digits);
       n++;
    }
    return s;
@@ -7414,7 +7437,8 @@ void CopyMae_Publicar(const bool forcar)
    if(g_copyModoEf != COPY_MAE) return;
 
    int n = 0;
-   string estado = CopyMae_EstadoPosicoes(n);
+   string resumo = "";
+   string estado = CopyMae_EstadoPosicoes(n, resumo);
    ulong agora = GetTickCount64();
    if(!forcar && estado == g_copyMaeUltEstado && agora - g_copyMaeUltEnvioMs < (ulong)COPY_HEARTBEAT_MS)
       return;
@@ -7428,6 +7452,7 @@ void CopyMae_Publicar(const bool forcar)
          PrintFormat("Scalper Pro copiador MAE: falha ao gravar %s, err=%d", g_copyArquivo, GetLastError());
          s_ultErro = agora;
       }
+      g_copyMaeErroGrav = true;
       return;
    }
 
@@ -7444,16 +7469,96 @@ void CopyMae_Publicar(const bool forcar)
    FileWriteString(h, txt, StringLen(txt));
    FileClose(h);
 
-   if(InpLogDetalhado && estado != g_copyMaeUltEstado)
-      PrintFormat("Scalper Pro copiador MAE: estado publicado seq=%s posicoes=%d", seq, n);
+   // O horario desta linha no log e o instante da gravacao: compare com
+   // "desde gravacao da mae" no log da filha para medir a cadeia completa.
+   if(estado != g_copyMaeUltEstado)
+      PrintFormat("Scalper Pro copiador MAE: publicado seq=%s | %d posicao(oes)%s | filhas prontas %d/%d",
+                  seq, n, (n > 0 ? " | " + resumo : ""), g_copyFilhasProntas, g_copyFilhasN);
+   g_copyMaeErroGrav = false;
 
    g_copyMaeUltEstado  = estado;
    g_copyMaeUltEnvioMs = agora;
 }
 
+void CopyMae_LerFilhas()
+{
+   ulong agora = GetTickCount64();
+   if(agora - g_copyFilhasLidoMs < 1000) return;
+   g_copyFilhasLidoMs = agora;
+
+   int n = 0, prontas = 0;
+   string nome = "";
+   long hf = FileFindFirst("SP_CopyAck_" + g_copyCanal + "_*.txt", nome, FILE_COMMON);
+   if(hf != INVALID_HANDLE)
+   {
+      do
+      {
+         int h = FileOpen(nome, FILE_READ|FILE_BIN|FILE_ANSI|FILE_COMMON|FILE_SHARE_READ|FILE_SHARE_WRITE);
+         if(h == INVALID_HANDLE) continue;
+         int sz = (int)FileSize(h);
+         string txt = (sz > 0) ? FileReadString(h, sz) : "";
+         FileClose(h);
+         StringTrimRight(txt);
+         string a[];
+         if(StringSplit(txt, '|', a) < 6 || a[0] != "ACK" || a[1] != g_copyCanal) continue;
+         ulong tk = (ulong)StringToInteger(a[2]);
+         if(tk == 0 || (agora > tk && agora - tk > (ulong)COPY_MAE_VELHA_MS)) continue;
+         n++;
+         if(a[5] == "1") prontas++;
+      }
+      while(FileFindNext(hf, nome));
+      FileFindClose(hf);
+   }
+
+   if(n != g_copyFilhasN || prontas != g_copyFilhasProntas)
+      PrintFormat("Scalper Pro copiador MAE: filhas conectadas=%d prontas=%d", n, prontas);
+   g_copyFilhasN       = n;
+   g_copyFilhasProntas = prontas;
+}
+
 //+------------------------------------------------------------------+
 //| Filha                                                            |
 //+------------------------------------------------------------------+
+bool CopyFilha_Pronta()
+{
+   return TradingPermitido() && PodeOperarRapido();
+}
+
+void CopyFilha_GravarAck()
+{
+   ulong agora = GetTickCount64();
+   if(agora - g_copyAckUltMs < (ulong)COPY_ACK_MS) return;
+   g_copyAckUltMs = agora;
+
+   string arq = "SP_CopyAck_" + g_copyCanal + "_" + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) + ".txt";
+   int h = FileOpen(arq, FILE_WRITE|FILE_BIN|FILE_ANSI|FILE_COMMON|FILE_SHARE_READ|FILE_SHARE_WRITE);
+   if(h == INVALID_HANDLE) return;
+   string txt = "ACK|" + g_copyCanal + "|" + IntegerToString((long)agora) + "|"
+              + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) + "|" + _Symbol + "|"
+              + (CopyFilha_Pronta() ? "1" : "0") + "\r\n";
+   FileWriteString(h, txt, StringLen(txt));
+   FileClose(h);
+}
+
+// Registra por que uma posicao da mae nao foi copiada (sem repetir a cada ciclo).
+void CopyFilha_LogPulo(const ulong idMae, const string motivo)
+{
+   static ulong  s_id = 0;
+   static string s_motivo = "";
+   static ulong  s_ms = 0;
+   ulong agora = GetTickCount64();
+   if(idMae == s_id && motivo == s_motivo && agora - s_ms < 5000) return;
+   s_id = idMae;
+   s_motivo = motivo;
+   s_ms = agora;
+   PrintFormat("Scalper Pro copiador FILHA: mae #%I64u nao copiada agora: %s", idMae, motivo);
+}
+
+ulong CopyFilha_MsDesdeMae()
+{
+   ulong agora = GetTickCount64();
+   return (agora > g_copyMaeTickMs) ? agora - g_copyMaeTickMs : 0;
+}
 string CopyLinha(const string &linhas[], const int i)
 {
    string l = linhas[i];
@@ -7591,6 +7696,9 @@ double CopyFilha_Lote(const SCopyPosMae &m, const bool compraF, const double slF
    double v = 0;
    switch(InpCopyLoteModo)
    {
+      case COPY_LOTE_BOLETA:
+         v = Lote;
+         break;
       case COPY_LOTE_FIXO:
          v = InpCopyLoteValor;
          break;
@@ -7670,7 +7778,8 @@ void CopyFilha_Fechar(const ulong tkt, const string motivo)
    if(CopyFilha_FalhaRecente(tkt)) return;
    ulong t0 = GetTickCount64();
    if(g_copyTrade.PositionClose(tkt))
-      PrintFormat("Scalper Pro copiador FILHA: copia #%I64u fechada (%s) em %I64u ms", tkt, motivo, GetTickCount64() - t0);
+      PrintFormat("Scalper Pro copiador FILHA: copia #%I64u fechada (%s) | execucao %I64u ms | desde gravacao da mae %I64u ms",
+                  tkt, motivo, GetTickCount64() - t0, CopyFilha_MsDesdeMae());
    else
    {
       CopyFilha_RegistrarFalha(tkt);
@@ -7730,8 +7839,10 @@ void CopyFilha_Sincronizar(const ulong t, const SCopyPosMae &m)
             CopyFilha_Fechar(t, "parcial da mae abaixo do lote minimo");
          else if(!CopyFilha_FalhaRecente(t))
          {
+            ulong tp0 = GetTickCount64();
             if(g_copyTrade.PositionClosePartial(t, fechar))
-               PrintFormat("Scalper Pro copiador FILHA: parcial #%I64u -%.2f (mae %.2f/%.2f)", t, fechar, m.vol, mv0);
+               PrintFormat("Scalper Pro copiador FILHA: parcial #%I64u -%.2f (mae %.2f/%.2f) | execucao %I64u ms | desde gravacao da mae %I64u ms",
+                           t, fechar, m.vol, mv0, GetTickCount64() - tp0, CopyFilha_MsDesdeMae());
             else
             {
                CopyFilha_RegistrarFalha(t);
@@ -7891,7 +8002,18 @@ void CopyFilha_Processar()
    if(g_copyModoEf != COPY_FILHA) return;
 
    bool leu = CopyFilha_LerArquivo();
-   if(!g_copyMaeValida) return;
+   CopyFilha_GravarAck();
+   if(!g_copyMaeValida)
+   {
+      static ulong s_ultAvisoArq = 0;
+      ulong agoraAv = GetTickCount64();
+      if(s_ultAvisoArq == 0 || agoraAv - s_ultAvisoArq > 60000)
+      {
+         PrintFormat("Scalper Pro copiador FILHA: aguardando arquivo da mae (Common\\Files\\%s)", g_copyArquivo);
+         s_ultAvisoArq = agoraAv;
+      }
+      return;
+   }
 
    if(g_copyMaeLogin == AccountInfoInteger(ACCOUNT_LOGIN))
    {
@@ -7904,6 +8026,18 @@ void CopyFilha_Processar()
 
    ulong agora = GetTickCount64();
    ulong idadeArqMs = (agora > g_copyMaeTickMs) ? agora - g_copyMaeTickMs : 0;
+
+   bool maeOnline = (idadeArqMs <= (ulong)COPY_MAE_VELHA_MS);
+   if(maeOnline != g_copyMaeOnline)
+   {
+      if(maeOnline)
+         PrintFormat("Scalper Pro copiador FILHA: conectada a mae (conta %I64d, %s) | arquivo com %I64u ms",
+                     g_copyMaeLogin, g_copyMaeSimbolo, idadeArqMs);
+      else
+         PrintFormat("Scalper Pro copiador FILHA: arquivo da mae sem atualizacao ha %I64u ms (mae offline ou EA parado). Novas entradas suspensas.",
+                     idadeArqMs);
+      g_copyMaeOnline = maeOnline;
+   }
 
    if(InpCopyMaeOfflineSeg > 0 && idadeArqMs > (ulong)InpCopyMaeOfflineSeg * 1000)
    {
@@ -7947,7 +8081,11 @@ void CopyFilha_Processar()
       if(copiado[k]) continue;
       ulong idMae = g_copyMaePos[k].id;
       if(GlobalVariableCheck(CopyGvX(idMae))) continue;
-      if(idadeArqMs > (ulong)COPY_MAE_VELHA_MS) continue;
+      if(!maeOnline)
+      {
+         CopyFilha_LogPulo(idMae, "arquivo da mae desatualizado ha " + IntegerToString((long)idadeArqMs) + " ms");
+         continue;
+      }
 
       if(InpCopyIdadeMaxSeg > 0 && g_copyMaePos[k].idadeSeg > InpCopyIdadeMaxSeg)
       {
@@ -7957,18 +8095,22 @@ void CopyFilha_Processar()
          continue;
       }
 
-      if(!TradingPermitido() || !PodeOperarRapido())
+      if(!TradingPermitido())
       {
-         static ulong s_ultAviso = 0;
-         if(agora - s_ultAviso > 5000)
-         {
-            Print("Scalper Pro copiador FILHA: entrada da mae aguardando (trading bloqueado ou limite do dia)");
-            s_ultAviso = agora;
-         }
+         CopyFilha_LogPulo(idMae, "trading bloqueado na filha (" + TextoMotivoTradeBloqueado(MotivoTradeBloqueado()) + ")");
+         continue;
+      }
+      if(!PodeOperarRapido())
+      {
+         CopyFilha_LogPulo(idMae, "filha bloqueada (limite do dia / painel bloqueado)");
          continue;
       }
 
-      if(!CopyFilha_TentativaLiberada(idMae)) continue;
+      if(!CopyFilha_TentativaLiberada(idMae))
+      {
+         CopyFilha_LogPulo(idMae, "aguardando nova tentativa apos falha");
+         continue;
+      }
       CopyFilha_Abrir(g_copyMaePos[k]);
    }
 
@@ -8007,6 +8149,13 @@ bool CopyInit()
    g_copyMaeN          = 0;
    g_copyOfflineFechou = false;
    g_copyTimerLegadoMs = 0;
+   g_copyMaeOnline     = false;
+   g_copyAckUltMs      = 0;
+   g_copyMaeErroGrav   = false;
+   g_copyFilhasN       = 0;
+   g_copyFilhasProntas = 0;
+   g_copyFilhasLidoMs  = 0;
+   g_copyStatusTxt     = "";
 
    g_copyTrade.SetExpertMagicNumber((ulong)InpCopyMagic);
    g_copyTrade.SetDeviationInPoints((ulong)MathMax(0, InpCopyDesvioPts));
@@ -8021,16 +8170,76 @@ bool CopyInit()
       CopyMae_Publicar(true);
    }
    else
-      PrintFormat("Scalper Pro copiador: FILHA ativa | canal=%s | simbolo=%s | magic=%I64d | lote=%s %.2f | SL/TP=%s",
-                  g_copyCanal, _Symbol, InpCopyMagic, EnumToString(InpCopyLoteModo), InpCopyLoteValor,
-                  EnumToString(InpCopySLTPModo));
+   {
+      string loteTxt = (InpCopyLoteModo == COPY_LOTE_BOLETA)
+                     ? "boleta " + DoubleToString(Lote, 2)
+                     : EnumToString(InpCopyLoteModo) + " " + DoubleToString(InpCopyLoteValor, 2);
+      string sltpTxt = (InpCopySLTPModo == COPY_SLTP_LOCAL)
+                     ? "boleta SL=" + DoubleToString(StopLoss, 0) + " TP=" + DoubleToString(TakeProfit, 0) + " pts"
+                     : EnumToString(InpCopySLTPModo);
+      PrintFormat("Scalper Pro copiador: FILHA ativa | canal=%s | simbolo=%s | magic=%I64d | lote=%s | SL/TP=%s",
+                  g_copyCanal, _Symbol, InpCopyMagic, loteTxt, sltpTxt);
+   }
    return true;
+}
+
+// Indicador no cabecalho do painel: verde = pronta para enviar/receber.
+void CopyStatusCalcular(string &txt, color &cor, string &dica)
+{
+   string bola = ShortToString(0x25CF) + " ";
+   if(g_copyModoEf == COPY_MAE)
+   {
+      dica = "Copiador MAE | canal " + g_copyCanal + " | filhas prontas "
+           + IntegerToString(g_copyFilhasProntas) + "/" + IntegerToString(g_copyFilhasN);
+      if(g_copyMaeErroGrav)          { txt = bola + "MAE ERRO ARQ";  cor = C_STATUS_ERR;  return; }
+      if(g_copyFilhasN == 0)         { txt = bola + "MAE SEM FILHA"; cor = C_STATUS_WARN; return; }
+      if(g_copyFilhasProntas < g_copyFilhasN)
+      {
+         txt = bola + "MAE " + IntegerToString(g_copyFilhasProntas) + "/" + IntegerToString(g_copyFilhasN) + " PRONTAS";
+         cor = C_STATUS_WARN;
+         return;
+      }
+      txt = bola + "MAE PRONTA (" + IntegerToString(g_copyFilhasN) + ")";
+      cor = C_STATUS_OK;
+      return;
+   }
+
+   dica = "Copiador FILHA | canal " + g_copyCanal;
+   if(!g_copyMaeValida)                { txt = bola + "SEM MAE";        cor = C_STATUS_ERR;  return; }
+   dica += " | mae conta " + IntegerToString(g_copyMaeLogin) + " " + g_copyMaeSimbolo;
+   if(g_copyMaeLogin == AccountInfoInteger(ACCOUNT_LOGIN))
+                                       { txt = bola + "CANAL INVALIDO"; cor = C_STATUS_ERR;  return; }
+   if(!g_copyMaeOnline)                { txt = bola + "MAE OFFLINE";    cor = C_STATUS_ERR;  return; }
+   if(!CopyFilha_Pronta())             { txt = bola + "FILHA BLOQ.";    cor = C_STATUS_WARN; return; }
+   txt = bola + "FILHA PRONTA";
+   cor = C_STATUS_OK;
+}
+
+void CopyAtualizarStatusPainel()
+{
+   if(g_copyModoEf == COPY_DESLIGADO || ObjectFind(0, OBJ_COPY_STATUS) < 0) return;
+   string txt = "", dica = "";
+   color  cor = C_LABEL_COLOR;
+   CopyStatusCalcular(txt, cor, dica);
+   if(txt == g_copyStatusTxt && cor == g_copyStatusCor) return;
+   g_copyStatusTxt = txt;
+   g_copyStatusCor = cor;
+   ObjectSetString(0, OBJ_COPY_STATUS, OBJPROP_TEXT, txt);
+   ObjectSetInteger(0, OBJ_COPY_STATUS, OBJPROP_COLOR, cor);
+   ObjectSetString(0, OBJ_COPY_STATUS, OBJPROP_TOOLTIP, dica);
+   ChartRedraw(0);
 }
 
 void CopyTimer()
 {
-   if(g_copyModoEf == COPY_MAE)        CopyMae_Publicar(false);
-   else if(g_copyModoEf == COPY_FILHA) CopyFilha_Processar();
+   if(g_copyModoEf == COPY_MAE)
+   {
+      CopyMae_Publicar(false);
+      CopyMae_LerFilhas();
+   }
+   else if(g_copyModoEf == COPY_FILHA)
+      CopyFilha_Processar();
+   CopyAtualizarStatusPainel();
 }
 
 //+------------------------------------------------------------------+
@@ -8055,7 +8264,7 @@ int OnInit()
    CancelarEdicaoCampoAtiva();
    CriarPainel();
    if(ObjectFind(0, "SP_VER") >= 0)
-      ObjectSetString(0, "SP_VER", OBJPROP_TEXT, "v" + SP_EA_VERSAO + CopyTextoModo());
+      ObjectSetString(0, "SP_VER", OBJPROP_TEXT, "v" + SP_EA_VERSAO);
    AplicarPerfilAoPainel();
    CriarObjetoTimer();
    CarregarContadorOperacoes();
