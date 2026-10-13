@@ -1,4 +1,4 @@
-# Copiador MT5 do Scalper Pro (v5.85)
+# Copiador MT5 do Scalper Pro (v5.86)
 
 Copia as posições de uma conta **mãe** para uma ou mais contas **filhas** em terminais MT5 da **mesma máquina**.
 A comunicação é feita por um arquivo em `Terminal\Common\Files`, uma pasta que todos os terminais do usuário enxergam. Não usa DLL, porta nem IP.
@@ -25,21 +25,21 @@ A mãe grava `Common\Files\SP_Copy_<canal>.txt`, e a filha lê esse arquivo a ca
 - **As cópias usam um magic próprio** (`Filha: magic`), e o comentário da ordem é `SPC|<id da mãe>`. No modo de SL/TP diferente de "LOCAL", o trailing, o TP do perfil e a reversão de SL manual do EA **não** mexem nas cópias.
 - **Log da filha:** cada cópia registra o tempo de execução e o tempo total desde a gravação da mãe.
 
-## Indicador no painel
+## Faixa de status do copiador no painel
 
-Com o copiador ligado, aparece um indicador no cabeçalho do painel, ao lado da versão. Passe o mouse sobre ele para ver os detalhes (canal, conta da mãe e filhas prontas).
+Com o copiador ligado, o painel ganha uma faixa própria logo abaixo da barra de status geral. A cor do fundo acompanha o estado. Passe o mouse sobre a faixa para ver os detalhes (canal, conta da mãe e filhas prontas).
 
-| Indicador | Cor | Significado |
+| Texto | Cor | Significado |
 |---|---|---|
-| `● MAE PRONTA (n)` | verde | A mãe está publicando, e todas as `n` filhas conectadas estão prontas para receber |
-| `● MAE x/n PRONTAS` | laranja | Há filhas conectadas, mas alguma está bloqueada (AutoTrading desligado ou limite do dia) |
-| `● MAE SEM FILHA` | laranja | Nenhuma filha confirmou presença nos últimos 3 s |
-| `● MAE ERRO ARQ` | vermelho | A mãe não conseguiu gravar o arquivo do canal |
-| `● FILHA PRONTA` | verde | A filha está recebendo a mãe e pode operar |
-| `● FILHA BLOQ.` | laranja | A filha recebe a mãe, mas não pode abrir posições (AutoTrading, conta ou limite do dia) |
-| `● MAE OFFLINE` | vermelho | O arquivo da mãe está há mais de 3 s sem atualização. Novas entradas ficam suspensas. |
-| `● SEM MAE` | vermelho | O arquivo do canal ainda não existe |
-| `● CANAL INVALIDO` | vermelho | O arquivo do canal é desta mesma conta |
+| `● COPY MAE PRONTA \| n FILHA(S) CONECTADA(S)` | verde | A mãe está publicando, e todas as filhas conectadas estão prontas para receber |
+| `● COPY MAE: FILHAS PRONTAS x/n` | laranja | Há filhas conectadas, mas alguma está bloqueada (AutoTrading desligado ou limite do dia) |
+| `● COPY MAE: AGUARDANDO FILHA` | laranja | Nenhuma filha confirmou presença nos últimos 3 s |
+| `● COPY MAE: ERRO AO GRAVAR ARQUIVO` | vermelho | A mãe não conseguiu gravar o arquivo do canal |
+| `● COPY FILHA PRONTA \| MAE <conta>` | verde | A filha está recebendo a mãe e pode operar |
+| `● COPY FILHA BLOQUEADA (AUTOTRADING/LIMITE)` | laranja | A filha recebe a mãe, mas não pode abrir posições |
+| `● COPY FILHA: MAE OFFLINE` | vermelho | O arquivo da mãe está há mais de 3 s sem atualização. Novas entradas ficam suspensas. |
+| `● COPY FILHA: AGUARDANDO MAE` | vermelho | O arquivo do canal ainda não existe |
+| `● COPY FILHA: CANAL DA PROPRIA CONTA` | vermelho | O arquivo do canal é desta mesma conta |
 
 Para a mãe saber quais filhas estão prontas, cada filha grava `Common\Files\SP_CopyAck_<canal>_<conta>.txt` a cada 500 ms.
 

@@ -1,13 +1,13 @@
 //+------------------------------------------------------------------+
-//|                     SCALPER PRO v5.85 - MT5                       |
+//|                     SCALPER PRO v5.86 - MT5                       |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, Scalper Pro"
-#property version       "5.85"
+#property version       "5.86"
 #property strict
 
 #include <Trade/Trade.mqh>
 
-const string SP_EA_VERSAO = "5.85";
+const string SP_EA_VERSAO = "5.86";
 
 CTrade trade;
 
@@ -511,6 +511,7 @@ double         g_copyMaeAsk        = 0;
 double         g_copyMaeContrato   = 0;
 SCopyTentativa g_copyTent[];
 SCopyModify    g_copyMod[];
+SCopyModify    g_copyFechadas[];      // copias fechadas com sucesso (tkt, ms)
 ulong          g_copyUltLimpezaMs  = 0;
 bool           g_copyOfflineFechou = false;
 bool           g_copyMaeOnline     = false;
@@ -522,6 +523,7 @@ int            g_copyFilhasProntas = 0;
 ulong          g_copyFilhasLidoMs  = 0;
 // indicador no painel
 const string   OBJ_COPY_STATUS     = "SP_COPY_ST";
+const string   OBJ_COPY_STRIP      = "SP_COPY_STRIP";
 string         g_copyStatusTxt     = "";
 color          g_copyStatusCor     = clrNONE;
 
@@ -557,6 +559,9 @@ bool     ObjetoPainelRestauravel(const string name);
 bool     ObjetoPainelColapsavel(const string name);
 void     OcultarSecoesPainelColapsadas(const bool ocultar);
 void     AplicarAlturaPainel(const int altura);
+int      YTextoStatusPainel(const int yStat);
+int      XCentroTextoStatusPainel(const int lx, const int divW);
+color    CorFaixaStatusFundo(const color cor);
 void     ReposicionarSecaoStatus(const bool minimizado);
 void     AplicarLayoutTextoStatus(const int yStat, const int lx, const int divW);
 void     AplicarEstiloFaixaStatus(const color cor);
@@ -3002,7 +3007,7 @@ bool EhObjetoDecorativoPainel(const string name)
       return true;
    if(name == OBJ_BORDER || name == OBJ_BG || name == OBJ_HEADER || name == OBJ_HEADER_LINE)
       return true;
-   if(name == OBJ_STATUS_STRIP || name == OBJ_METRICS_BG)
+   if(name == OBJ_STATUS_STRIP || name == OBJ_METRICS_BG || name == OBJ_COPY_STRIP)
       return true;
    if(StringFind(name, "SP_MET_DIV") == 0)
       return true;
@@ -6809,7 +6814,9 @@ bool ObjetoPainelSempreVisivel(const string name)
 {
    if(name == OBJ_BORDER || name == OBJ_BG || name == OBJ_HEADER || name == OBJ_HEADER_LINE)
       return true;
-   if(name == OBJ_SUBTITLE || name == "SP_VER" || name == OBJ_COPY_STATUS)
+   if(name == OBJ_SUBTITLE || name == "SP_VER")
+      return true;
+   if(name == OBJ_COPY_STATUS || name == OBJ_COPY_STRIP)
       return true;
    if(name == OBJ_BTN_MINIMIZE || name == OBJ_BTN_CLOSE)
       return true;
@@ -6845,6 +6852,52 @@ void OcultarSecoesPainelColapsadas(const bool ocultar)
    RestaurarLayoutSecoesColapsaveis();
    RestaurarVisibilidadeCamposPainel();
    GarantirTextoBotaoSync();
+}
+
+// Faixa do copiador (abaixo da barra de status): so existe com o copiador ligado.
+int AlturaExtraCopia()
+{
+   return (g_copyModoEf != COPY_DESLIGADO) ? STAT_ROW_H + STAT_STATUS_GAP : 0;
+}
+
+int AlturaPainelNormal() { return PANEL_H + AlturaExtraCopia(); }
+int AlturaPainelMin()    { return PANEL_H_MIN + AlturaExtraCopia(); }
+
+void CriarFaixaCopia(const int lx, const int y, const int divW)
+{
+   g_copyStatusTxt = "";
+   g_copyStatusCor = clrNONE;
+   if(g_copyModoEf == COPY_DESLIGADO)
+   {
+      ObjectDelete(0, OBJ_COPY_STRIP);
+      ObjectDelete(0, OBJ_COPY_STATUS);
+      return;
+   }
+
+   CreateRect(OBJ_COPY_STRIP, lx, y, divW, STAT_ROW_H, CorFaixaStatusFundo(C_LABEL_COLOR), C_GLASS_BORDER);
+   ObjectSetInteger(0, OBJ_COPY_STRIP, OBJPROP_ZORDER, 1);
+   ObjectSetInteger(0, OBJ_COPY_STRIP, OBJPROP_SELECTABLE, false);
+
+   // Texto/cor definidos pelo timer do copiador (CopyAtualizarStatusPainel)
+   CreateLabelCentered(OBJ_COPY_STATUS, XCentroTextoStatusPainel(lx, divW), YTextoStatusPainel(y),
+                       ShortToString(0x25CF) + " COPY", C_LABEL_COLOR, STAT_MSG_FS - 1, true);
+   ObjectSetInteger(0, OBJ_COPY_STATUS, OBJPROP_SELECTABLE, false);
+   ObjectSetInteger(0, OBJ_COPY_STATUS, OBJPROP_BACK, false);
+   ObjectSetInteger(0, OBJ_COPY_STATUS, OBJPROP_ZORDER, 50);
+}
+
+void ReposicionarFaixaCopia(const int y, const int lx, const int divW)
+{
+   if(ObjectFind(0, OBJ_COPY_STRIP) >= 0)
+   {
+      ObjectSetInteger(0, OBJ_COPY_STRIP, OBJPROP_XDISTANCE, lx);
+      ObjectSetInteger(0, OBJ_COPY_STRIP, OBJPROP_YDISTANCE, y);
+   }
+   if(ObjectFind(0, OBJ_COPY_STATUS) >= 0)
+   {
+      ObjectSetInteger(0, OBJ_COPY_STATUS, OBJPROP_XDISTANCE, XCentroTextoStatusPainel(lx, divW));
+      ObjectSetInteger(0, OBJ_COPY_STATUS, OBJPROP_YDISTANCE, YTextoStatusPainel(y));
+   }
 }
 
 void AplicarAlturaPainel(const int altura)
@@ -6921,6 +6974,7 @@ void ReposicionarSecaoStatus(const bool minimizado)
 
    ReposicionarFaixaStatus(yStat, lx, divW);
    AplicarLayoutTextoStatus(yStat, lx, divW);
+   ReposicionarFaixaCopia(yStat + STAT_ROW_H + STAT_STATUS_GAP, lx, divW);
    ReposicionarObjetoY(OBJ_METRICS_BG, yMet);
    int lblY = yMet + STAT_LBL_Y_OFFSET;
    int valY = yMet + METRICS_H - STAT_VAL_BOTTOM_PAD;
@@ -6990,7 +7044,7 @@ void AplicarEstadoMinimizadoPainel()
 {
    OcultarSecoesPainelColapsadas(g_painelMinimizado);
    ReposicionarSecaoStatus(g_painelMinimizado);
-   AplicarAlturaPainel(g_painelMinimizado ? PANEL_H_MIN : PANEL_H);
+   AplicarAlturaPainel(g_painelMinimizado ? AlturaPainelMin() : AlturaPainelNormal());
    AtualizarBotaoMinimizarPainel();
    if(ObjectFind(0, OBJ_CANDLE_TIMER) >= 0)
       ExibirObjetoPainel(OBJ_CANDLE_TIMER);
@@ -7028,21 +7082,14 @@ void CriarPainel()
       ObjectDelete(0, nome);
    }
 
-   CreateRect(OBJ_BORDER, PANEL_X, PANEL_Y, PANEL_W, PANEL_H, C_BG_COLOR, C_BORDER_COLOR);
-   CreateRect(OBJ_BG, PANEL_X + 1, PANEL_Y + 1, PANEL_W - 2, PANEL_H - 2, C_BG_COLOR);
+   CreateRect(OBJ_BORDER, PANEL_X, PANEL_Y, PANEL_W, AlturaPainelNormal(), C_BG_COLOR, C_BORDER_COLOR);
+   CreateRect(OBJ_BG, PANEL_X + 1, PANEL_Y + 1, PANEL_W - 2, AlturaPainelNormal() - 2, C_BG_COLOR);
    CreateRect(OBJ_HEADER, PANEL_X + 1, PANEL_Y + 1, PANEL_W - 2, PANEL_HEADER_H, C_HEADER_COLOR);
    CreateRect(OBJ_HEADER_LINE, PANEL_X + 1, PANEL_Y + PANEL_HEADER_H,
               PANEL_W - 2, PANEL_ACCENT_H, C_HEADER_ACCENT);
 
    CreateLabel(OBJ_SUBTITLE, PANEL_X + 12, PANEL_Y + 11, "Scalper Pro", C_NOME_COLOR, 10, true);
    CreateLabel("SP_VER", PANEL_X + 118, PANEL_Y + 14, "v" + SP_EA_VERSAO, C_LABEL_COLOR, 7);
-   g_copyStatusTxt = "";
-   if(g_copyModoEf != COPY_DESLIGADO)
-   {
-      // Texto/cor definidos pelo timer do copiador (CopyAtualizarStatusPainel)
-      CreateLabel(OBJ_COPY_STATUS, PANEL_X + 152, PANEL_Y + 13, ShortToString(0x25CF) + " COPY", C_LABEL_COLOR, 7, true);
-      ObjectSetInteger(0, OBJ_COPY_STATUS, OBJPROP_SELECTABLE, false);
-   }
    CreateButton(OBJ_BTN_MINIMIZE, PANEL_X + PANEL_W - 58, PANEL_Y + 8, 22, 20, "-", 9);
    AtualizarBotaoMinimizarPainel();
    CreateButton(OBJ_BTN_CLOSE, PANEL_X + PANEL_W - 30, PANEL_Y + 8, 22, 20, "X", 8);
@@ -7123,6 +7170,7 @@ void CriarPainel()
    int statY = metY + METRICS_H + STAT_STATUS_GAP;
    g_statY_status = statY;
    CriarFaixaStatus(lx, statY, divW);
+   CriarFaixaCopia(lx, statY + STAT_ROW_H + STAT_STATUS_GAP, divW);
    if(ObjectFind(0, "SP_D3") >= 0) ObjectDelete(0, "SP_D3");
    if(ObjectFind(0, "SP_SEC_STATUS") >= 0) ObjectDelete(0, "SP_SEC_STATUS");
 
@@ -7486,7 +7534,12 @@ void CopyMae_LerFilhas()
    if(agora - g_copyFilhasLidoMs < 1000) return;
    g_copyFilhasLidoMs = agora;
 
-   int n = 0, prontas = 0;
+   // Ultima leitura valida de cada filha: uma leitura que cai no meio da
+   // regravacao do ACK (arquivo vazio/parcial) usa o valor anterior.
+   static string s_nome[];
+   static ulong  s_tick[];
+   static bool   s_pronta[];
+
    string nome = "";
    long hf = FileFindFirst("SP_CopyAck_" + g_copyCanal + "_*.txt", nome, FILE_COMMON);
    if(hf != INVALID_HANDLE)
@@ -7502,12 +7555,32 @@ void CopyMae_LerFilhas()
          string a[];
          if(StringSplit(txt, '|', a) < 6 || a[0] != "ACK" || a[1] != g_copyCanal) continue;
          ulong tk = (ulong)StringToInteger(a[2]);
-         if(tk == 0 || (agora > tk && agora - tk > (ulong)COPY_MAE_VELHA_MS)) continue;
-         n++;
-         if(a[5] == "1") prontas++;
+         if(tk == 0) continue;
+
+         int k = -1;
+         for(int i = 0; i < ArraySize(s_nome); i++)
+            if(s_nome[i] == nome) { k = i; break; }
+         if(k < 0)
+         {
+            k = ArraySize(s_nome);
+            ArrayResize(s_nome, k + 1);
+            ArrayResize(s_tick, k + 1);
+            ArrayResize(s_pronta, k + 1);
+            s_nome[k] = nome;
+         }
+         s_tick[k]   = tk;
+         s_pronta[k] = (a[5] == "1");
       }
       while(FileFindNext(hf, nome));
       FileFindClose(hf);
+   }
+
+   int n = 0, prontas = 0;
+   for(int i = 0; i < ArraySize(s_nome); i++)
+   {
+      if(agora > s_tick[i] && agora - s_tick[i] > (ulong)COPY_MAE_VELHA_MS) continue;
+      n++;
+      if(s_pronta[i]) prontas++;
    }
 
    if(n != g_copyFilhasN || prontas != g_copyFilhasProntas)
@@ -7638,6 +7711,27 @@ ulong CopyFilha_IdMaeSelecionada(const ulong tkt)
    string cm = PositionGetString(POSITION_COMMENT);
    if(StringFind(cm, "SPC|") == 0) return (ulong)StringToInteger(StringSubstr(cm, 4));
    return 0;
+}
+
+// Em conta netting a posicao pode seguir listada por alguns ms apos o
+// fechamento confirmado; evita uma segunda ordem de fechamento (ret 10036).
+bool CopyFilha_FechadaRecente(const ulong tkt)
+{
+   ulong agora = GetTickCount64();
+   for(int i = ArraySize(g_copyFechadas) - 1; i >= 0; i--)
+   {
+      if(agora - g_copyFechadas[i].ultMs > 5000) { ArrayRemove(g_copyFechadas, i, 1); continue; }
+      if(g_copyFechadas[i].tkt == tkt) return true;
+   }
+   return false;
+}
+
+void CopyFilha_RegistrarFechada(const ulong tkt)
+{
+   int n = ArraySize(g_copyFechadas);
+   ArrayResize(g_copyFechadas, n + 1);
+   g_copyFechadas[n].tkt   = tkt;
+   g_copyFechadas[n].ultMs = GetTickCount64();
 }
 
 bool CopyFilha_FalhaRecente(const ulong tkt)
@@ -7775,15 +7869,19 @@ bool CopyFilha_NivelAtingido(const bool compraF, const double sl, const double t
 
 void CopyFilha_Fechar(const ulong tkt, const string motivo)
 {
-   if(CopyFilha_FalhaRecente(tkt)) return;
+   if(CopyFilha_FalhaRecente(tkt) || CopyFilha_FechadaRecente(tkt)) return;
    ulong t0 = GetTickCount64();
-   if(g_copyTrade.PositionClose(tkt))
+   bool ok = g_copyTrade.PositionClose(tkt);
+   uint rc = g_copyTrade.ResultRetcode();
+   if(ok || rc == TRADE_RETCODE_POSITION_CLOSED)
+      CopyFilha_RegistrarFechada(tkt);
+   if(ok)
       PrintFormat("Scalper Pro copiador FILHA: copia #%I64u fechada (%s) | execucao %I64u ms | desde gravacao da mae %I64u ms",
                   tkt, motivo, GetTickCount64() - t0, CopyFilha_MsDesdeMae());
-   else
+   else if(rc != TRADE_RETCODE_POSITION_CLOSED)
    {
       CopyFilha_RegistrarFalha(tkt);
-      PrintFormat("Scalper Pro copiador FILHA: falha ao fechar #%I64u (%s) ret=%u", tkt, motivo, g_copyTrade.ResultRetcode());
+      PrintFormat("Scalper Pro copiador FILHA: falha ao fechar #%I64u (%s) ret=%u", tkt, motivo, rc);
    }
 }
 
@@ -8064,6 +8162,7 @@ void CopyFilha_Processar()
       if(PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
       ulong idMae = CopyFilha_IdMaeSelecionada(t);
       if(idMae == 0) continue;
+      if(CopyFilha_FechadaRecente(t)) continue;
 
       int k = CopyFilha_IndiceMae(idMae);
       if(k < 0)
@@ -8186,32 +8285,34 @@ bool CopyInit()
 // Indicador no cabecalho do painel: verde = pronta para enviar/receber.
 void CopyStatusCalcular(string &txt, color &cor, string &dica)
 {
-   string bola = ShortToString(0x25CF) + " ";
+   string bola = ShortToString(0x25CF) + " COPY ";
    if(g_copyModoEf == COPY_MAE)
    {
       dica = "Copiador MAE | canal " + g_copyCanal + " | filhas prontas "
            + IntegerToString(g_copyFilhasProntas) + "/" + IntegerToString(g_copyFilhasN);
-      if(g_copyMaeErroGrav)          { txt = bola + "MAE ERRO ARQ";  cor = C_STATUS_ERR;  return; }
-      if(g_copyFilhasN == 0)         { txt = bola + "MAE SEM FILHA"; cor = C_STATUS_WARN; return; }
+      if(g_copyMaeErroGrav)  { txt = bola + "MAE: ERRO AO GRAVAR ARQUIVO"; cor = C_STATUS_ERR;  return; }
+      if(g_copyFilhasN == 0) { txt = bola + "MAE: AGUARDANDO FILHA";       cor = C_STATUS_WARN; return; }
       if(g_copyFilhasProntas < g_copyFilhasN)
       {
-         txt = bola + "MAE " + IntegerToString(g_copyFilhasProntas) + "/" + IntegerToString(g_copyFilhasN) + " PRONTAS";
+         txt = bola + "MAE: FILHAS PRONTAS " + IntegerToString(g_copyFilhasProntas) + "/" + IntegerToString(g_copyFilhasN);
          cor = C_STATUS_WARN;
          return;
       }
-      txt = bola + "MAE PRONTA (" + IntegerToString(g_copyFilhasN) + ")";
+      txt = bola + "MAE PRONTA | " + IntegerToString(g_copyFilhasN)
+          + (g_copyFilhasN == 1 ? " FILHA CONECTADA" : " FILHAS CONECTADAS");
       cor = C_STATUS_OK;
       return;
    }
 
    dica = "Copiador FILHA | canal " + g_copyCanal;
-   if(!g_copyMaeValida)                { txt = bola + "SEM MAE";        cor = C_STATUS_ERR;  return; }
+   if(!g_copyMaeValida) { txt = bola + "FILHA: AGUARDANDO MAE"; cor = C_STATUS_ERR; return; }
    dica += " | mae conta " + IntegerToString(g_copyMaeLogin) + " " + g_copyMaeSimbolo;
    if(g_copyMaeLogin == AccountInfoInteger(ACCOUNT_LOGIN))
-                                       { txt = bola + "CANAL INVALIDO"; cor = C_STATUS_ERR;  return; }
-   if(!g_copyMaeOnline)                { txt = bola + "MAE OFFLINE";    cor = C_STATUS_ERR;  return; }
-   if(!CopyFilha_Pronta())             { txt = bola + "FILHA BLOQ.";    cor = C_STATUS_WARN; return; }
-   txt = bola + "FILHA PRONTA";
+                        { txt = bola + "FILHA: CANAL DA PROPRIA CONTA"; cor = C_STATUS_ERR;  return; }
+   if(!g_copyMaeOnline) { txt = bola + "FILHA: MAE OFFLINE";            cor = C_STATUS_ERR;  return; }
+   if(!CopyFilha_Pronta())
+                        { txt = bola + "FILHA BLOQUEADA (AUTOTRADING/LIMITE)"; cor = C_STATUS_WARN; return; }
+   txt = bola + "FILHA PRONTA | MAE " + IntegerToString(g_copyMaeLogin);
    cor = C_STATUS_OK;
 }
 
@@ -8227,6 +8328,11 @@ void CopyAtualizarStatusPainel()
    ObjectSetString(0, OBJ_COPY_STATUS, OBJPROP_TEXT, txt);
    ObjectSetInteger(0, OBJ_COPY_STATUS, OBJPROP_COLOR, cor);
    ObjectSetString(0, OBJ_COPY_STATUS, OBJPROP_TOOLTIP, dica);
+   if(ObjectFind(0, OBJ_COPY_STRIP) >= 0)
+   {
+      ObjectSetInteger(0, OBJ_COPY_STRIP, OBJPROP_BGCOLOR, CorFaixaStatusFundo(cor));
+      ObjectSetString(0, OBJ_COPY_STRIP, OBJPROP_TOOLTIP, dica);
+   }
    ChartRedraw(0);
 }
 
@@ -8246,9 +8352,9 @@ void CopyTimer()
 int OnInit()
 {
    ConfigurarTrade();
+   CarregarParametrosEntrada();
    if(!CopyInit())
       return INIT_PARAMETERS_INCORRECT;
-   CarregarParametrosEntrada();
 
    RemoverQuadroMensagem();
 
@@ -8502,7 +8608,7 @@ void OnChartEvent(const int id, const long &lparam,
          ProcessarNiveisManuaisGrafico();
       if(!g_painelMinimizado)
       {
-         AplicarAlturaPainel(PANEL_H);
+         AplicarAlturaPainel(AlturaPainelNormal());
          RestaurarLayoutSecoesColapsaveis();
          RestaurarVisibilidadeCamposPainel();
          GarantirCamposEditaveisPainel();
