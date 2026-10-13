@@ -78,6 +78,12 @@ Para a mãe saber quais filhas estão prontas, cada filha grava `Common\Files\SP
 
 Nos modos que copiam o SL/TP da mãe, se o nível já estiver atingido no preço da filha, a filha fecha (ou não abre) a cópia.
 
+## Filha no NinjaTrader 8 (Tradovate, futuros)
+
+A mesma mãe também pode ser copiada para contas no **NinjaTrader 8** (ex.: Tradovate, contratos MNQ/NQ/MGC/GC) com a estratégia `nt8/SPCopyFilhaNT.cs`. Ela lê o mesmo arquivo do canal, e nada muda no MT5. A filha NT8 aparece na contagem de filhas da faixa da mãe. Instalação e parâmetros em [`nt8/LEIAME.md`](../nt8/LEIAME.md).
+
+O antigo `Copiador NinjaTrader` (`InpCopyNT_Ativo`, arquivo de sinais `SP_NT_Copy_Signal.txt`) não é necessário para a filha NT8 e pode ficar desligado.
+
 ## Limitações
 
 - O copiador não funciona no Strategy Tester, onde ele é desligado automaticamente.
