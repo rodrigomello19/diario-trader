@@ -1,5 +1,5 @@
 // ============================================================================
-//  SP Copy Filha NT8  -  filha NinjaTrader 8 do copiador do Scalper Pro (MT5)
+//  SP Copy Filha NT8 v1.1  -  filha NinjaTrader 8 do copiador Scalper Pro (MT5)
 // ----------------------------------------------------------------------------
 //  Le o arquivo de estado que a MAE (Scalper Pro, modo Mae) grava em
 //  %APPDATA%\MetaQuotes\Terminal\Common\Files\SP_Copy_<canal>.txt e replica
@@ -9,7 +9,8 @@
 //  Mesma logica da filha MT5: copia POSICOES, nao sinais.
 //   - posicao nova na mae      -> abre a mercado com SL/TP obrigatorio
 //                                 (template ATM ou bracket SL/TP em ticks)
-//   - posicao some da mae      -> zera o instrumento na conta (Flatten)
+//   - posicao some da mae      -> ordem a mercado de saida + cancela SL/TP (ou fecha o ATM)
+//                                 (nao usa Account.Flatten: ele desabilita a estrategia)
 //   - filha saiu por SL/TP     -> nao reabre enquanto a posicao da mae existir
 //   - reinicio de qualquer lado-> estado reconciliado pelo arquivo
 //  Grava SP_CopyAck_<canal>_NT-<conta>.txt para a faixa da mae contar esta
@@ -75,6 +76,12 @@ namespace NinjaTrader.NinjaScript.Strategies
         private bool   logEntrada;          // proxima execucao do instrumento = entrada da copia
         private bool   logSaida;            // proxima execucao do instrumento = saida enviada pelo copiador
         private ulong  saidaEnvioMs;
+        private string nomeEntrada = "";    // nome da ordem de entrada (bracket proprio)
+        private int    entradaQtdExec;      // contratos ja executados da entrada
+        private double entradaValorExec;    // soma preco*qtd das execucoes da entrada
+        private Order  ordemFechamento;     // ordem a mercado enviada para fechar a copia
+        private readonly object lockBracket = new object();
+        private static readonly object lockArqLog = new object();
         private readonly HashSet<ulong> tratados = new HashSet<ulong>();   // ids da mae ja copiados/ignorados
         private readonly Dictionary<ulong, int>   tentN  = new Dictionary<ulong, int>();
         private readonly Dictionary<ulong, ulong> tentMs = new Dictionary<ulong, ulong>();
@@ -292,15 +299,15 @@ namespace NinjaTrader.NinjaScript.Strategies
                     LimparCopia();
                 }
                 else if (m == null)
-                    Fechar("mae fechou");
+                    Fechar("mae fechou", qtdFilha, compraFilha);
                 else if (compraFilha != direcaoMae)
-                    Fechar("mae inverteu a posicao");
-                else if (string.IsNullOrWhiteSpace(TemplateAtm) && !bracketEnviado)
+                    Fechar("mae inverteu a posicao", qtdFilha, compraFilha);
+                else if (string.IsNullOrWhiteSpace(TemplateAtm) && !BracketEnviado())
                 {
                     if (ExisteOrdemSaida())
-                        bracketEnviado = true;   // ex.: NT8 reiniciado com SL/TP ja na corretora
+                        lock (lockBracket) bracketEnviado = true;   // ex.: NT8 reiniciado com SL/TP ja na corretora
                     else
-                        EnviarBracket(compraFilha, qtdFilha);
+                        EnviarBracket(compraFilha, qtdFilha, 0);
                 }
                 return;
             }
@@ -373,7 +380,11 @@ namespace NinjaTrader.NinjaScript.Strategies
             entradaEnvioMs   = agora;
             entradaGravMaeMs = maeTickMs;
             logEntrada       = true;
-            bracketEnviado   = false;
+            nomeEntrada      = "SPC_" + m.Id;
+            entradaQtdExec   = 0;
+            entradaValorExec = 0;
+            ordemFechamento  = null;
+            lock (lockBracket) bracketEnviado = false;
             fechamentoEnvioMs = 0;
 
             try
@@ -398,7 +409,7 @@ namespace NinjaTrader.NinjaScript.Strategies
                 else
                 {
                     Order o = Account.CreateOrder(Instrument, compra ? OrderAction.Buy : OrderAction.Sell, OrderType.Market,
-                        OrderEntry.Automated, TimeInForce.Day, Contratos, 0, 0, "", "SPC_" + m.Id, Core.Globals.MaxDate, null);
+                        OrderEntry.Automated, TimeInForce.Day, Contratos, 0, 0, "", nomeEntrada, Core.Globals.MaxDate, null);
                     Account.Submit(new[] { o });
                 }
                 MarcarTratado(m.Id);
@@ -415,10 +426,21 @@ namespace NinjaTrader.NinjaScript.Strategies
             }
         }
 
-        private void EnviarBracket(bool compra, int qtd)
+        // precoRef > 0: preco medio das execucoes da entrada (enviado direto do evento de
+        // execucao, sem esperar a atualizacao da posicao, que na Tradovate chega ~250 ms depois).
+        private void EnviarBracket(bool compra, int qtd, double precoRef)
         {
-            double medio = PrecoMedioFilha();
-            if (medio <= 0) return;
+            lock (lockBracket)
+            {
+                if (bracketEnviado) return;
+                bracketEnviado = true;
+            }
+            double medio = precoRef > 0 ? precoRef : PrecoMedioFilha();
+            if (medio <= 0)
+            {
+                lock (lockBracket) bracketEnviado = false;
+                return;
+            }
             double tick = Instrument.MasterInstrument.TickSize;
             double sl = Instrument.MasterInstrument.RoundToTickSize(compra ? medio - StopTicks * tick : medio + StopTicks * tick);
             double tp = Instrument.MasterInstrument.RoundToTickSize(compra ? medio + AlvoTicks * tick : medio - AlvoTicks * tick);
@@ -430,21 +452,69 @@ namespace NinjaTrader.NinjaScript.Strategies
             Order alvo = Account.CreateOrder(Instrument, saida, OrderType.Limit, OrderEntry.Automated, TimeInForce.Gtc,
                 qtd, tp, 0, oco, "SPC_TP", Core.Globals.MaxDate, null);
             Account.Submit(new[] { stop, alvo });
-            bracketEnviado = true;
             Imprimir(string.Format("SL/TP enviados: SL={0} TP={1} ({2}/{3} ticks, {4} contrato(s))",
                 sl.ToString(CultureInfo.InvariantCulture), tp.ToString(CultureInfo.InvariantCulture), StopTicks, AlvoTicks, qtd));
         }
 
-        private void Fechar(string motivo)
+        // Fecha a copia SEM Account.Flatten: no NT8 o Flatten desabilita as estrategias do
+        // instrumento (inclusive esta). A ordem a mercado sai primeiro e o SL/TP e cancelado
+        // em seguida, sem esperar a confirmacao do cancelamento.
+        private void Fechar(string motivo, int qtd, bool compraFilha)
         {
             ulong agora = GetTickCount64();
-            if (fechamentoEnvioMs != 0 && agora - fechamentoEnvioMs < 1000) return;   // aguarda o flatten anterior
+            if (fechamentoEnvioMs != 0 && agora - fechamentoEnvioMs < 3000)
+            {
+                // fechamento anterior ainda em andamento: so reenvia se a ordem foi rejeitada/cancelada
+                if (ordemFechamento == null) return;
+                OrderState st = ordemFechamento.OrderState;
+                if (st != OrderState.Rejected && st != OrderState.Cancelled) return;
+            }
             fechamentoEnvioMs = agora;
             saidaEnvioMs = agora;
             logSaida = true;
-            Account.Flatten(new[] { Instrument });   // fecha a posicao e cancela SL/TP/ATM do instrumento
-            Imprimir(string.Format("fechando copia de #{0} ({1}) | {2} ms desde a gravacao da mae",
-                copiaIdMae, motivo, agora > maeTickMs ? agora - maeTickMs : 0));
+
+            bool viaAtm = false;
+            if (!string.IsNullOrEmpty(atmId))
+            {
+                try { viaAtm = AtmStrategyClose(atmId); }
+                catch (Exception) { viaAtm = false; }
+            }
+
+            if (!viaAtm)
+            {
+                ordemFechamento = Account.CreateOrder(Instrument, compraFilha ? OrderAction.Sell : OrderAction.BuyToCover,
+                    OrderType.Market, OrderEntry.Automated, TimeInForce.Day, qtd, 0, 0, "", "SPC_Close", Core.Globals.MaxDate, null);
+                Account.Submit(new[] { ordemFechamento });
+                CancelarOrdensSaida();
+            }
+
+            Imprimir(string.Format("fechando copia de #{0} ({1}{2}) | ordem enviada {3} ms apos a gravacao da mae",
+                copiaIdMae, motivo, viaAtm ? ", via ATM" : "", agora > maeTickMs ? agora - maeTickMs : 0));
+        }
+
+        private void CancelarOrdensSaida()
+        {
+            List<Order> cancelar = new List<Order>();
+            lock (Account.Orders)
+            {
+                foreach (Order o in Account.Orders)
+                {
+                    if (o.Instrument.FullName != Instrument.FullName) continue;
+                    if (o == ordemFechamento) continue;
+                    if (o.OrderType != OrderType.StopMarket && o.OrderType != OrderType.StopLimit && o.OrderType != OrderType.Limit) continue;
+                    if (o.OrderState == OrderState.Working || o.OrderState == OrderState.Accepted
+                        || o.OrderState == OrderState.Submitted || o.OrderState == OrderState.ChangePending
+                        || o.OrderState == OrderState.ChangeSubmitted)
+                        cancelar.Add(o);
+                }
+            }
+            if (cancelar.Count > 0)
+                Account.Cancel(cancelar);
+        }
+
+        private bool BracketEnviado()
+        {
+            lock (lockBracket) return bracketEnviado;
         }
 
         private void OnExecucaoConta(object sender, ExecutionEventArgs e)
@@ -452,6 +522,15 @@ namespace NinjaTrader.NinjaScript.Strategies
             if (e == null || e.Execution == null || e.Execution.Instrument == null) return;
             if (e.Execution.Instrument.FullName != Instrument.FullName) return;
             ulong agora = GetTickCount64();
+
+            bool ehEntradaPropria = nomeEntrada.Length > 0 && e.Execution.Order != null && e.Execution.Order.Name == nomeEntrada;
+            if (ehEntradaPropria && string.IsNullOrWhiteSpace(TemplateAtm))
+            {
+                entradaQtdExec   += e.Quantity;
+                entradaValorExec += e.Price * e.Quantity;
+                if (entradaQtdExec >= Contratos)
+                    EnviarBracket(copiaCompra, Contratos, entradaValorExec / entradaQtdExec);
+            }
 
             if (logEntrada)
             {
@@ -538,7 +617,11 @@ namespace NinjaTrader.NinjaScript.Strategies
             entradaPendente   = false;
             entradaEnvioMs    = 0;
             logEntrada        = false;
-            bracketEnviado    = false;
+            nomeEntrada       = "";
+            entradaQtdExec    = 0;
+            entradaValorExec  = 0;
+            ordemFechamento   = null;
+            lock (lockBracket) bracketEnviado = false;
             fechamentoEnvioMs = 0;
             atmId             = "";
             SalvarEstado();
@@ -708,9 +791,24 @@ namespace NinjaTrader.NinjaScript.Strategies
         // ------------------------------------------------------------------
         //  Utilitarios
         // ------------------------------------------------------------------
+        // Output do NinjaScript + arquivo Documentos\NinjaTrader 8\SPCopy\log_AAAAMMDD.txt
         private void Imprimir(string msg)
         {
-            Print(string.Format("{0:HH:mm:ss.fff} SPCopy FILHA NT8 [{1}]: {2}", DateTime.Now, Account != null ? Account.Name : "?", msg));
+            DateTime agora = DateTime.Now;
+            string linha = string.Format("{0:HH:mm:ss.fff} SPCopy FILHA NT8 [{1}|{2}]: {3}", agora,
+                Account != null ? Account.Name : "?", Instrument != null ? Instrument.FullName : "?", msg);
+            try { Print(linha); } catch (Exception) { }
+            try
+            {
+                string pasta = Path.Combine(NinjaTrader.Core.Globals.UserDataDir, "SPCopy");
+                lock (lockArqLog)
+                {
+                    Directory.CreateDirectory(pasta);
+                    File.AppendAllText(Path.Combine(pasta, "log_" + agora.ToString("yyyyMMdd") + ".txt"),
+                        string.Format("{0:yyyy-MM-dd} {1}\r\n", agora, linha));
+                }
+            }
+            catch (Exception) { }
         }
 
         // Mensagem repetitiva: imprime no maximo a cada 5 s se for igual a anterior.

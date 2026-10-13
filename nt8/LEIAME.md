@@ -7,7 +7,7 @@ A lógica é a mesma da filha MT5: **o NT8 copia posições, não sinais**. A es
 | Na mãe | Na filha NT8 |
 |---|---|
 | Abriu posição | Abre a mercado no contrato da estratégia, **sempre com SL/TP** (template ATM ou bracket em ticks) |
-| Fechou a posição | Zera o contrato na conta (`Flatten`), o que cancela também SL/TP/ATM |
+| Fechou a posição | Envia a ordem a mercado de saída e, logo em seguida, cancela o SL/TP (ou fecha o ATM). A estratégia continua habilitada. |
 | Virou a mão | Zera a filha. A nova posição da mãe é copiada em seguida. |
 | Continua aberta, mas a filha saiu por SL/TP | **Não reabre** |
 | Reinício do MT5 ou do NT8 | O estado é reconciliado pelo arquivo. O estado da filha fica em `Documentos\NinjaTrader 8\SPCopy\`. |
@@ -76,7 +76,11 @@ Cada gráfico do Scalper Pro em modo Mãe publica **um canal**. Para copiar dois
 
 Na rolagem, desabilite a estratégia, troque o **Instrumento** (ex.: `MNQ 12-26` para `MNQ 03-27`) e habilite de novo. O MT5 não muda.
 
-## Log (janela Output)
+## Log
+
+O log aparece na janela **Output** e também é gravado em `Documentos\NinjaTrader 8\SPCopy\log_AAAAMMDD.txt`. Para mandar para análise, anexe esse arquivo.
+
+Exemplo:
 
 ```
 22:19:39.671 SPCopy FILHA NT8 [APEX-123]: SELL ATM 'MNQ-Mesa' copiando mae #235827214 (US100 0.20) | ordem enviada 15 ms apos a gravacao da mae
@@ -98,7 +102,9 @@ O log também registra o motivo de qualquer posição da mãe não copiada:
 
 ## Cuidados
 
-- **Não opere manualmente o mesmo contrato na conta filha** enquanto a estratégia estiver ativa. O fechamento usa `Flatten` no contrato, que zera a posição inteira e cancela as ordens dele. Se a conta já estiver posicionada quando a mãe abrir, a cópia é ignorada e o motivo vai para o log.
+- **Não opere manualmente o mesmo contrato na conta filha** enquanto a estratégia estiver ativa. O fechamento cancela todas as ordens stop/limite ativas do contrato.
+- **Não use "Zerar"/"Flatten" do NT8 no contrato da filha.** O NT8 desabilita as estratégias do contrato quando você zera por ali.
+- Se a conta já estiver posicionada quando a mãe abrir, a cópia é ignorada e o motivo vai para o log.
 - **Horários:** a CME para todo dia das 17h às 18h (horário de NY) e no fim de semana. Uma entrada da mãe nesse período é rejeitada, e a filha desiste após 3 tentativas.
 - **Parciais da mãe não são copiadas.** A filha fecha tudo quando a mãe fecha a posição inteira. Reduzir uma posição protegida por ATM ou OCO exigiria ajustar a quantidade do SL/TP, e um descasamento poderia virar a mão.
 - **Regras da mesa:** confirme se a mesa da conta Tradovate permite copy trade e automação.
