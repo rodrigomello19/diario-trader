@@ -1,13 +1,13 @@
 //+------------------------------------------------------------------+
-//|                     SCALPER PRO v5.83 - MT5                       |
+//|                     SCALPER PRO v5.84 - MT5                       |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, Scalper Pro"
-#property version       "5.83"
+#property version       "5.84"
 #property strict
 
 #include <Trade/Trade.mqh>
 
-const string SP_EA_VERSAO = "5.83";
+const string SP_EA_VERSAO = "5.84";
 
 CTrade trade;
 
@@ -21,6 +21,29 @@ enum ENUM_MODO_TRAIL
 {
    TRAIL_FIXO     = 0,   // SL fixo apos ativacao
    TRAIL_DINAMICO = 1    // Distancia Trail-Step, avanca a cada Step pts
+};
+
+enum ENUM_COPY_MODO
+{
+   COPY_DESLIGADO = 0,   // Desligado
+   COPY_MAE       = 1,   // Mae (publica as posicoes)
+   COPY_FILHA     = 2    // Filha (copia a mae)
+};
+
+enum ENUM_COPY_LOTE
+{
+   COPY_LOTE_MULT     = 0,   // Lote da mae x multiplicador
+   COPY_LOTE_NOCIONAL = 1,   // Mesma exposicao (tam. contrato) x multiplicador
+   COPY_LOTE_FIXO     = 2,   // Lote fixo
+   COPY_LOTE_RISCO    = 3    // Risco % do saldo ate o SL
+};
+
+enum ENUM_COPY_SLTP
+{
+   COPY_SLTP_PRECO_AJUST = 0,   // Preco da mae + diferenca de cotacao entre corretoras
+   COPY_SLTP_DISTANCIA   = 1,   // Mesma distancia a partir da entrada da filha
+   COPY_SLTP_LOCAL       = 2,   // SL/TP/trailing do proprio EA na filha
+   COPY_SLTP_SO_FECHA    = 3    // Nao copia SL/TP: fecha quando a mae fechar
 };
 
 input group "=== Parametros de entrada ==="
@@ -47,6 +70,21 @@ input group "=== Copiador NinjaTrader ==="
 input bool   InpCopyNT_Ativo = false;   // Ativar copiador p/ NinjaTrader
 // Simbolo NT8, mapeamento de contratos e conta ficam configurados na ponte (bridge),
 // nao aqui, para nao exigir recompilar o EA a cada rolagem de contrato futuro.
+
+input group "=== Copiador MT5 (contas na mesma maquina) ==="
+input ENUM_COPY_MODO InpCopyModo          = COPY_DESLIGADO;        // Modo do copiador
+input string         InpCopyCanal         = "SP1";                 // Canal (mesmo nome na mae e nas filhas)
+input int            InpCopyIntervaloMs   = 20;                    // Intervalo de envio/leitura (ms)
+input ENUM_COPY_LOTE InpCopyLoteModo      = COPY_LOTE_MULT;        // Filha: calculo do lote
+input double         InpCopyLoteValor     = 1.0;                   // Filha: multiplicador / lote fixo / risco %
+input double         InpCopyLoteMax       = 0;                     // Filha: lote maximo (0 = sem limite)
+input ENUM_COPY_SLTP InpCopySLTPModo      = COPY_SLTP_PRECO_AJUST; // Filha: como copiar SL/TP
+input double         InpCopySLEmergPts    = 0;                     // Filha: SL emergencia se nao houver SL (pts, 0 = nao)
+input bool           InpCopyInverter      = false;                 // Filha: inverter direcao
+input int            InpCopyIdadeMaxSeg   = 5;                     // Filha: nao abrir posicao da mae mais antiga que (s, 0 = sem limite)
+input int            InpCopyDesvioPts     = 50;                    // Filha: desvio maximo na execucao (pts)
+input int            InpCopyMaeOfflineSeg = 0;                     // Filha: fechar copias se a mae ficar offline por (s, 0 = nunca)
+input long           InpCopyMagic         = 53504350;              // Filha: magic das ordens copiadas
 
 input group "=== Pendentes ==="
 input double InpOffsetPendPts      = 0.0;     // Entrada acima corpo (pts)
@@ -424,6 +462,57 @@ double   g_jlVisPrecoVenda       = 0;
 const int    STATUS_UI_RESET_SEC  = 15;
 const double VOL_EPSILON = 1e-8;
 
+// --- Copiador MT5 (estado) ---
+struct SCopyPosMae
+{
+   ulong  id;
+   bool   compra;
+   double vol;
+   double open;
+   double sl;
+   double tp;
+   long   idadeSeg;
+};
+
+struct SCopyTentativa
+{
+   ulong idMae;
+   int   n;
+   ulong ultMs;
+};
+
+struct SCopyModify
+{
+   ulong tkt;
+   ulong ultMs;
+};
+
+CTrade         g_copyTrade;
+ENUM_COPY_MODO g_copyModoEf        = COPY_DESLIGADO;
+string         g_copyCanal         = "";
+string         g_copyArquivo       = "";
+string         g_copyGv            = "";
+ulong          g_copyTimerLegadoMs = 0;
+// mae
+string         g_copyMaeUltEstado  = "";
+ulong          g_copyMaeUltEnvioMs = 0;
+long           g_copyMaeSeq        = 0;
+// filha
+SCopyPosMae    g_copyMaePos[];
+int            g_copyMaeN          = 0;
+bool           g_copyMaeValida     = false;
+ulong          g_copyMaeTickMs     = 0;     // GetTickCount64 da mae na ultima gravacao lida
+long           g_copyMaeSeqLida    = -1;
+long           g_copyMaeLogin      = 0;
+string         g_copyMaeSimbolo    = "";
+double         g_copyMaeBid        = 0;
+double         g_copyMaeAsk        = 0;
+double         g_copyMaeContrato   = 0;
+SCopyTentativa g_copyTent[];
+SCopyModify    g_copyMod[];
+ulong          g_copyUltLimpezaMs  = 0;
+bool           g_copyOfflineFechou = false;
+
 void     Status(string texto, color cor, bool eventoImportante = false, bool impedimento = false);
 void     AplicarTextoStatusUI(const string texto, const color cor);
 bool     ObterStatusImpedimento(string &texto, color &cor);
@@ -507,6 +596,10 @@ void     ConfigurarGrafico();
 void     RestaurarGrafico();
 void     AtualizarArrasteSLNoGrafico(bool temPosicao);
 void     ProcessarNiveisManuaisGrafico();
+bool     CopyFilha_GerenciaSelecionada();
+bool     CopyFilha_GerenciaTicket(const ulong t);
+bool     CopyFilha_GerenciaDeal(const ulong dealTkt);
+void     CopyMae_Publicar(const bool forcar);
 void     InicializarReferenciasNiveis(ulong posTkt);
 void     GravarReferenciasNiveisEA(ulong posTkt, double sl, double tp);
 bool     ModificarNiveisPosicaoEA(ulong posTkt, double sl, double tp);
@@ -860,6 +953,7 @@ void ProcessarNiveisManuaisGrafico()
       ulong posTkt = PositionGetTicket(i);
       if(posTkt == 0 || !PositionSelectByTicket(posTkt)) continue;
       if(PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+      if(CopyFilha_GerenciaSelecionada()) continue;
 
       long   tipo    = PositionGetInteger(POSITION_TYPE);
       double slAtual = NormalizeDouble(PositionGetDouble(POSITION_SL), _Digits);
@@ -5380,6 +5474,7 @@ void ToggleSLPorTipo()
       ulong tkt = PositionGetTicket(i);
       if(tkt == 0 || !PositionSelectByTicket(tkt)) continue;
       if(PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+      if(CopyFilha_GerenciaSelecionada()) continue;
 
       temPosicao = true;
       bool   paraOpen = SlRProximoEhOpen(tkt, barAtual);
@@ -5421,6 +5516,10 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
                         const MqlTradeRequest &request,
                         const MqlTradeResult &result)
 {
+   // Copiador: publica o novo estado antes de qualquer outro processamento
+   if(g_copyModoEf == COPY_MAE)
+      CopyMae_Publicar(false);
+
    if(trans.type != TRADE_TRANSACTION_DEAL_ADD) return;
 
    ulong dealTkt = trans.deal;
@@ -5452,7 +5551,7 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
             ulong posTktEntrada = TicketPosicaoPorId(posId);
             if(posTktEntrada == 0)
                posTktEntrada = ResolverPositionId(posId);
-            if(posTktEntrada > 0 && origem != "")
+            if(posTktEntrada > 0 && origem != "" && !CopyFilha_GerenciaDeal(dealTkt))
             {
                bool compraEnt = (HistoryDealGetInteger(dealTkt, DEAL_TYPE) == DEAL_TYPE_BUY);
                AgendarProcessamentoEntrada(posTktEntrada, compraEnt, origem == "PENDENTE", true);
@@ -7204,9 +7303,742 @@ void CarregarParametrosEntrada()
 }
 
 //+------------------------------------------------------------------+
+//| Copiador MT5 - contas em terminais da mesma maquina              |
+//| A mae grava em Terminal\Common\Files o estado das posicoes do    |
+//| simbolo do grafico. A filha le o arquivo a cada                  |
+//| InpCopyIntervaloMs e corrige as diferencas: abre, fecha, reduz   |
+//| (parcial) e ajusta SL/TP. Copia posicoes, nao sinais: apos um    |
+//| reinicio de qualquer lado o estado e reconciliado sozinho.       |
+//| Mapeamento de simbolo: cada lado usa o simbolo do proprio        |
+//| grafico (ex.: mae em US100, filha em US100.cash).                |
+//| Formato do arquivo:                                              |
+//|  SPCOPY|1|seq|tickMs|horaServ|login|simbolo|bid|ask|contrato|n   |
+//|  P|posId|B/S|volume|entrada|sl|tp|horaAbertura   (n linhas)      |
+//|  END|seq                                                         |
+//+------------------------------------------------------------------+
+const int COPY_HEARTBEAT_MS     = 250;    // mae regrava mesmo sem mudanca
+const int COPY_MAE_VELHA_MS     = 3000;   // filha nao abre com arquivo mais velho que isso
+const int COPY_TENT_MAX         = 3;      // tentativas de abertura por posicao da mae
+const int COPY_TENT_INTERV_MS   = 500;
+const int COPY_FALHA_INTERV_MS  = 500;    // espera apos falha de modify/close
+const int COPY_LIMPEZA_MS       = 2000;
+
+string CopySanitizarCanal(const string c)
+{
+   string r = "";
+   int n = StringLen(c);
+   for(int i = 0; i < n && StringLen(r) < 16; i++)
+   {
+      ushort ch = StringGetCharacter(c, i);
+      if((ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || ch == '_' || ch == '-')
+         r += ShortToString(ch);
+   }
+   return (r == "") ? "SP1" : r;
+}
+
+string CopyGvX(const ulong idMae) { return g_copyGv + "X_"  + IntegerToString((long)idMae); }
+string CopyGvM(const ulong tkt)   { return g_copyGv + "M_"  + IntegerToString((long)tkt); }
+string CopyGvMV(const ulong tkt)  { return g_copyGv + "MV_" + IntegerToString((long)tkt); }
+string CopyGvSV(const ulong tkt)  { return g_copyGv + "SV_" + IntegerToString((long)tkt); }
+string CopyGvOF(const ulong tkt)  { return g_copyGv + "OF_" + IntegerToString((long)tkt); }
+string CopyComentario(const ulong idMae) { return "SPC|" + IntegerToString((long)idMae); }
+
+string CopyTextoModo()
+{
+   if(g_copyModoEf == COPY_MAE)   return " MAE";
+   if(g_copyModoEf == COPY_FILHA) return " FILHA";
+   return "";
+}
+
+double CopyArredondarVol(const double vol)
+{
+   double step = LotStep();
+   double v = MathRound(vol / step) * step;
+   int digits = 0;
+   double tmp = step;
+   while(tmp < 0.9999 && digits < 8) { tmp *= 10; digits++; }
+   return NormalizeDouble(v, digits);
+}
+
+//--- Posicao selecionada (PositionSelect*) e copia gerida pelo copiador?
+//    No modo LOCAL a copia e gerida pelo proprio EA (SL/TP/trailing do perfil).
+bool CopyFilha_GerenciaSelecionada()
+{
+   return g_copyModoEf == COPY_FILHA && InpCopySLTPModo != COPY_SLTP_LOCAL
+          && PositionGetInteger(POSITION_MAGIC) == InpCopyMagic;
+}
+
+bool CopyFilha_GerenciaTicket(const ulong t)
+{
+   if(g_copyModoEf != COPY_FILHA || InpCopySLTPModo == COPY_SLTP_LOCAL) return false;
+   if(t == 0 || !PositionSelectByTicket(t)) return false;
+   return PositionGetInteger(POSITION_MAGIC) == InpCopyMagic;
+}
+
+bool CopyFilha_GerenciaDeal(const ulong dealTkt)
+{
+   if(g_copyModoEf != COPY_FILHA || InpCopySLTPModo == COPY_SLTP_LOCAL) return false;
+   if(dealTkt == 0 || !HistoryDealSelect(dealTkt)) return false;
+   return HistoryDealGetInteger(dealTkt, DEAL_MAGIC) == InpCopyMagic;
+}
+
+//+------------------------------------------------------------------+
+//| Mae                                                              |
+//+------------------------------------------------------------------+
+string CopyMae_EstadoPosicoes(int &n)
+{
+   string s = "";
+   n = 0;
+   for(int i = 0; i < PositionsTotal(); i++)
+   {
+      ulong t = PositionGetTicket(i);
+      if(t == 0 || !PositionSelectByTicket(t)) continue;
+      if(PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+
+      bool compra = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY);
+      s += "P|" + IntegerToString(PositionGetInteger(POSITION_IDENTIFIER)) + "|" + (compra ? "B" : "S") + "|"
+         + DoubleToString(PositionGetDouble(POSITION_VOLUME), 8) + "|"
+         + DoubleToString(PositionGetDouble(POSITION_PRICE_OPEN), _Digits) + "|"
+         + DoubleToString(PositionGetDouble(POSITION_SL), _Digits) + "|"
+         + DoubleToString(PositionGetDouble(POSITION_TP), _Digits) + "|"
+         + IntegerToString((long)PositionGetInteger(POSITION_TIME)) + "\r\n";
+      n++;
+   }
+   return s;
+}
+
+// Grava o estado se mudou ou se o heartbeat venceu. Chamado no OnTradeTransaction
+// (antes de qualquer outro processamento da entrada) e no timer.
+void CopyMae_Publicar(const bool forcar)
+{
+   if(g_copyModoEf != COPY_MAE) return;
+
+   int n = 0;
+   string estado = CopyMae_EstadoPosicoes(n);
+   ulong agora = GetTickCount64();
+   if(!forcar && estado == g_copyMaeUltEstado && agora - g_copyMaeUltEnvioMs < (ulong)COPY_HEARTBEAT_MS)
+      return;
+
+   int h = FileOpen(g_copyArquivo, FILE_WRITE|FILE_BIN|FILE_ANSI|FILE_COMMON|FILE_SHARE_READ|FILE_SHARE_WRITE);
+   if(h == INVALID_HANDLE)
+   {
+      static ulong s_ultErro = 0;
+      if(agora - s_ultErro > 5000)
+      {
+         PrintFormat("Scalper Pro copiador MAE: falha ao gravar %s, err=%d", g_copyArquivo, GetLastError());
+         s_ultErro = agora;
+      }
+      return;
+   }
+
+   g_copyMaeSeq++;
+   string seq = IntegerToString(g_copyMaeSeq);
+   string cab = "SPCOPY|1|" + seq + "|" + IntegerToString((long)agora) + "|"
+              + IntegerToString((long)TimeCurrent()) + "|"
+              + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) + "|" + _Symbol + "|"
+              + DoubleToString(SymbolInfoDouble(_Symbol, SYMBOL_BID), _Digits) + "|"
+              + DoubleToString(SymbolInfoDouble(_Symbol, SYMBOL_ASK), _Digits) + "|"
+              + DoubleToString(SymbolInfoDouble(_Symbol, SYMBOL_TRADE_CONTRACT_SIZE), 8) + "|"
+              + IntegerToString(n) + "\r\n";
+   string txt = cab + estado + "END|" + seq + "\r\n";
+   FileWriteString(h, txt, StringLen(txt));
+   FileClose(h);
+
+   if(InpLogDetalhado && estado != g_copyMaeUltEstado)
+      PrintFormat("Scalper Pro copiador MAE: estado publicado seq=%s posicoes=%d", seq, n);
+
+   g_copyMaeUltEstado  = estado;
+   g_copyMaeUltEnvioMs = agora;
+}
+
+//+------------------------------------------------------------------+
+//| Filha                                                            |
+//+------------------------------------------------------------------+
+string CopyLinha(const string &linhas[], const int i)
+{
+   string l = linhas[i];
+   StringTrimRight(l);
+   StringTrimLeft(l);
+   return l;
+}
+
+// Le o arquivo da mae. Retorna false se ausente ou incompleto (gravacao em
+// andamento); nesse caso o ultimo estado valido continua em uso.
+bool CopyFilha_LerArquivo()
+{
+   int h = FileOpen(g_copyArquivo, FILE_READ|FILE_BIN|FILE_ANSI|FILE_COMMON|FILE_SHARE_READ|FILE_SHARE_WRITE);
+   if(h == INVALID_HANDLE) return false;
+   int sz = (int)FileSize(h);
+   string txt = (sz > 0) ? FileReadString(h, sz) : "";
+   FileClose(h);
+   if(sz <= 0) return false;
+
+   string linhas[];
+   int nl = StringSplit(txt, '\n', linhas);
+   if(nl < 2) return false;
+
+   string c[];
+   if(StringSplit(CopyLinha(linhas, 0), '|', c) < 11 || c[0] != "SPCOPY") return false;
+   long seq = StringToInteger(c[2]);
+   int  n   = (int)StringToInteger(c[10]);
+   if(n < 0 || n > 200 || nl < n + 2) return false;
+   if(CopyLinha(linhas, n + 1) != "END|" + c[2]) return false;
+
+   if(seq == g_copyMaeSeqLida && (ulong)StringToInteger(c[3]) == g_copyMaeTickMs)
+      return true;   // nada novo
+
+   long srvMae = StringToInteger(c[4]);
+   SCopyPosMae tmp[];
+   ArrayResize(tmp, n);
+   for(int k = 0; k < n; k++)
+   {
+      string p[];
+      if(StringSplit(CopyLinha(linhas, k + 1), '|', p) < 8 || p[0] != "P") return false;
+      tmp[k].id       = (ulong)StringToInteger(p[1]);
+      tmp[k].compra   = (p[2] == "B");
+      tmp[k].vol      = StringToDouble(p[3]);
+      tmp[k].open     = StringToDouble(p[4]);
+      tmp[k].sl       = StringToDouble(p[5]);
+      tmp[k].tp       = StringToDouble(p[6]);
+      tmp[k].idadeSeg = srvMae - StringToInteger(p[7]);
+   }
+
+   ArrayResize(g_copyMaePos, n);
+   for(int k = 0; k < n; k++)
+      g_copyMaePos[k] = tmp[k];
+   g_copyMaeN        = n;
+   g_copyMaeSeqLida  = seq;
+   g_copyMaeTickMs   = (ulong)StringToInteger(c[3]);
+   g_copyMaeLogin    = StringToInteger(c[5]);
+   g_copyMaeSimbolo  = c[6];
+   g_copyMaeBid      = StringToDouble(c[7]);
+   g_copyMaeAsk      = StringToDouble(c[8]);
+   g_copyMaeContrato = StringToDouble(c[9]);
+   g_copyMaeValida   = true;
+   return true;
+}
+
+int CopyFilha_IndiceMae(const ulong idMae)
+{
+   for(int k = 0; k < g_copyMaeN; k++)
+      if(g_copyMaePos[k].id == idMae) return k;
+   return -1;
+}
+
+// Id da posicao da mae para a posicao selecionada (0 = nao e copia).
+ulong CopyFilha_IdMaeSelecionada(const ulong tkt)
+{
+   if(PositionGetInteger(POSITION_MAGIC) != InpCopyMagic) return 0;
+   if(GlobalVariableCheck(CopyGvM(tkt))) return (ulong)GlobalVariableGet(CopyGvM(tkt));
+   string cm = PositionGetString(POSITION_COMMENT);
+   if(StringFind(cm, "SPC|") == 0) return (ulong)StringToInteger(StringSubstr(cm, 4));
+   return 0;
+}
+
+bool CopyFilha_FalhaRecente(const ulong tkt)
+{
+   ulong agora = GetTickCount64();
+   for(int i = 0; i < ArraySize(g_copyMod); i++)
+      if(g_copyMod[i].tkt == tkt)
+         return (agora - g_copyMod[i].ultMs < (ulong)COPY_FALHA_INTERV_MS);
+   return false;
+}
+
+void CopyFilha_RegistrarFalha(const ulong tkt)
+{
+   ulong agora = GetTickCount64();
+   int n = ArraySize(g_copyMod);
+   for(int i = 0; i < n; i++)
+      if(g_copyMod[i].tkt == tkt) { g_copyMod[i].ultMs = agora; return; }
+   ArrayResize(g_copyMod, n + 1);
+   g_copyMod[n].tkt = tkt;
+   g_copyMod[n].ultMs = agora;
+}
+
+bool CopyFilha_TentativaLiberada(const ulong idMae)
+{
+   for(int i = 0; i < ArraySize(g_copyTent); i++)
+      if(g_copyTent[i].idMae == idMae)
+         return (g_copyTent[i].n < COPY_TENT_MAX
+                 && GetTickCount64() - g_copyTent[i].ultMs >= (ulong)COPY_TENT_INTERV_MS);
+   return true;
+}
+
+void CopyFilha_RegistrarTentativa(const ulong idMae)
+{
+   int n = ArraySize(g_copyTent);
+   int k = -1;
+   for(int i = 0; i < n; i++)
+      if(g_copyTent[i].idMae == idMae) { k = i; break; }
+   if(k < 0)
+   {
+      ArrayResize(g_copyTent, n + 1);
+      k = n;
+      g_copyTent[k].idMae = idMae;
+      g_copyTent[k].n = 0;
+   }
+   g_copyTent[k].n++;
+   g_copyTent[k].ultMs = GetTickCount64();
+   if(g_copyTent[k].n >= COPY_TENT_MAX)
+   {
+      GlobalVariableSet(CopyGvX(idMae), 1.0);
+      PrintFormat("Scalper Pro copiador FILHA: desistiu de copiar mae #%I64u apos %d tentativas", idMae, COPY_TENT_MAX);
+   }
+}
+
+double CopyFilha_Lote(const SCopyPosMae &m, const bool compraF, const double slF)
+{
+   double v = 0;
+   switch(InpCopyLoteModo)
+   {
+      case COPY_LOTE_FIXO:
+         v = InpCopyLoteValor;
+         break;
+      case COPY_LOTE_NOCIONAL:
+      {
+         double cF = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_CONTRACT_SIZE);
+         if(cF > 0 && g_copyMaeContrato > 0)
+            v = m.vol * g_copyMaeContrato / cF * InpCopyLoteValor;
+         else
+            v = m.vol * InpCopyLoteValor;
+         break;
+      }
+      case COPY_LOTE_RISCO:
+      {
+         double preco = compraF ? g_tickAsk : g_tickBid;
+         double perda = 0;
+         if(slF > 0 && OrderCalcProfit(compraF ? ORDER_TYPE_BUY : ORDER_TYPE_SELL, _Symbol, 1.0, preco, slF, perda) && perda < 0)
+            v = AccountInfoDouble(ACCOUNT_BALANCE) * InpCopyLoteValor / 100.0 / (-perda);
+         else
+         {
+            v = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
+            PrintFormat("Scalper Pro copiador FILHA: lote por risco sem SL valido, usando lote minimo %.2f", v);
+         }
+         break;
+      }
+      default:
+         v = m.vol * InpCopyLoteValor;
+   }
+
+   if(InpCopyLoteMax > 0 && v > InpCopyLoteMax) v = InpCopyLoteMax;
+   double nv = NormalizeVol(v);
+   if(nv <= 0) nv = NormalizeVol(SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN));
+   return nv;
+}
+
+// SL/TP que a copia deve ter. offset = bid filha - bid mae no momento da copia.
+void CopyFilha_NiveisDesejados(const SCopyPosMae &m, const bool compraF, const double openF,
+                               const double offset, double &sl, double &tp)
+{
+   sl = 0;
+   tp = 0;
+   double mSL = m.sl, mTP = m.tp;
+   if(InpCopyInverter) { double x = mSL; mSL = mTP; mTP = x; }
+
+   if(InpCopySLTPModo == COPY_SLTP_PRECO_AJUST)
+   {
+      if(mSL > 0) sl = mSL + offset;
+      if(mTP > 0) tp = mTP + offset;
+   }
+   else if(InpCopySLTPModo == COPY_SLTP_DISTANCIA)
+   {
+      if(mSL > 0) sl = openF + (mSL - m.open);
+      if(mTP > 0) tp = openF + (mTP - m.open);
+   }
+
+   if(sl <= 0 && InpCopySLEmergPts > 0 && InpCopySLTPModo != COPY_SLTP_LOCAL)
+   {
+      double d = InpCopySLEmergPts * ObterPontoPreco();
+      sl = compraF ? openF - d : openF + d;
+   }
+
+   sl = (sl > 0) ? NormalizeDouble(sl, _Digits) : 0;
+   tp = (tp > 0) ? NormalizeDouble(tp, _Digits) : 0;
+}
+
+bool CopyFilha_NivelAtingido(const bool compraF, const double sl, const double tp)
+{
+   double px = compraF ? g_tickBid : g_tickAsk;
+   if(px <= 0) return false;
+   if(sl > 0 && (compraF ? px <= sl : px >= sl)) return true;
+   if(tp > 0 && (compraF ? px >= tp : px <= tp)) return true;
+   return false;
+}
+
+void CopyFilha_Fechar(const ulong tkt, const string motivo)
+{
+   if(CopyFilha_FalhaRecente(tkt)) return;
+   ulong t0 = GetTickCount64();
+   if(g_copyTrade.PositionClose(tkt))
+      PrintFormat("Scalper Pro copiador FILHA: copia #%I64u fechada (%s) em %I64u ms", tkt, motivo, GetTickCount64() - t0);
+   else
+   {
+      CopyFilha_RegistrarFalha(tkt);
+      PrintFormat("Scalper Pro copiador FILHA: falha ao fechar #%I64u (%s) ret=%u", tkt, motivo, g_copyTrade.ResultRetcode());
+   }
+}
+
+void CopyFilha_FecharTodas(const string motivo)
+{
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong t = PositionGetTicket(i);
+      if(t == 0 || !PositionSelectByTicket(t)) continue;
+      if(PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+      if(CopyFilha_IdMaeSelecionada(t) == 0) continue;
+      CopyFilha_Fechar(t, motivo);
+   }
+}
+
+// Confere uma copia existente contra a posicao da mae: direcao, volume e SL/TP.
+void CopyFilha_Sincronizar(const ulong t, const SCopyPosMae &m)
+{
+   if(!PositionSelectByTicket(t)) return;
+
+   bool   compraF = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY);
+   double volF    = PositionGetDouble(POSITION_VOLUME);
+   double openF   = PositionGetDouble(POSITION_PRICE_OPEN);
+   double slAtual = PositionGetDouble(POSITION_SL);
+   double tpAtual = PositionGetDouble(POSITION_TP);
+
+   bool compraEsperada = InpCopyInverter ? !m.compra : m.compra;
+   if(compraF != compraEsperada)
+   {
+      // Conta netting: a mae virou a mao. Fecha e libera a nova copia.
+      CopyFilha_Fechar(t, "mae inverteu a posicao");
+      GlobalVariableDel(CopyGvX(m.id));
+      return;
+   }
+
+   // Referencias ausentes (ex.: ticket nao resolvido na abertura, EA reiniciado)
+   if(!GlobalVariableCheck(CopyGvM(t)))  GlobalVariableSet(CopyGvM(t), (double)m.id);
+   if(!GlobalVariableCheck(CopyGvMV(t))) GlobalVariableSet(CopyGvMV(t), m.vol);
+   if(!GlobalVariableCheck(CopyGvSV(t))) GlobalVariableSet(CopyGvSV(t), volF);
+   if(!GlobalVariableCheck(CopyGvOF(t)))
+      GlobalVariableSet(CopyGvOF(t), (g_copyMaeBid > 0 && g_tickBid > 0) ? g_tickBid - g_copyMaeBid : 0.0);
+
+   // Parcial na mae -> reduz a copia na mesma proporcao
+   double mv0 = GlobalVariableGet(CopyGvMV(t));
+   double sv0 = GlobalVariableGet(CopyGvSV(t));
+   if(mv0 > 0 && m.vol < mv0 - VOL_EPSILON)
+   {
+      double alvo   = CopyArredondarVol(sv0 * m.vol / mv0);
+      double fechar = CopyArredondarVol(volF - alvo);
+      if(fechar >= LotStep() - VOL_EPSILON)
+      {
+         if(alvo < SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN) - VOL_EPSILON)
+            CopyFilha_Fechar(t, "parcial da mae abaixo do lote minimo");
+         else if(!CopyFilha_FalhaRecente(t))
+         {
+            if(g_copyTrade.PositionClosePartial(t, fechar))
+               PrintFormat("Scalper Pro copiador FILHA: parcial #%I64u -%.2f (mae %.2f/%.2f)", t, fechar, m.vol, mv0);
+            else
+            {
+               CopyFilha_RegistrarFalha(t);
+               PrintFormat("Scalper Pro copiador FILHA: falha parcial #%I64u ret=%u", t, g_copyTrade.ResultRetcode());
+            }
+         }
+         return;
+      }
+   }
+
+   if(InpCopySLTPModo == COPY_SLTP_LOCAL) return;
+
+   double sl = 0, tp = 0;
+   CopyFilha_NiveisDesejados(m, compraF, openF, GlobalVariableGet(CopyGvOF(t)), sl, tp);
+
+   // Nivel da mae ja atingido no preco da filha: a filha sai junto.
+   if(CopyFilha_NivelAtingido(compraF, sl, tp))
+   {
+      CopyFilha_Fechar(t, "nivel de SL/TP da mae atingido");
+      return;
+   }
+
+   double tol = _Point * 0.5;
+   if(MathAbs(sl - slAtual) <= tol && MathAbs(tp - tpAtual) <= tol) return;
+
+   double slV = sl, tpV = tp;
+   ValidarSLTPBroker(compraF, slV, tpV);
+   if(MathAbs(slV - slAtual) <= tol && MathAbs(tpV - tpAtual) <= tol) return;
+   if(CopyFilha_FalhaRecente(t)) return;
+
+   g_eaAtualizandoNiveis = true;
+   bool ok = g_copyTrade.PositionModify(t, slV, tpV);
+   g_eaAtualizandoNiveis = false;
+   if(ok)
+   {
+      GravarReferenciasNiveisEA(t, slV, tpV);
+      if(InpLogDetalhado)
+         PrintFormat("Scalper Pro copiador FILHA: #%I64u SL=%s TP=%s", t,
+                     DoubleToString(slV, _Digits), DoubleToString(tpV, _Digits));
+   }
+   else
+   {
+      CopyFilha_RegistrarFalha(t);
+      PrintFormat("Scalper Pro copiador FILHA: falha SL/TP #%I64u ret=%u", t, g_copyTrade.ResultRetcode());
+   }
+}
+
+ulong CopyFilha_TicketAberto(const ulong ordem, const ulong idMae)
+{
+   if(ordem > 0 && PositionSelectByTicket(ordem)) return ordem;
+   string cm = CopyComentario(idMae);
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong t = PositionGetTicket(i);
+      if(t == 0 || !PositionSelectByTicket(t)) continue;
+      if(PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+      if(PositionGetInteger(POSITION_MAGIC) != InpCopyMagic) continue;
+      if(PositionGetString(POSITION_COMMENT) == cm) return t;
+   }
+   return 0;
+}
+
+// Ordem a mercado ja com SL/TP; o ajuste fino pelo preco real de entrada
+// acontece no proximo ciclo (CopyFilha_Sincronizar).
+void CopyFilha_Abrir(const SCopyPosMae &m)
+{
+   bool   compraF = InpCopyInverter ? !m.compra : m.compra;
+   double precoF  = compraF ? g_tickAsk : g_tickBid;
+   if(precoF <= 0) return;
+   double offset  = (g_copyMaeBid > 0) ? g_tickBid - g_copyMaeBid : 0.0;
+
+   double sl = 0, tp = 0;
+   if(InpCopySLTPModo == COPY_SLTP_LOCAL)
+      CalcularSLTPMercado(compraF, sl, tp);
+   else
+   {
+      CopyFilha_NiveisDesejados(m, compraF, precoF, offset, sl, tp);
+      if(CopyFilha_NivelAtingido(compraF, sl, tp))
+      {
+         GlobalVariableSet(CopyGvX(m.id), 1.0);
+         PrintFormat("Scalper Pro copiador FILHA: mae #%I64u nao copiada, SL/TP ja atingido no preco da filha", m.id);
+         return;
+      }
+   }
+   ValidarSLTPBroker(compraF, sl, tp);
+
+   double lote = CopyFilha_Lote(m, compraF, sl);
+   if(lote <= 0)
+   {
+      GlobalVariableSet(CopyGvX(m.id), 1.0);
+      PrintFormat("Scalper Pro copiador FILHA: mae #%I64u nao copiada, lote invalido", m.id);
+      return;
+   }
+
+   string cm = CopyComentario(m.id);
+   ulong  t0 = GetTickCount64();
+   bool ok = compraF ? g_copyTrade.Buy(lote, _Symbol, 0, sl, tp, cm)
+                     : g_copyTrade.Sell(lote, _Symbol, 0, sl, tp, cm);
+   uint rc = g_copyTrade.ResultRetcode();
+   ulong t1 = GetTickCount64();
+
+   if(!ok || (rc != TRADE_RETCODE_DONE && rc != TRADE_RETCODE_DONE_PARTIAL && rc != TRADE_RETCODE_PLACED))
+   {
+      PrintFormat("Scalper Pro copiador FILHA: falha ao copiar mae #%I64u ret=%u %s", m.id, rc, g_copyTrade.ResultRetcodeDescription());
+      CopyFilha_RegistrarTentativa(m.id);
+      return;
+   }
+
+   GlobalVariableSet(CopyGvX(m.id), 1.0);
+   ulong tkt = CopyFilha_TicketAberto(g_copyTrade.ResultOrder(), m.id);
+   if(tkt > 0)
+   {
+      GlobalVariableSet(CopyGvM(tkt), (double)m.id);
+      GlobalVariableSet(CopyGvMV(tkt), m.vol);
+      GlobalVariableSet(CopyGvSV(tkt), lote);
+      GlobalVariableSet(CopyGvOF(tkt), offset);
+   }
+
+   PrintFormat("Scalper Pro copiador FILHA: %s %.2f %s copiando mae #%I64u (%s %.2f) | execucao %I64u ms | desde gravacao da mae %I64u ms | dif. cotacao %s",
+               compraF ? "BUY" : "SELL", lote, _Symbol, m.id, g_copyMaeSimbolo, m.vol,
+               t1 - t0, (t1 > g_copyMaeTickMs) ? t1 - g_copyMaeTickMs : 0,
+               DoubleToString(offset, _Digits));
+}
+
+void CopyFilha_LimparGVs()
+{
+   int total = GlobalVariablesTotal();
+   int lenPref = StringLen(g_copyGv);
+   for(int i = total - 1; i >= 0; i--)
+   {
+      string nm = GlobalVariableName(i);
+      if(StringFind(nm, g_copyGv) != 0) continue;
+      string resto = StringSubstr(nm, lenPref);
+      int p = StringFind(resto, "_");
+      if(p <= 0) continue;
+      string tipo = StringSubstr(resto, 0, p);
+      ulong  id   = (ulong)StringToInteger(StringSubstr(resto, p + 1));
+      if(tipo == "X")
+      {
+         if(CopyFilha_IndiceMae(id) < 0) GlobalVariableDel(nm);
+      }
+      else if(!PositionSelectByTicket(id))
+         GlobalVariableDel(nm);
+   }
+
+   // Tentativas / falhas de posicoes que nao existem mais
+   for(int i = ArraySize(g_copyTent) - 1; i >= 0; i--)
+      if(CopyFilha_IndiceMae(g_copyTent[i].idMae) < 0)
+         ArrayRemove(g_copyTent, i, 1);
+   for(int i = ArraySize(g_copyMod) - 1; i >= 0; i--)
+      if(!PositionSelectByTicket(g_copyMod[i].tkt))
+         ArrayRemove(g_copyMod, i, 1);
+}
+
+void CopyFilha_Processar()
+{
+   if(g_copyModoEf != COPY_FILHA) return;
+
+   bool leu = CopyFilha_LerArquivo();
+   if(!g_copyMaeValida) return;
+
+   if(g_copyMaeLogin == AccountInfoInteger(ACCOUNT_LOGIN))
+   {
+      static bool s_avisou = false;
+      if(!s_avisou)
+         Print("Scalper Pro copiador FILHA: o arquivo do canal e desta mesma conta; copia ignorada. Use outro canal.");
+      s_avisou = true;
+      return;
+   }
+
+   ulong agora = GetTickCount64();
+   ulong idadeArqMs = (agora > g_copyMaeTickMs) ? agora - g_copyMaeTickMs : 0;
+
+   if(InpCopyMaeOfflineSeg > 0 && idadeArqMs > (ulong)InpCopyMaeOfflineSeg * 1000)
+   {
+      if(!g_copyOfflineFechou)
+      {
+         PrintFormat("Scalper Pro copiador FILHA: mae sem sinal ha %I64u ms, fechando copias", idadeArqMs);
+         g_copyOfflineFechou = true;
+      }
+      CopyFilha_FecharTodas("mae offline");
+      return;
+   }
+   g_copyOfflineFechou = false;
+
+   AtualizarCacheCotacao();
+
+   // 1) Copias existentes: fecha as orfas, sincroniza as demais
+   bool copiado[];
+   ArrayResize(copiado, g_copyMaeN);
+   for(int k = 0; k < g_copyMaeN; k++) copiado[k] = false;
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong t = PositionGetTicket(i);
+      if(t == 0 || !PositionSelectByTicket(t)) continue;
+      if(PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+      ulong idMae = CopyFilha_IdMaeSelecionada(t);
+      if(idMae == 0) continue;
+
+      int k = CopyFilha_IndiceMae(idMae);
+      if(k < 0)
+      {
+         CopyFilha_Fechar(t, "mae fechou");
+         continue;
+      }
+      copiado[k] = true;
+      CopyFilha_Sincronizar(t, g_copyMaePos[k]);
+   }
+
+   // 2) Posicoes da mae ainda nao copiadas (X = ja tratada; nao reabre apos stop na filha)
+   for(int k = 0; k < g_copyMaeN; k++)
+   {
+      if(copiado[k]) continue;
+      ulong idMae = g_copyMaePos[k].id;
+      if(GlobalVariableCheck(CopyGvX(idMae))) continue;
+      if(idadeArqMs > (ulong)COPY_MAE_VELHA_MS) continue;
+
+      if(InpCopyIdadeMaxSeg > 0 && g_copyMaePos[k].idadeSeg > InpCopyIdadeMaxSeg)
+      {
+         GlobalVariableSet(CopyGvX(idMae), 1.0);
+         PrintFormat("Scalper Pro copiador FILHA: mae #%I64u aberta ha %I64d s, nao copiada (limite %d s)",
+                     idMae, g_copyMaePos[k].idadeSeg, InpCopyIdadeMaxSeg);
+         continue;
+      }
+
+      if(!TradingPermitido() || !PodeOperarRapido())
+      {
+         static ulong s_ultAviso = 0;
+         if(agora - s_ultAviso > 5000)
+         {
+            Print("Scalper Pro copiador FILHA: entrada da mae aguardando (trading bloqueado ou limite do dia)");
+            s_ultAviso = agora;
+         }
+         continue;
+      }
+
+      if(!CopyFilha_TentativaLiberada(idMae)) continue;
+      CopyFilha_Abrir(g_copyMaePos[k]);
+   }
+
+   // 3) Limpeza das referencias
+   if(leu && agora - g_copyUltLimpezaMs > (ulong)COPY_LIMPEZA_MS)
+   {
+      CopyFilha_LimparGVs();
+      g_copyUltLimpezaMs = agora;
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Integracao                                                       |
+//+------------------------------------------------------------------+
+bool CopyInit()
+{
+   g_copyModoEf = InpCopyModo;
+   if(MQLInfoInteger(MQL_TESTER)) g_copyModoEf = COPY_DESLIGADO;
+   if(g_copyModoEf == COPY_DESLIGADO) return true;
+
+   if(g_copyModoEf == COPY_FILHA && InpCopyMagic <= 0)
+   {
+      Print("Scalper Pro copiador: magic das ordens copiadas deve ser maior que 0 (o EA usa magic 0 nas ordens proprias).");
+      g_copyModoEf = COPY_DESLIGADO;
+      return false;
+   }
+
+   g_copyCanal         = CopySanitizarCanal(InpCopyCanal);
+   g_copyArquivo       = "SP_Copy_" + g_copyCanal + ".txt";
+   g_copyGv            = "SPCPY_" + g_copyCanal + "_";
+   g_copyMaeUltEstado  = "";
+   g_copyMaeUltEnvioMs = 0;
+   g_copyMaeSeqLida    = -1;
+   g_copyMaeTickMs     = 0;
+   g_copyMaeValida     = false;
+   g_copyMaeN          = 0;
+   g_copyOfflineFechou = false;
+   g_copyTimerLegadoMs = 0;
+
+   g_copyTrade.SetExpertMagicNumber((ulong)InpCopyMagic);
+   g_copyTrade.SetDeviationInPoints((ulong)MathMax(0, InpCopyDesvioPts));
+   g_copyTrade.SetAsyncMode(false);
+   g_copyTrade.SetTypeFilling(ObterFilling(_Symbol));
+   g_copyTrade.LogLevel(LOG_LEVEL_ERRORS);
+
+   if(g_copyModoEf == COPY_MAE)
+   {
+      PrintFormat("Scalper Pro copiador: MAE ativa | canal=%s | arquivo=Common\\Files\\%s | simbolo=%s | conta=%I64d",
+                  g_copyCanal, g_copyArquivo, _Symbol, AccountInfoInteger(ACCOUNT_LOGIN));
+      CopyMae_Publicar(true);
+   }
+   else
+      PrintFormat("Scalper Pro copiador: FILHA ativa | canal=%s | simbolo=%s | magic=%I64d | lote=%s %.2f | SL/TP=%s",
+                  g_copyCanal, _Symbol, InpCopyMagic, EnumToString(InpCopyLoteModo), InpCopyLoteValor,
+                  EnumToString(InpCopySLTPModo));
+   return true;
+}
+
+void CopyTimer()
+{
+   if(g_copyModoEf == COPY_MAE)        CopyMae_Publicar(false);
+   else if(g_copyModoEf == COPY_FILHA) CopyFilha_Processar();
+}
+
+//+------------------------------------------------------------------+
 int OnInit()
 {
    ConfigurarTrade();
+   if(!CopyInit())
+      return INIT_PARAMETERS_INCORRECT;
    CarregarParametrosEntrada();
 
    RemoverQuadroMensagem();
@@ -7223,7 +8055,7 @@ int OnInit()
    CancelarEdicaoCampoAtiva();
    CriarPainel();
    if(ObjectFind(0, "SP_VER") >= 0)
-      ObjectSetString(0, "SP_VER", OBJPROP_TEXT, "v" + SP_EA_VERSAO);
+      ObjectSetString(0, "SP_VER", OBJPROP_TEXT, "v" + SP_EA_VERSAO + CopyTextoModo());
    AplicarPerfilAoPainel();
    CriarObjetoTimer();
    CarregarContadorOperacoes();
@@ -7242,7 +8074,11 @@ int OnInit()
       Status(SP_MSG_BLOQUEADO, C_STATUS_ERR, true, true);
    else
       SincronizarStatusImpedimento();
-   EventSetTimer(1);
+   // Copiador ativo: timer em ms; as rotinas de 1 s continuam a cada 1 s (OnTimer).
+   if(g_copyModoEf != COPY_DESLIGADO)
+      EventSetMillisecondTimer(MathMax(10, InpCopyIntervaloMs));
+   else
+      EventSetTimer(1);
    AtualizarSpread();
    return INIT_SUCCEEDED;
 }
@@ -7300,7 +8136,7 @@ void OnTick()
    ulong posTkt = TicketPosicaoSimbolo();
    bool  temPos = (posTkt > 0);
 
-   if(temPos)
+   if(temPos && !CopyFilha_GerenciaTicket(posTkt))
    {
       TrailingStop(posTkt);
       if(perfAtivo)
@@ -7428,6 +8264,14 @@ void OnTick()
 
 void OnTimer()
 {
+   if(g_copyModoEf != COPY_DESLIGADO)
+   {
+      CopyTimer();
+      ulong agoraMs = GetTickCount64();
+      if(agoraMs - g_copyTimerLegadoMs < 1000) return;
+      g_copyTimerLegadoMs = agoraMs;
+   }
+
    ProcessarResetStatusGeralAgendado();
    SincronizarStatusImpedimento();
    ProcessarResetPontosOperacaoAgendado();
