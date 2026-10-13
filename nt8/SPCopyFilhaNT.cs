@@ -1,5 +1,5 @@
 // ============================================================================
-//  SP Copy Filha NT8 v1.1  -  filha NinjaTrader 8 do copiador Scalper Pro (MT5)
+//  SP Copy Filha NT8 v1.2  -  filha NinjaTrader 8 do copiador Scalper Pro (MT5)
 // ----------------------------------------------------------------------------
 //  Le o arquivo de estado que a MAE (Scalper Pro, modo Mae) grava em
 //  %APPDATA%\MetaQuotes\Terminal\Common\Files\SP_Copy_<canal>.txt e replica
@@ -82,6 +82,15 @@ namespace NinjaTrader.NinjaScript.Strategies
         private Order  ordemFechamento;     // ordem a mercado enviada para fechar a copia
         private readonly object lockBracket = new object();
         private static readonly object lockArqLog = new object();
+
+        // --- Central de Controle (SPCentral)
+        private const int CENTRAL_VELHA_MS = 10000;
+        private int    centralEstado;       // 0 livre, 1 bloqueia novas, 2 zerar
+        private int    centralEstadoAnt;
+        private string centralMotivo = "";
+        private ulong  centralLidoMs;
+        private ulong  centralUltOkMs;
+        private ulong  centralStatusMs;
         private readonly HashSet<ulong> tratados = new HashSet<ulong>();   // ids da mae ja copiados/ignorados
         private readonly Dictionary<ulong, int>   tentN  = new Dictionary<ulong, int>();
         private readonly Dictionary<ulong, ulong> tentMs = new Dictionary<ulong, ulong>();
@@ -240,6 +249,31 @@ namespace NinjaTrader.NinjaScript.Strategies
         {
             bool leu = LerArquivoMae();
             GravarAck();
+
+            int    qtdFilha;
+            bool   compraFilha;
+            bool   temPos = PosicaoFilha(out qtdFilha, out compraFilha);
+
+            // 0) Central de Controle
+            CentralLer();
+            CentralGravarStatus(temPos ? 1 : 0);
+            if (centralEstado != centralEstadoAnt)
+            {
+                Imprimir(centralEstado == 0 ? "CENTRAL: liberado"
+                    : string.Format("CENTRAL: {0} | {1}", centralEstado == 2 ? "ZERAR" : "BLOQUEADO", centralMotivo));
+                centralEstadoAnt = centralEstado;
+            }
+            if (centralEstado == 2)
+            {
+                if (temPos)
+                    Fechar("central: " + centralMotivo, qtdFilha, compraFilha);
+                else if (copiaIdMae != 0 && !entradaPendente)
+                    LimparCopia();
+                else if (copiaIdMae == 0)
+                    fechamentoEnvioMs = 0;
+                return;
+            }
+
             if (!maeValida)
             {
                 Avisar("aguardando arquivo da mae " + Path.Combine(pastaCommon, ArquivoMae()));
@@ -263,10 +297,6 @@ namespace NinjaTrader.NinjaScript.Strategies
                     : string.Format("arquivo da mae sem atualizacao ha {0} ms (mae offline ou EA parado). Novas entradas suspensas.", idadeArq));
                 maeOnline = online;
             }
-
-            int    qtdFilha;
-            bool   compraFilha;
-            bool   temPos = PosicaoFilha(out qtdFilha, out compraFilha);
 
             // 1) Copia em andamento
             if (copiaIdMae != 0)
@@ -608,7 +638,77 @@ namespace NinjaTrader.NinjaScript.Strategies
                 return false;
             }
             if (!configOk) { motivo = "SL/TP nao configurado"; return false; }
+            if (centralEstado != 0) { motivo = "central: " + centralMotivo; return false; }
             return true;
+        }
+
+        // ------------------------------------------------------------------
+        //  Central de Controle: mesmo protocolo lido pelo Scalper Pro
+        // ------------------------------------------------------------------
+        private string IdCentral() { return "NT-" + SanitizarNome(Account.Name); }
+
+        private void CentralLer()
+        {
+            ulong agora = GetTickCount64();
+            if (centralLidoMs > 0 && agora - centralLidoMs < 250) return;
+            centralLidoMs = agora;
+
+            if (!File.Exists(Path.Combine(pastaCommon, "SP_Central_Ativa.txt")))
+            {
+                centralEstado = 0;
+                centralMotivo = "";
+                return;
+            }
+
+            int estado = 1;
+            string motivo = "central offline";
+            bool lido = false;
+            try
+            {
+                string[] linhas = LerTexto(Path.Combine(pastaCommon, "SP_Central_Cmd.txt")).Split('\n');
+                string[] c = linhas[0].Trim().Split('|');
+                if (c.Length >= 5 && c[0] == "CMD")
+                {
+                    lido = true;
+                    ulong tk = (ulong)ParseLong(c[2]);
+                    if (tk > 0 && (agora <= tk || agora - tk <= CENTRAL_VELHA_MS))
+                    {
+                        centralUltOkMs = agora;
+                        motivo = c[4];
+                        estado = c[3] == "LIVRE" ? 0 : (c[3] == "ZERAR" ? 2 : 1);
+                        for (int i = 1; i < linhas.Length; i++)
+                            if (linhas[i].Trim() == "Z|" + IdCentral())
+                            {
+                                estado = 2;
+                                motivo = "divergencia com a conta mae";
+                            }
+                    }
+                }
+            }
+            catch (Exception) { }
+
+            if (!lido && centralUltOkMs > 0 && agora - centralUltOkMs < CENTRAL_VELHA_MS) return;
+            centralEstado = estado;
+            centralMotivo = estado == 0 ? "" : motivo;
+        }
+
+        private void CentralGravarStatus(int nPos)
+        {
+            ulong agora = GetTickCount64();
+            if (centralStatusMs > 0 && agora - centralStatusMs < 1000) return;
+            centralStatusMs = agora;
+            long epochLocal = (long)(DateTime.Now - new DateTime(1970, 1, 1)).TotalSeconds;
+            string txt = string.Format("ST|1|{0}|{1}|{2}|FILHA|{3}|0|{4}\r\n", agora, IdCentral(), Instrument.FullName, nPos, epochLocal);
+            try
+            {
+                string caminho = Path.Combine(pastaCommon, "SP_Central_St_" + IdCentral() + "_" + SanitizarNome(Instrument.FullName) + ".txt");
+                using (FileStream fs = new FileStream(caminho, FileMode.Create, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
+                {
+                    byte[] b = Encoding.ASCII.GetBytes(txt);
+                    fs.Write(b, 0, b.Length);
+                }
+            }
+            catch (Exception) { }
         }
 
         private void LimparCopia()

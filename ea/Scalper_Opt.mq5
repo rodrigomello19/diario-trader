@@ -1,13 +1,13 @@
 //+------------------------------------------------------------------+
-//|                     SCALPER PRO v5.86 - MT5                       |
+//|                     SCALPER PRO v5.87 - MT5                       |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, Scalper Pro"
-#property version       "5.86"
+#property version       "5.87"
 #property strict
 
 #include <Trade/Trade.mqh>
 
-const string SP_EA_VERSAO = "5.86";
+const string SP_EA_VERSAO = "5.87";
 
 CTrade trade;
 
@@ -521,6 +521,36 @@ bool           g_copyMaeErroGrav   = false;
 int            g_copyFilhasN       = 0;
 int            g_copyFilhasProntas = 0;
 ulong          g_copyFilhasLidoMs  = 0;
+//+------------------------------------------------------------------+
+//| Central de Controle (SPCentral) - integracao                     |
+//| A central (programa Windows) grava em Common\Files:              |
+//|  SP_Central_Ativa.txt  -> existe = este EA obedece a central     |
+//|  SP_Central_Cmd.txt    -> CMD|1|tickMs|ESTADO|motivo|ate         |
+//|                           Z|<conta>  (zerar so esta conta)       |
+//|  ESTADO: LIVRE / BLOQ (sem novas entradas) / ZERAR (fecha tudo)  |
+//| Com a marca presente e o comando ausente ou parado ha mais de    |
+//| 10 s (central fechada), o EA bloqueia novas entradas.            |
+//| Este EA grava para a central:                                    |
+//|  SP_Central_St_<conta>_<simbolo>.txt  (estado a cada 1 s)        |
+//|  SP_Central_Tr_<conta>.txt            (uma linha por operacao)   |
+//+------------------------------------------------------------------+
+const string CENTRAL_MARCA      = "SP_Central_Ativa.txt";
+const string CENTRAL_CMD        = "SP_Central_Cmd.txt";
+const int    CENTRAL_VELHA_MS   = 10000;
+const int    CENTRAL_LEITURA_MS = 250;
+
+#define CENTRAL_LIVRE 0
+#define CENTRAL_BLOQ  1
+#define CENTRAL_ZERAR 2
+
+int    g_centralEstado      = CENTRAL_LIVRE;
+int    g_centralEstadoAnt   = CENTRAL_LIVRE;
+string g_centralMotivo      = "";
+ulong  g_centralLidoMs      = 0;
+ulong  g_centralUltOkMs     = 0;
+ulong  g_centralStatusMs    = 0;
+ulong  g_centralZerarMs     = 0;
+
 // indicador no painel
 const string   OBJ_COPY_STATUS     = "SP_COPY_ST";
 const string   OBJ_COPY_STRIP      = "SP_COPY_STRIP";
@@ -617,6 +647,9 @@ bool     CopyFilha_GerenciaSelecionada();
 bool     CopyFilha_GerenciaTicket(const ulong t);
 bool     CopyFilha_GerenciaDeal(const ulong dealTkt);
 void     CopyMae_Publicar(const bool forcar);
+bool     Central_BloqueiaNovas();
+string   Central_TextoStatus();
+void     Central_RegistrarTrade(const ulong posId, const double pts);
 void     InicializarReferenciasNiveis(ulong posTkt);
 void     GravarReferenciasNiveisEA(ulong posTkt, double sl, double tp);
 bool     ModificarNiveisPosicaoEA(ulong posTkt, double sl, double tp);
@@ -1898,6 +1931,7 @@ void ProcessarEstatisticasFechamento(ulong posId, ulong dealFechamento = 0, doub
             " tot=", DoubleToString(ptsDia, 0), " oper=", opsDia);
    }
 
+   Central_RegistrarTrade(posId, pts);
    LimparPrecoEntradaPosicao(posId);
 
    IniciarExibicaoPontosOperacao(pts);
@@ -3660,6 +3694,8 @@ void ReconciliarOperacoesAbertas()
 bool PodeOperarRapido()
 {
    if(g_fechamentoAgendado || g_limiteBloqueadoDia || g_painelBloqueado)
+      return false;
+   if(Central_BloqueiaNovas())
       return false;
 
    if(g_limMaxOperacoes <= 0 && g_limPtsPos <= 0 && g_limPtsNeg <= 0)
@@ -5661,6 +5697,12 @@ void AplicarTextoStatusUI(const string texto, const color cor)
 
 bool ObterStatusImpedimento(string &texto, color &cor)
 {
+   if(g_centralEstado != CENTRAL_LIVRE)
+   {
+      texto = Central_TextoStatus();
+      cor = C_STATUS_ERR;
+      return true;
+   }
    if(g_fechamentoAgendado)
    {
       texto = SP_MSG_FECHANDO;
@@ -8349,6 +8391,166 @@ void CopyTimer()
 }
 
 //+------------------------------------------------------------------+
+//| Central de Controle - funcoes                                    |
+//+------------------------------------------------------------------+
+string CentralIdConta() { return IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)); }
+
+void Central_Ler()
+{
+   ulong agora = GetTickCount64();
+   if(g_centralLidoMs > 0 && agora - g_centralLidoMs < (ulong)CENTRAL_LEITURA_MS) return;
+   g_centralLidoMs = agora;
+
+   if(MQLInfoInteger(MQL_TESTER) || !FileIsExist(CENTRAL_MARCA, FILE_COMMON))
+   {
+      g_centralEstado = CENTRAL_LIVRE;
+      g_centralMotivo = "";
+      return;
+   }
+
+   int    estado = CENTRAL_BLOQ;
+   string motivo = "central offline";
+   bool   lido   = false;
+   int h = FileOpen(CENTRAL_CMD, FILE_READ|FILE_BIN|FILE_ANSI|FILE_COMMON|FILE_SHARE_READ|FILE_SHARE_WRITE);
+   if(h != INVALID_HANDLE)
+   {
+      int sz = (int)FileSize(h);
+      string txt = (sz > 0) ? FileReadString(h, sz) : "";
+      FileClose(h);
+      string linhas[];
+      int nl = StringSplit(txt, '\n', linhas);
+      string c[];
+      if(nl > 0)
+      {
+         string l0 = linhas[0];
+         StringTrimRight(l0);
+         if(StringSplit(l0, '|', c) >= 5 && c[0] == "CMD")
+         {
+            lido = true;
+            ulong tk = (ulong)StringToInteger(c[2]);
+            if(tk > 0 && (agora <= tk || agora - tk <= (ulong)CENTRAL_VELHA_MS))
+            {
+               g_centralUltOkMs = agora;
+               motivo = c[4];
+               if(c[3] == "LIVRE")      estado = CENTRAL_LIVRE;
+               else if(c[3] == "ZERAR") estado = CENTRAL_ZERAR;
+               else                     estado = CENTRAL_BLOQ;
+
+               string meu = "Z|" + CentralIdConta();
+               for(int i = 1; i < nl; i++)
+               {
+                  string l = linhas[i];
+                  StringTrimRight(l);
+                  if(l == meu) { estado = CENTRAL_ZERAR; motivo = "divergencia com a conta mae"; }
+               }
+            }
+         }
+      }
+   }
+   // Leitura falhou ou pegou o arquivo no meio da regravacao: mantem o ultimo estado
+   // enquanto a ultima leitura valida for recente.
+   if(!lido && g_centralUltOkMs > 0 && agora - g_centralUltOkMs < (ulong)CENTRAL_VELHA_MS)
+      return;
+   g_centralEstado = estado;
+   g_centralMotivo = (estado == CENTRAL_LIVRE) ? "" : motivo;
+}
+
+bool Central_BloqueiaNovas()
+{
+   Central_Ler();
+   return g_centralEstado != CENTRAL_LIVRE;
+}
+
+string Central_TextoStatus()
+{
+   if(g_centralEstado == CENTRAL_ZERAR) return "CENTRAL: ZERANDO (" + g_centralMotivo + ")";
+   return "CENTRAL: BLOQUEADO (" + g_centralMotivo + ")";
+}
+
+// Uma linha por operacao encerrada; a central soma as do dia da conta mae.
+void Central_RegistrarTrade(const ulong posId, const double pts)
+{
+   if(MQLInfoInteger(MQL_TESTER)) return;
+   string arq = "SP_Central_Tr_" + CentralIdConta() + ".txt";
+   int h = FileOpen(arq, FILE_READ|FILE_WRITE|FILE_BIN|FILE_ANSI|FILE_COMMON|FILE_SHARE_READ|FILE_SHARE_WRITE);
+   if(h == INVALID_HANDLE) return;
+   FileSeek(h, 0, SEEK_END);
+   string l = "T|" + IntegerToString((long)posId) + "|" + IntegerToString((long)TimeLocal()) + "|"
+            + DoubleToString(pts, 1) + "|" + _Symbol + "\r\n";
+   FileWriteString(h, l, StringLen(l));
+   FileClose(h);
+}
+
+void Central_GravarStatus()
+{
+   if(MQLInfoInteger(MQL_TESTER)) return;
+   ulong agora = GetTickCount64();
+   if(g_centralStatusMs > 0 && agora - g_centralStatusMs < 1000) return;
+   g_centralStatusMs = agora;
+
+   int    nPos = 0;
+   double flut = 0;
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong t = PositionGetTicket(i);
+      if(t == 0 || !PositionSelectByTicket(t)) continue;
+      if(PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+      nPos++;
+      flut += LucroPontosPosicao(t);
+   }
+   string modo = (g_copyModoEf == COPY_MAE) ? "MAE" : (g_copyModoEf == COPY_FILHA ? "FILHA" : "SOLO");
+   string txt = "ST|1|" + IntegerToString((long)agora) + "|" + CentralIdConta() + "|" + _Symbol + "|" + modo + "|"
+              + IntegerToString(nPos) + "|" + DoubleToString(flut, 1) + "|"
+              + IntegerToString((long)TimeLocal()) + "\r\n";
+   int h = FileOpen("SP_Central_St_" + CentralIdConta() + "_" + _Symbol + ".txt",
+                    FILE_WRITE|FILE_BIN|FILE_ANSI|FILE_COMMON|FILE_SHARE_READ|FILE_SHARE_WRITE);
+   if(h == INVALID_HANDLE) return;
+   FileWriteString(h, txt, StringLen(txt));
+   FileClose(h);
+}
+
+// Chamado no timer e no OnTick: aplica o comando da central.
+void Central_Processar()
+{
+   if(MQLInfoInteger(MQL_TESTER)) return;
+   Central_Ler();
+   Central_GravarStatus();
+
+   if(g_centralEstado != g_centralEstadoAnt)
+   {
+      if(g_centralEstado == CENTRAL_LIVRE)
+         Print("Scalper Pro CENTRAL: liberado");
+      else
+      {
+         PrintFormat("Scalper Pro CENTRAL: %s | %s", g_centralEstado == CENTRAL_ZERAR ? "ZERAR" : "BLOQUEADO", g_centralMotivo);
+         // nenhuma entrada nova: desarma J/L e cancela pendentes na corretora
+         if(g_jLinhaArmada) CancelarPendenteLinha(true);
+         if(g_lLinhaArmada) CancelarPendenteLinha(false);
+         ExecutarCancelamentoPendentes();
+      }
+      g_centralEstadoAnt = g_centralEstado;
+      SincronizarStatusImpedimento();
+   }
+
+   if(g_centralEstado == CENTRAL_ZERAR && TemPosicaoNoSimbolo())
+   {
+      ulong agora = GetTickCount64();
+      if(g_centralZerarMs == 0 || agora - g_centralZerarMs >= 1000)
+      {
+         g_centralZerarMs = agora;
+         for(int i = PositionsTotal() - 1; i >= 0; i--)
+         {
+            ulong t = PositionGetTicket(i);
+            if(t == 0 || !PositionSelectByTicket(t)) continue;
+            if(PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+            if(trade.PositionClose(t))
+               PrintFormat("Scalper Pro CENTRAL: posicao #%I64u zerada (%s)", t, g_centralMotivo);
+         }
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
 int OnInit()
 {
    ConfigurarTrade();
@@ -8434,6 +8636,7 @@ void OnTick()
 
    g_onTickSeq++;
    AtualizarCacheCotacao();
+   Central_Processar();
 
    // --- P0: execucao (mercado, pendentes J/L, SL/TP no broker) ---
    ProcessarEntradaAgendada();
@@ -8579,6 +8782,7 @@ void OnTick()
 
 void OnTimer()
 {
+   Central_Processar();
    if(g_copyModoEf != COPY_DESLIGADO)
    {
       CopyTimer();
