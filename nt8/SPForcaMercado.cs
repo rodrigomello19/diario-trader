@@ -1,5 +1,5 @@
 // ============================================================================
-//  SPForcaMercado v1.1 - forca compradora x vendedora, sinais e volatilidade (NT8)
+//  SPForcaMercado v1.2 - forca compradora x vendedora, sinais e volatilidade (NT8)
 // ----------------------------------------------------------------------------
 //  Para futuros (MNQ/NQ, MGC/GC...) no grafico de 1 minuto.
 //
@@ -23,6 +23,10 @@
 //  Cada sinal e testado no historico carregado: alvo X pts antes de stop Y pts
 //  em ate K candles. O painel mostra a taxa de acerto e o numero de casos.
 //
+//  v1.2: barras de delta so para cima (cor = lado), resumo arrastavel com o
+//  mouse, resultado de cada sinal no grafico e arquivo CSV com todos os sinais
+//  em Documentos\NinjaTrader 8\SPForca\.
+//
 //  Historico: precisa de "Tick Replay" ligado no grafico (Data Series >
 //  Tick Replay). Sem ele, o delta comeca a ser contado quando o grafico abre.
 // ============================================================================
@@ -38,6 +42,8 @@ using System.Windows.Media;
 using System.Xml.Serialization;
 using NinjaTrader.Gui;
 using NinjaTrader.Gui.Tools;
+using NinjaTrader.Gui.Chart;
+using System.IO;
 using NinjaTrader.Data;
 using NinjaTrader.NinjaScript.DrawingTools;
 #endregion
@@ -45,7 +51,8 @@ using NinjaTrader.NinjaScript.DrawingTools;
 public enum SPForcaModoGrafico
 {
     DeltaPorCandle,
-    DeltaAcumulado
+    DeltaAcumulado,
+    DeltaColorido      // barras so para cima, verde = compradores, vermelho = vendedores
 }
 
 namespace NinjaTrader.NinjaScript.Indicators
@@ -91,11 +98,30 @@ namespace NinjaTrader.NinjaScript.Indicators
         };
         private class SinalPendente
         {
-            public int    Tipo;
-            public int    Dir;
-            public double Entrada;
-            public int    BarIdx;
+            public int      Tipo;
+            public int      Dir;
+            public double   Entrada;
+            public int      BarIdx;
+            public DateTime HoraNy;
+            public string   Tag;
+            public double   Y;
+            public int      Offset;
+            public string   Campos;     // colunas de caracteristicas para o CSV
+            public double   MaxFavor;
+            public double   MaxContra;
         }
+        private readonly List<string> linhasCsv = new List<string>();
+        private string arquivoCsv = "";
+        private bool   csvGravado;
+        private int    diasComNegocios;
+
+        // resumo desenhado no OnRender (arrastavel)
+        private string textoResumo = "";
+        private Brush  corResumo = Brushes.Gainsboro;
+        private SharpDX.RectangleF retResumo;
+        private bool   mouseLigado, arrastando;
+        private float  arrIniMouseX, arrIniMouseY;
+        private int    arrIniX, arrIniY;
         private readonly List<SinalPendente> pendentes = new List<SinalPendente>();
         private readonly int[] acertos = new int[NTIPOS];
         private readonly int[] erros   = new int[NTIPOS];
@@ -135,6 +161,13 @@ namespace NinjaTrader.NinjaScript.Indicators
         [NinjaScriptProperty]
         [Display(Name = "Mostrar resumo no grafico", GroupName = "2. Exibicao", Order = 3)]
         public bool MostrarResumo { get; set; }
+
+        // posicao do resumo (arrastado com o mouse; salva no workspace/template)
+        [Browsable(false)]
+        public int ResumoX { get; set; }
+
+        [Browsable(false)]
+        public int ResumoY { get; set; }
 
         [NinjaScriptProperty]
         [Display(Name = "Mostrar sinais", GroupName = "3. Sinais", Order = 1)]
@@ -200,7 +233,9 @@ namespace NinjaTrader.NinjaScript.Indicators
                 AberturaNY    = "09:30";
                 JanelaMinutos = 60;
                 DiasMedia     = 20;
-                ModoGrafico   = SPForcaModoGrafico.DeltaPorCandle;
+                ModoGrafico   = SPForcaModoGrafico.DeltaColorido;
+                ResumoX       = 10;
+                ResumoY       = 10;
                 LimiarForte   = 0.25;
                 MostrarResumo = true;
 
@@ -235,7 +270,114 @@ namespace NinjaTrader.NinjaScript.Indicators
                     Plots[0].PlotStyle = PlotStyle.Line;
                     Plots[0].Width     = 2;
                 }
+
+                string pasta = Path.Combine(NinjaTrader.Core.Globals.UserDataDir, "SPForca");
+                arquivoCsv = Path.Combine(pasta, "sinais_" + NomeArquivo(Instrument.FullName) + ".csv");
             }
+            else if (State == State.Historical)
+            {
+                if (ChartControl != null && !mouseLigado)
+                {
+                    mouseLigado = true;
+                    ChartControl.Dispatcher.InvokeAsync(() =>
+                    {
+                        ChartControl.PreviewMouseLeftButtonDown += AoMouseDown;
+                        ChartControl.PreviewMouseMove           += AoMouseMove;
+                        ChartControl.PreviewMouseLeftButtonUp   += AoMouseUp;
+                    });
+                }
+            }
+            else if (State == State.Realtime)
+            {
+                GravarCsvCompleto();
+            }
+            else if (State == State.Terminated)
+            {
+                if (ChartControl != null && mouseLigado)
+                {
+                    mouseLigado = false;
+                    ChartControl.Dispatcher.InvokeAsync(() =>
+                    {
+                        ChartControl.PreviewMouseLeftButtonDown -= AoMouseDown;
+                        ChartControl.PreviewMouseMove           -= AoMouseMove;
+                        ChartControl.PreviewMouseLeftButtonUp   -= AoMouseUp;
+                    });
+                }
+            }
+        }
+
+        // ------------------------------------------------------------------
+        //  Resumo: desenhado no OnRender, arrastavel com o mouse
+        // ------------------------------------------------------------------
+        protected override void OnRender(ChartControl chartControl, ChartScale chartScale)
+        {
+            base.OnRender(chartControl, chartScale);
+            string txt = textoResumo;
+            if (!MostrarResumo || string.IsNullOrEmpty(txt) || RenderTarget == null) return;
+
+            using (SharpDX.DirectWrite.TextFormat formato = new SharpDX.DirectWrite.TextFormat(NinjaTrader.Core.Globals.DirectWriteFactory,
+                       "Consolas", SharpDX.DirectWrite.FontWeight.Normal, SharpDX.DirectWrite.FontStyle.Normal, 13f))
+            using (SharpDX.DirectWrite.TextLayout layout = new SharpDX.DirectWrite.TextLayout(NinjaTrader.Core.Globals.DirectWriteFactory,
+                       txt, formato, 4000f, 4000f))
+            {
+                float w = layout.Metrics.Width + 16f;
+                float h = layout.Metrics.Height + 12f;
+                int maxX = Math.Max(0, ChartPanel.W - 60);
+                int maxY = Math.Max(0, ChartPanel.H - 20);
+                float x = ChartPanel.X + Math.Max(0, Math.Min(ResumoX, maxX));
+                float y = ChartPanel.Y + Math.Max(0, Math.Min(ResumoY, maxY));
+                retResumo = new SharpDX.RectangleF(x, y, w, h);
+
+                using (SharpDX.Direct2D1.SolidColorBrush fundo = new SharpDX.Direct2D1.SolidColorBrush(RenderTarget, new SharpDX.Color4(0f, 0f, 0f, 0.75f)))
+                    RenderTarget.FillRectangle(retResumo, fundo);
+                using (SharpDX.Direct2D1.SolidColorBrush borda = new SharpDX.Direct2D1.SolidColorBrush(RenderTarget, new SharpDX.Color4(0.5f, 0.5f, 0.5f, 0.8f)))
+                    RenderTarget.DrawRectangle(retResumo, borda, 1f);
+                SharpDX.Direct2D1.Brush pincel = corResumo.ToDxBrush(RenderTarget);
+                RenderTarget.DrawTextLayout(new SharpDX.Vector2(x + 8f, y + 6f), layout, pincel);
+                pincel.Dispose();
+            }
+        }
+
+        private bool PosicaoMouse(System.Windows.Input.MouseEventArgs e, out float x, out float y)
+        {
+            x = 0;
+            y = 0;
+            if (ChartControl == null || ChartControl.PresentationSource == null) return false;
+            System.Windows.Point p = e.GetPosition(ChartControl as System.Windows.IInputElement);
+            x = (float)ChartingExtensions.ConvertToHorizontalPixels(p.X, ChartControl.PresentationSource);
+            y = (float)ChartingExtensions.ConvertToVerticalPixels(p.Y, ChartControl.PresentationSource);
+            return true;
+        }
+
+        private void AoMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            float x, y;
+            if (!MostrarResumo || retResumo.Width <= 0 || !PosicaoMouse(e, out x, out y)) return;
+            if (!retResumo.Contains(x, y)) return;
+            arrastando   = true;
+            arrIniMouseX = x;
+            arrIniMouseY = y;
+            arrIniX      = ResumoX;
+            arrIniY      = ResumoY;
+            e.Handled    = true;   // nao arrasta o grafico
+        }
+
+        private void AoMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            float x, y;
+            if (!arrastando || !PosicaoMouse(e, out x, out y)) return;
+            ResumoX = Math.Max(0, arrIniX + (int)(x - arrIniMouseX));
+            ResumoY = Math.Max(0, arrIniY + (int)(y - arrIniMouseY));
+            ChartControl.InvalidateVisual();
+            e.Handled = true;
+        }
+
+        private void AoMouseUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (!arrastando) return;
+            arrastando = false;
+            e.Handled  = true;
+            ChartControl.InvalidateVisual();
         }
 
         // Classifica cada negocio. O volume e aplicado no OnBarUpdate seguinte, que ja
@@ -294,7 +436,7 @@ namespace NinjaTrader.NinjaScript.Indicators
             }
             else
             {
-                Value[0] = delta;
+                Value[0] = ModoGrafico == SPForcaModoGrafico.DeltaColorido ? Math.Abs(delta) : delta;
                 double vol = candleCompra + candleVenda;
                 bool forte = vol > 0 && Math.Abs(delta) / vol >= LimiarForte;
                 PlotBrushes[0][0] = delta >= 0
@@ -391,7 +533,8 @@ namespace NinjaTrader.NinjaScript.Indicators
                 RegistrarSinal(tipo, idx, horaNy, string.Format(new CultureInfo("pt-BR"),
                     "delta {0:+#,##0;-#,##0} (z {1:+0.0;-0.0}), {2:0}% do volume, fechou a {3:0}% do candle{4}",
                     delta, z, 100 * Math.Abs(ratio), 100 * clv,
-                    volMediaMinuto > 0 ? string.Format(new CultureInfo("pt-BR"), ", RVOL {0:0.0}x", rvol) : ""));
+                    volMediaMinuto > 0 ? string.Format(new CultureInfo("pt-BR"), ", RVOL {0:0.0}x", rvol) : ""),
+                    CamposCsv(delta, z, ratio, clv, rvol));
 
             // divergencia: nova maxima/minima de N candles sem o delta acumulado confirmar
             int ini = idx - CandlesDivergencia;
@@ -409,11 +552,13 @@ namespace NinjaTrader.NinjaScript.Indicators
             if (h > Bars.GetHigh(jMax) && cvd < serieAcum.GetValueAt(jMax))
                 RegistrarSinal(5, idx, horaNy, string.Format(new CultureInfo("pt-BR"),
                     "nova maxima de {0} candles com delta acumulado {1:+#,##0;-#,##0} abaixo do topo anterior ({2:+#,##0;-#,##0})",
-                    CandlesDivergencia, cvd, serieAcum.GetValueAt(jMax)));
+                    CandlesDivergencia, cvd, serieAcum.GetValueAt(jMax)),
+                    CamposCsv(delta, z, ratio, clv, rvol));
             else if (l < Bars.GetLow(jMin) && cvd > serieAcum.GetValueAt(jMin))
                 RegistrarSinal(4, idx, horaNy, string.Format(new CultureInfo("pt-BR"),
                     "nova minima de {0} candles com delta acumulado {1:+#,##0;-#,##0} acima do fundo anterior ({2:+#,##0;-#,##0})",
-                    CandlesDivergencia, cvd, serieAcum.GetValueAt(jMin)));
+                    CandlesDivergencia, cvd, serieAcum.GetValueAt(jMin)),
+                    CamposCsv(delta, z, ratio, clv, rvol));
         }
 
         private Brush CorSinal(int tipo)
@@ -428,16 +573,29 @@ namespace NinjaTrader.NinjaScript.Indicators
             }
         }
 
-        private void RegistrarSinal(int tipo, int idx, DateTime horaNy, string detalhe)
+        private static string CamposCsv(double delta, double z, double ratio, double clv, double rvol)
+        {
+            CultureInfo br = new CultureInfo("pt-BR");
+            return string.Format(br, "{0:0};{1:0.00};{2:0};{3:0};{4:0.00}", delta, z, 100 * Math.Abs(ratio), 100 * clv, rvol);
+        }
+
+        private void RegistrarSinal(int tipo, int idx, DateTime horaNy, string detalhe, string campos)
         {
             int dir = (tipo % 2 == 0) ? 1 : -1;
-            pendentes.Add(new SinalPendente { Tipo = tipo, Dir = dir, Entrada = Bars.GetClose(idx), BarIdx = idx });
-
             int barsAgo = CurrentBar - idx;
             Brush cor = CorSinal(tipo);
             double y = Values[0].GetValueAt(idx);
-            Draw.Text(this, "SPF_S" + idx + "_" + tipo, false, NomeSinal[tipo], barsAgo, y,
-                dir > 0 ? -16 - (tipo >= 4 ? 14 : 0) : 16 + (tipo >= 4 ? 14 : 0),
+            int extra = tipo >= 4 ? 14 : 0;
+            int offset = (ModoGrafico == SPForcaModoGrafico.DeltaColorido || dir < 0) ? 16 + extra : -16 - extra;
+            string tag = "SPF_S" + idx + "_" + tipo;
+
+            pendentes.Add(new SinalPendente
+            {
+                Tipo = tipo, Dir = dir, Entrada = Bars.GetClose(idx), BarIdx = idx, HoraNy = horaNy,
+                Tag = tag, Y = y, Offset = offset, Campos = campos
+            });
+
+            Draw.Text(this, tag, false, NomeSinal[tipo], barsAgo, y, offset,
                 cor, new SimpleFont("Arial", 11) { Bold = true }, TextAlignment.Center, Brushes.Transparent, Brushes.Transparent, 0);
             if (PintarCandles && barsAgo >= 0)
                 BarBrushes[barsAgo] = cor;
@@ -460,19 +618,74 @@ namespace NinjaTrader.NinjaScript.Indicators
                 double stop = p.Entrada - p.Dir * StopPontos;
                 bool bateuAlvo = p.Dir > 0 ? h >= alvo : l <= alvo;
                 bool bateuStop = p.Dir > 0 ? l <= stop : h >= stop;
-                if (bateuStop)        erros[p.Tipo]++;     // alvo e stop no mesmo candle conta como erro
-                else if (bateuAlvo)   acertos[p.Tipo]++;
-                else if (idx - p.BarIdx >= CandlesAvaliacao) neutros[p.Tipo]++;
+                p.MaxFavor  = Math.Max(p.MaxFavor,  p.Dir > 0 ? h - p.Entrada : p.Entrada - l);
+                p.MaxContra = Math.Max(p.MaxContra, p.Dir > 0 ? p.Entrada - l : h - p.Entrada);
+                string resultado;
+                if (bateuStop)        { erros[p.Tipo]++;   resultado = "erro"; }     // alvo e stop no mesmo candle conta como erro
+                else if (bateuAlvo)   { acertos[p.Tipo]++; resultado = "acerto"; }
+                else if (idx - p.BarIdx >= CandlesAvaliacao) { neutros[p.Tipo]++; resultado = "neutro"; }
                 else continue;
                 pendentes.RemoveAt(k);
+                MarcarResultado(p, resultado, idx);
             }
+        }
+
+        // Acrescenta o resultado ao rotulo do sinal (v / x / o) e registra no CSV.
+        private void MarcarResultado(SinalPendente p, string resultado, int idx)
+        {
+            string marca = resultado == "acerto" ? " \u2713" : (resultado == "erro" ? " \u2717" : " \u2022");
+            Draw.Text(this, p.Tag, false, NomeSinal[p.Tipo] + marca, CurrentBar - p.BarIdx, p.Y, p.Offset,
+                CorSinal(p.Tipo), new SimpleFont("Arial", 11) { Bold = true }, TextAlignment.Center, Brushes.Transparent, Brushes.Transparent, 0);
+
+            CultureInfo br = new CultureInfo("pt-BR");
+            DateTime horaRes = TimeZoneInfo.ConvertTime(Bars.GetTime(idx), tzGrafico, tzNy);
+            string linha = string.Format(br, "{0:dd/MM/yyyy};{0:HH:mm};{1};{2};{3};{4};{5};{6:HH:mm};{7};{8:0.##};{9:0.##}",
+                p.HoraNy, NomeSinal[p.Tipo].Replace("\u25B2", " compra").Replace("\u25BC", " venda"), DescSinal[p.Tipo],
+                p.Entrada.ToString("0.00", br), p.Campos, resultado, horaRes, idx - p.BarIdx, p.MaxFavor, p.MaxContra);
+            linhasCsv.Add(linha);
+            if (csvGravado)
+                AnexarCsv(linha);
+        }
+
+        private const string CSV_CABECALHO = "data;hora_ET;sinal;descricao;entrada;delta;zscore;pct_volume;fechamento_no_candle_pct;rvol;resultado;hora_resultado_ET;candles;max_a_favor_pts;max_contra_pts";
+
+        // Ao entrar em tempo real: grava todos os sinais do historico (arquivo refeito a cada carga).
+        private void GravarCsvCompleto()
+        {
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(arquivoCsv));
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "# SPForcaMercado | {0} | alvo {1} / stop {2} pts em {3} candles | z {4} | gerado {5:dd/MM/yyyy HH:mm}",
+                    Instrument.FullName, AlvoPontos, StopPontos, CandlesAvaliacao, ZScoreMinimo, DateTime.Now));
+                sb.AppendLine(CSV_CABECALHO);
+                foreach (string l in linhasCsv) sb.AppendLine(l);
+                File.WriteAllText(arquivoCsv, sb.ToString(), Encoding.UTF8);
+                csvGravado = true;
+            }
+            catch (Exception ex) { Print("SPForcaMercado: falha ao gravar " + arquivoCsv + ": " + ex.Message); }
+        }
+
+        private void AnexarCsv(string linha)
+        {
+            try { File.AppendAllText(arquivoCsv, linha + Environment.NewLine, Encoding.UTF8); }
+            catch (Exception) { }
+        }
+
+        private static string NomeArquivo(string s)
+        {
+            StringBuilder sb = new StringBuilder();
+            foreach (char ch in (s ?? "")) sb.Append(char.IsLetterOrDigit(ch) || ch == '-' ? ch : '_');
+            return sb.ToString();
         }
 
         private string TextoEstatistica()
         {
             CultureInfo br = new CultureInfo("pt-BR");
             StringBuilder sb = new StringBuilder();
-            sb.AppendFormat(br, "Acerto dos sinais (alvo {0:0.##} antes de stop {1:0.##} pts, ate {2} candles):", AlvoPontos, StopPontos, CandlesAvaliacao);
+            int dias = diasComNegocios + (janela.Ativo && janela.Compra + janela.Venda + candleCompra + candleVenda > 0 ? 1 : 0);
+            sb.AppendFormat(br, "Acerto dos sinais em {0} pregao(oes) com dados de negocio (alvo {1:0.##} antes de stop {2:0.##} pts, ate {3} candles):",
+                dias, AlvoPontos, StopPontos, CandlesAvaliacao);
             for (int t = 0; t < NTIPOS; t++)
             {
                 int dec = acertos[t] + erros[t];
@@ -486,6 +699,9 @@ namespace NinjaTrader.NinjaScript.Indicators
         private void NovaSessaoSeAbertura(DateTime horaNy)
         {
             if (!AposAbertura(horaNy) || horaNy.Date == diaNyAtual) return;
+
+            if (janela.Ativo && janela.Compra + janela.Venda > 0)
+                diasComNegocios++;
 
             // guarda a amplitude da janela do dia anterior para a media
             if (janela.Ativo && janela.Maxima > janela.Minima)
@@ -581,9 +797,9 @@ namespace NinjaTrader.NinjaScript.Indicators
                 : "";
 
             Brush cor = total <= 0 ? Brushes.Gainsboro : (compra >= venda ? Brushes.LimeGreen : Brushes.Tomato);
-            Draw.TextFixed(this, "SPForcaResumo",
-                titulo + "\n" + linhaForca + "\n" + linhaCandle + (linhaRange != "" ? "\n" + linhaRange : "") + linhaSinais,
-                TextPosition.TopLeft, cor, new SimpleFont("Consolas", 11), Brushes.Transparent, Brushes.Black, 70);
+            corResumo   = cor;
+            textoResumo = titulo + "   (arraste para mover)\n" + linhaForca + "\n" + linhaCandle
+                        + (linhaRange != "" ? "\n" + linhaRange : "") + linhaSinais;
         }
 
         #region Propriedades de saida

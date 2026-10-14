@@ -1,4 +1,4 @@
-# SPForcaMercado v1.1: força compradora x vendedora (NinjaTrader 8)
+# SPForcaMercado v1.2: força compradora x vendedora (NinjaTrader 8)
 
 Indicador para futuros (MNQ, NQ, MGC, GC...) no gráfico de **1 minuto**. Ele mede **quem agrediu**, compradores ou vendedores, e **quanto o mercado está se mexendo** em relação ao normal daquele horário.
 
@@ -24,6 +24,16 @@ Indicador para futuros (MNQ, NQ, MGC, GC...) no gráfico de **1 minuto**. Ele me
   Amplitude da janela: 185,25 pts (1,3x a media de 20 dias: 140,1 pts)
   ```
 - O horário de NY é convertido automaticamente para o fuso do NT8, inclusive no horário de verão.
+
+## Novidades da v1.2
+
+- **Barras só para cima (padrão "Gráfico = DeltaColorido"):** a altura é o tamanho do delta e a cor mostra o lado (verde = compradores, vermelho = vendedores). A cor fica forte quando um lado dominou o candle. Os modos antigos continuam disponíveis: DeltaPorCandle (para cima e para baixo) e DeltaAcumulado.
+- **Resumo arrastável:** clique no quadro e arraste para qualquer posição do painel. A posição fica salva no workspace e no template do gráfico.
+- **Resultado de cada sinal no gráfico:** quando o sinal é decidido, o rótulo ganha **✓** (acerto), **✗** (erro) ou **•** (neutro). Ex.: `C▲ ✓`.
+- **Arquivo com todos os sinais (comprovante):** `Documentos\NinjaTrader 8\SPForca\sinais_<contrato>.csv` (ex.: `sinais_MNQ_12-26.csv`).
+  - Abre no Excel, separado por ";". Tem uma linha por sinal decidido, com data, hora ET, tipo, preço de entrada, delta, z-score, % do volume, onde o candle fechou, RVOL, resultado, hora do resultado, candles até o resultado e o **máximo a favor e contra** (em pontos).
+  - O arquivo é refeito a cada carga do gráfico com todo o histórico, e os sinais em tempo real são acrescentados ao final.
+- **O resumo informa em quantos pregões havia dados de negócio** (Tick Replay). Isso mostra se a estatística tem base suficiente.
 
 ## Sinais de agressão (v1.1)
 
