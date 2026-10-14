@@ -1,4 +1,4 @@
-# SPForcaMercado: força compradora x vendedora (NinjaTrader 8)
+# SPForcaMercado v1.1: força compradora x vendedora (NinjaTrader 8)
 
 Indicador para futuros (MNQ, NQ, MGC, GC...) no gráfico de **1 minuto**. Ele mede **quem agrediu**, compradores ou vendedores, e **quanto o mercado está se mexendo** em relação ao normal daquele horário.
 
@@ -24,6 +24,57 @@ Indicador para futuros (MNQ, NQ, MGC, GC...) no gráfico de **1 minuto**. Ele me
   Amplitude da janela: 185,25 pts (1,3x a media de 20 dias: 140,1 pts)
   ```
 - O horário de NY é convertido automaticamente para o fuso do NT8, inclusive no horário de verão.
+
+## Sinais de agressão (v1.1)
+
+Cada candle fechado é avaliado. A **agressão forte** é medida pelo **z-score do delta**: quantos desvios padrão o delta do candle ficou acima do normal dos últimos 200 candles (padrão: 2,0). O que diferencia os sinais é **como o preço reagiu** a essa agressão:
+
+| Marca | Nome | Condição | Leitura |
+|---|---|---|---|
+| **C▲** (verde) / **C▼** (vermelho) | Continuação | Agressão forte, ≥ 25% do volume num só lado, RVOL ≥ 1,2 e o candle **fechou no extremo** a favor (30% superior ou inferior) | A agressão moveu o preço. Há tendência de continuação. |
+| **A▲** (azul) / **A▼** (laranja) | Absorção | Agressão forte, mas o candle **fechou contra** a agressão. Ex.: venda forte e candle de alta. | Ordens passivas seguraram o preço. Possível reversão no sentido da seta. |
+| **D▲** / **D▼** (violeta) | Divergência | Nova máxima (ou mínima) dos últimos 10 candles **sem o delta acumulado confirmar** | O movimento perdeu agressão. Possível exaustão ou reversão. |
+
+As marcas aparecem no painel do indicador, e o candle do sinal é pintado com a mesma cor no gráfico de preço (opcional). Por padrão, só são gerados sinais no pregão de NY (da abertura até 16:00 ET).
+
+### Probabilidade medida no seu histórico
+O indicador **testa cada sinal nos dias carregados** e mostra a taxa de acerto no resumo:
+
+```
+Acerto dos sinais (alvo 20 antes de stop 20 pts, ate 10 candles):
+  C▲ 61% (27/44)   |   C▼ 57% (21/37)
+  A▲ 54% (13/24)   |   A▼ 48% (10/21) +3 neutros
+  D▲ 52% (16/31)   |   D▼ 58% (19/33) +2 neutros
+Ultimo sinal: A▲ 10:42 ET - absorcao da venda (reversao p/ cima): delta -1.250 (z -2,8), 41% do volume, fechou a 72% do candle
+```
+
+Os números acima são ilustrativos.
+
+- **Acerto:** o preço andou **+alvo** a favor do sinal antes de andar **−stop** contra, dentro de K candles. A entrada é o fechamento do candle do sinal.
+- Se alvo e stop forem tocados no **mesmo candle**, o caso conta como **erro** (critério conservador).
+- **Neutro:** nem alvo nem stop dentro do prazo.
+
+**Como interpretar:**
+- Com alvo igual ao stop, o acaso dá cerca de **50%**. Um sinal só tem vantagem se ficar consistentemente acima disso **com amostra grande**: 30 casos ou mais. Com poucos casos, a porcentagem engana.
+- Teste os parâmetros que combinam com o seu operacional. Por exemplo, alvo e stop iguais ao TP/SL da sua boleta, e "Candles para avaliar" igual ao tempo médio das suas operações.
+- Carregue mais dias (60 ou mais, com Tick Replay) para ter amostras maiores. O gráfico demora mais para abrir.
+- **Resultado passado não garante resultado futuro.** Use os sinais como contexto do seu plano, não como gatilho automático.
+
+### Parâmetros dos sinais
+
+| Parâmetro | Padrão | Descrição |
+|---|---|---|
+| Mostrar sinais | sim | Liga as marcas e a estatística |
+| Agressão forte: z-score do delta | 2,0 | Quanto maior, mais raros e mais fortes os sinais |
+| Continuação: RVOL mínimo | 1,2 | Volume do candle em relação à média do mesmo minuto. 0 = não exigir. |
+| Divergência: candles da máxima/mínima | 10 | Tamanho da janela usada para identificar a nova máxima ou mínima |
+| Sinais só no pregão de NY | sim | Da abertura até 16:00 ET |
+| Pintar o candle do sinal | sim | Pinta o candle no gráfico de preço |
+| Alerta sonoro em tempo real | não | Toca um som e registra na aba Alertas |
+| Alvo / Stop para contar acerto (pontos) | 20 / 20 | Critério da estatística |
+| Candles para avaliar | 10 | Prazo máximo para alvo ou stop |
+
+Se usar o indicador duas vezes (delta por candle e delta acumulado), deixe **"Mostrar sinais" ligado em só uma** das instâncias. Assim as marcas e o alerta não aparecem em dobro.
 
 ## Instalação
 
