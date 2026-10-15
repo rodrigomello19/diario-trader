@@ -1,4 +1,4 @@
-# SPForcaMercado v1.3: força compradora x vendedora (NinjaTrader 8)
+# SPForcaMercado v1.4: força compradora x vendedora (NinjaTrader 8)
 
 Indicador para futuros (MNQ, NQ, MGC, GC...) no gráfico de **1 minuto**. Ele mede **quem agrediu**, compradores ou vendedores, e **quanto o mercado está se mexendo** em relação ao normal daquele horário.
 
@@ -24,6 +24,51 @@ Indicador para futuros (MNQ, NQ, MGC, GC...) no gráfico de **1 minuto**. Ele me
   Amplitude da janela: 185,25 pts (1,3x a media de 20 dias: 140,1 pts)
   ```
 - O horário de NY é convertido automaticamente para o fuso do NT8, inclusive no horário de verão.
+
+## Novidades da v1.4
+
+### Filtro de volatilidade
+Abaixo do resumo aparece uma caixa colorida:
+
+```
+VOLATILIDADE LENTA: 0,58x o normal do horario (ultimos 3 candles) | historico nessa faixa: alvo de 40 pts alcancavel em 15 min em 61% (n=1160), maior movimento medio 47 pts
+```
+
+- **LENTA** (laranja), **NORMAL** (cinza) ou **RÁPIDA** (verde): média da amplitude dos últimos 3 candles comparada à amplitude normal do mesmo minuto nos últimos 20 dias. Os limites padrão são 0,65x e 1,28x, tirados do estudo da abertura.
+- **O percentual é calculado no seu próprio histórico carregado:** é a fração das vezes, naquela faixa de volatilidade, em que o preço andou pelo menos o alvo (40 pts) para algum dos lados em até 15 minutos. Ele responde à pergunta "há volatilidade suficiente para o meu alvo agora?".
+- Parâmetros no grupo **6. Volatilidade**: liga/desliga, número de candles e os limites de lenta e rápida.
+
+### Estudo do método regiões + volatilidade + gatilho
+O modo pesquisa agora registra as **regiões** e os **quatro padrões** do método.
+
+**Regiões** (só as já conhecidas no momento do candle):
+
+| Região | Como é calculada |
+|---|---|
+| max_ontem / min_ontem / fech_ontem | Máxima, mínima e fechamento do pregão anterior (09:30–16:00 NY) |
+| max_overnight / min_overnight | Máxima e mínima do overnight (16:00 até a abertura) |
+| max_faixa5 / min_faixa5 | Faixa dos 5 primeiros minutos (disponível a partir do minuto 6) |
+| max_faixa15 / min_faixa15 | Faixa dos 15 primeiros minutos (disponível a partir do minuto 16) |
+| vwap | VWAP do pregão, desde a abertura |
+
+**Padrões** (exemplo na compra; na venda é o espelho). O gatilho é sempre o fechamento do candle indicado:
+
+| Padrão | Tipo | Regra |
+|---|---|---|
+| **climax** | continuação | O candle fecha acima da região, vindo de baixo, com amplitude ≥ 1,2x o normal e fechamento nos 30% superiores. Compra no fechamento. |
+| **pullback** | continuação | Depois de romper, o preço volta e testa a região (pavio até 5 pts dela) sem fechar abaixo. Em até 3 candles, um candle fecha **acima da máxima do candle do teste**. Compra. |
+| **falha** | reversão | Rompeu para cima e, em até 5 candles, fecha **de volta abaixo** da região. Venda. |
+| **reversao** | reversão | Depois de subir ≥ 60 pts em 15 candles, toca a região por baixo (pavio até 5 pts) sem romper. Em até 3 candles, um candle fecha **abaixo da mínima do candle do toque**. Venda. |
+
+- Só um evento por padrão, região, lado e dia, sempre dentro do horário dos sinais (padrão 09:30–10:30 NY).
+- Os eventos ficam em `Documentos\NinjaTrader 8\SPForca\padroes_<contrato>.csv`, com:
+  - região, nível, distância, volatilidade e delta no momento;
+  - resultado do alvo e stop (40/40 em 15 candles), movimento a favor em 15 min e máximo a favor e contra.
+- O arquivo `pesquisa_<contrato>.csv` ganhou colunas com a **distância do fechamento até cada região**, os movimentos de 5 e 15 minutos, a volatilidade recente e um indicador de existência de dados de negócio.
+- Parâmetros no grupo **5. Pesquisa**: tolerância de toque (5 pts) e movimento mínimo para a reversão (60 pts).
+
+### Sem Tick Replay
+O modo pesquisa funciona **também sem Tick Replay**. Nesse caso as colunas de delta ficam zeradas e `tem_negocios = 0`. Isso permite estudar os padrões de preço e as regiões em **1 a 2 anos de dados de 1 minuto**, que carregam rápido. O efeito do delta continua sendo estudado nos dias com Tick Replay.
 
 ## Novidades da v1.3 (pesquisa da abertura)
 
