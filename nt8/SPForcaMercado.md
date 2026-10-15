@@ -1,4 +1,4 @@
-# SPForcaMercado v1.2: força compradora x vendedora (NinjaTrader 8)
+# SPForcaMercado v1.3: força compradora x vendedora (NinjaTrader 8)
 
 Indicador para futuros (MNQ, NQ, MGC, GC...) no gráfico de **1 minuto**. Ele mede **quem agrediu**, compradores ou vendedores, e **quanto o mercado está se mexendo** em relação ao normal daquele horário.
 
@@ -24,6 +24,37 @@ Indicador para futuros (MNQ, NQ, MGC, GC...) no gráfico de **1 minuto**. Ele me
   Amplitude da janela: 185,25 pts (1,3x a media de 20 dias: 140,1 pts)
   ```
 - O horário de NY é convertido automaticamente para o fuso do NT8, inclusive no horário de verão.
+
+## Novidades da v1.3 (pesquisa da abertura)
+
+- **Horário dos sinais:** por padrão, só das **09:30 às 10:30 de NY**, que corresponde a **10:30 às 11:30 em Brasília** enquanto os EUA estão no horário de verão. Quando o horário de verão americano termina (novembro a março), as mesmas 09:30–10:30 de NY passam a ser **11:30–12:30 em Brasília**. O indicador sempre usa o horário de NY, então não é preciso mudar nada.
+  - **Atenção:** "Abertura de NY" e o horário dos sinais são **em horário de NY**. Não coloque 10:30 pensando em Brasília.
+- **Divergência mais seletiva:**
+  - usa a máxima ou mínima dos últimos **20 candles** (antes eram 10);
+  - exige que o delta acumulado fique pelo menos **1 desvio padrão** (do delta por candle) abaixo do topo, ou acima do fundo, anterior.
+- **Alvo e stop padrão de 40 / 40 pontos**, avaliados em até **15 candles**. No MNQ, 40 pontos equivalem ao alvo de 1.000 pontos usado na Hantec.
+- **Modo pesquisa (ligado por padrão):** grava **todos os candles do horário dos sinais**, não só os sinais, em `Documentos\NinjaTrader 8\SPForca\pesquisa_<contrato>.csv`.
+
+### Colunas do arquivo de pesquisa
+
+| Coluna | Significado |
+|---|---|
+| data, hora_ET, min_desde_abertura | Quando o candle fechou |
+| abertura, maxima, minima, fechamento, volume | OHLC e volume |
+| compra, venda, delta, zscore, pct_volume | Agressão do candle |
+| fechamento_no_candle_pct | Onde fechou dentro do candle (0 = mínima, 100 = máxima) |
+| rvol, amplitude, amplitude_rel | Volume e amplitude comparados à média do mesmo minuto |
+| delta_acum, delta_acum_5min | Delta acumulado desde a abertura e quanto ele variou nos últimos 5 minutos |
+| pos_na_faixa_pct | Posição do fechamento na faixa da abertura até agora (0 = mínima, 100 = máxima) |
+| sinal | Sinal marcado nesse candle, se houver |
+| fwd5_pts, fwd10_pts, fwd15_pts | Quanto o preço andou 5, 10 e 15 minutos depois |
+| max_alta15_pts, max_baixa15_pts | Maior alta e maior baixa nos 15 minutos seguintes |
+| compra_alvo_antes_stop / venda_alvo_antes_stop | O que uma compra ou venda no fechamento teria feito: `alvo`, `stop` ou `nenhum` (critério alvo/stop, conservador) |
+| compra_candles / venda_candles | Em quantos candles o alvo ou o stop foi atingido |
+
+Com esse arquivo é possível descobrir **quais condições da abertura antecedem continuação ou reversão**, em vez de testar só as regras prontas dos sinais.
+
+Para gerar: carregue os dias com Tick Replay. Os arquivos são gravados quando o gráfico termina de carregar o histórico.
 
 ## Novidades da v1.2
 
@@ -77,12 +108,15 @@ Os números acima são ilustrativos.
 | Mostrar sinais | sim | Liga as marcas e a estatística |
 | Agressão forte: z-score do delta | 2,0 | Quanto maior, mais raros e mais fortes os sinais |
 | Continuação: RVOL mínimo | 1,2 | Volume do candle em relação à média do mesmo minuto. 0 = não exigir. |
-| Divergência: candles da máxima/mínima | 10 | Tamanho da janela usada para identificar a nova máxima ou mínima |
-| Sinais só no pregão de NY | sim | Da abertura até 16:00 ET |
+| Divergência: candles da máxima/mínima | 20 | Tamanho da janela usada para identificar a nova máxima ou mínima |
+| Sinais só no horário abaixo | sim | Usa o horário dos sinais (padrão 09:30–10:30 NY) |
+| Horário dos sinais: início / fim (NY) | 09:30 / 10:30 | Janela dos sinais e do modo pesquisa |
+| Divergência: diferença mínima do delta acumulado | 1,0 | Em desvios padrão do delta por candle. 0 = qualquer diferença. |
+| Modo pesquisa | sim | Grava todos os candles da janela em `pesquisa_<contrato>.csv` |
 | Pintar o candle do sinal | sim | Pinta o candle no gráfico de preço |
 | Alerta sonoro em tempo real | não | Toca um som e registra na aba Alertas |
-| Alvo / Stop para contar acerto (pontos) | 20 / 20 | Critério da estatística |
-| Candles para avaliar | 10 | Prazo máximo para alvo ou stop |
+| Alvo / Stop para contar acerto (pontos) | 40 / 40 | Critério da estatística e do modo pesquisa |
+| Candles para avaliar | 15 | Prazo máximo para alvo ou stop |
 
 Se usar o indicador duas vezes (delta por candle e delta acumulado), deixe **"Mostrar sinais" ligado em só uma** das instâncias. Assim as marcas e o alerta não aparecem em dobro.
 

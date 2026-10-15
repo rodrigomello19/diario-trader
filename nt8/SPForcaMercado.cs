@@ -1,5 +1,5 @@
 // ============================================================================
-//  SPForcaMercado v1.2 - forca compradora x vendedora, sinais e volatilidade (NT8)
+//  SPForcaMercado v1.3 - forca compradora x vendedora, sinais e volatilidade (NT8)
 // ----------------------------------------------------------------------------
 //  Para futuros (MNQ/NQ, MGC/GC...) no grafico de 1 minuto.
 //
@@ -26,6 +26,12 @@
 //  v1.2: barras de delta so para cima (cor = lado), resumo arrastavel com o
 //  mouse, resultado de cada sinal no grafico e arquivo CSV com todos os sinais
 //  em Documentos\NinjaTrader 8\SPForca\.
+//
+//  v1.3: horario dos sinais (padrao 09:30-10:30 NY = abertura), divergencia
+//  mais seletiva (20 candles + diferenca minima de delta acumulado), alvo/stop
+//  40/40 e MODO PESQUISA: grava todos os candles da janela com as
+//  caracteristicas e o que o preco fez depois (5/10/15 min, alvo x stop)
+//  em Documentos\NinjaTrader 8\SPForca\pesquisa_<contrato>.csv.
 //
 //  Historico: precisa de "Tick Replay" ligado no grafico (Data Series >
 //  Tick Replay). Sem ele, o delta comeca a ser contado quando o grafico abre.
@@ -110,6 +116,22 @@ namespace NinjaTrader.NinjaScript.Indicators
             public double   MaxFavor;
             public double   MaxContra;
         }
+        private class LinhaPesquisa
+        {
+            public int      BarIdx;
+            public string   Base;       // colunas ja conhecidas no fechamento do candle
+            public double   Close;
+            public double   MaxH, MinL;
+            public double   F5, F10, F15;
+            public int      ResCompra, ResVenda;   // 0 pendente, 1 alvo, -1 stop
+            public int      CandlesCompra, CandlesVenda;
+        }
+        private const int PESQ_HORIZONTE = 15;
+        private readonly List<LinhaPesquisa> pesqPendentes = new List<LinhaPesquisa>();
+        private readonly List<string> linhasPesquisa = new List<string>();
+        private string arquivoPesquisa = "";
+        private TimeSpan inicioSinais, fimSinais;
+
         private readonly List<string> linhasCsv = new List<string>();
         private string arquivoCsv = "";
         private bool   csvGravado;
@@ -189,8 +211,25 @@ namespace NinjaTrader.NinjaScript.Indicators
         public int CandlesDivergencia { get; set; }
 
         [NinjaScriptProperty]
-        [Display(Name = "Sinais so no pregao de NY (abertura ate 16:00 ET)", GroupName = "3. Sinais", Order = 5)]
+        [Display(Name = "Sinais so no horario abaixo (desmarcado = qualquer horario)", GroupName = "3. Sinais", Order = 5)]
         public bool SinaisSoPregao { get; set; }
+
+        [NinjaScriptProperty]
+        [Display(Name = "Horario dos sinais: inicio (HH:mm, horario de NY)", Description = "09:30 NY = 10:30 Brasilia no horario de verao dos EUA", GroupName = "3. Sinais", Order = 8)]
+        public string InicioSinaisNY { get; set; }
+
+        [NinjaScriptProperty]
+        [Display(Name = "Horario dos sinais: fim (HH:mm, horario de NY)", GroupName = "3. Sinais", Order = 9)]
+        public string FimSinaisNY { get; set; }
+
+        [NinjaScriptProperty]
+        [Range(0.0, 20.0)]
+        [Display(Name = "Divergencia: diferenca minima do delta acumulado (em desvios do delta)", Description = "0 = qualquer diferenca. 1,0 = pelo menos um desvio padrao do delta por candle", GroupName = "3. Sinais", Order = 10)]
+        public double DivergenciaMinZ { get; set; }
+
+        [NinjaScriptProperty]
+        [Display(Name = "Modo pesquisa: gravar todos os candles do horario dos sinais", GroupName = "5. Pesquisa", Order = 1)]
+        public bool ModoPesquisa { get; set; }
 
         [NinjaScriptProperty]
         [Display(Name = "Pintar o candle do sinal no grafico de preco", GroupName = "3. Sinais", Order = 6)]
@@ -242,13 +281,17 @@ namespace NinjaTrader.NinjaScript.Indicators
                 MostrarSinais      = true;
                 ZScoreMinimo       = 2.0;
                 RvolMinimo         = 1.2;
-                CandlesDivergencia = 10;
+                CandlesDivergencia = 20;
                 SinaisSoPregao     = true;
+                InicioSinaisNY     = "09:30";
+                FimSinaisNY        = "10:30";
+                DivergenciaMinZ    = 1.0;
+                ModoPesquisa       = true;
                 PintarCandles      = true;
                 AlertaSonoro       = false;
-                AlvoPontos         = 20;
-                StopPontos         = 20;
-                CandlesAvaliacao   = 10;
+                AlvoPontos         = 40;
+                StopPontos         = 40;
+                CandlesAvaliacao   = 15;
 
                 AddPlot(new Stroke(Brushes.Gray, 3), PlotStyle.Bar, "Delta");
                 AddLine(new Stroke(Brushes.DimGray, DashStyleHelper.Dash, 1), 0, "Zero");
@@ -273,6 +316,9 @@ namespace NinjaTrader.NinjaScript.Indicators
 
                 string pasta = Path.Combine(NinjaTrader.Core.Globals.UserDataDir, "SPForca");
                 arquivoCsv = Path.Combine(pasta, "sinais_" + NomeArquivo(Instrument.FullName) + ".csv");
+                arquivoPesquisa = Path.Combine(pasta, "pesquisa_" + NomeArquivo(Instrument.FullName) + ".csv");
+                if (!LerHora(InicioSinaisNY, out inicioSinais)) inicioSinais = aberturaEt;
+                if (!LerHora(FimSinaisNY, out fimSinais))       fimSinais = new TimeSpan(16, 0, 0);
             }
             else if (State == State.Historical)
             {
@@ -473,10 +519,12 @@ namespace NinjaTrader.NinjaScript.Indicators
 
             int minuto = (int)horaNy.TimeOfDay.TotalMinutes;
             double volMediaMinuto = Media(volPorMinuto, minuto);   // antes de incluir este candle
-            if (MostrarSinais)
+            double ampMediaMinuto = Media(ampPorMinuto, minuto);
+            if (MostrarSinais || ModoPesquisa)
             {
-                AvaliarPendentes(idx);
-                DetectarSinais(idx, horaNy, delta, volMediaMinuto);
+                if (MostrarSinais) AvaliarPendentes(idx);
+                if (ModoPesquisa)  AvaliarPesquisa(idx);
+                DetectarSinais(idx, horaNy, delta, volMediaMinuto, ampMediaMinuto);
             }
             AdicionarMedia(ampPorMinuto, minuto, Bars.GetHigh(idx) - Bars.GetLow(idx));
             AdicionarMedia(volPorMinuto, minuto, Bars.GetVolume(idx));
@@ -485,14 +533,21 @@ namespace NinjaTrader.NinjaScript.Indicators
         // ------------------------------------------------------------------
         //  Sinais
         // ------------------------------------------------------------------
+        private static bool LerHora(string s, out TimeSpan t)
+        {
+            return TimeSpan.TryParseExact((s ?? "").Trim(), new[] { @"hh\:mm", @"h\:mm" }, CultureInfo.InvariantCulture, out t);
+        }
+
+        // Horario do candle e o do FECHAMENTO: o candle 09:31 e o primeiro depois de 09:30.
         private bool NoPregao(DateTime horaNy)
         {
             if (!SinaisSoPregao) return true;
+            TimeSpan t = horaNy.TimeOfDay;
             return janela.Ativo && horaNy.Date == janela.Dia && AposAbertura(horaNy)
-                   && horaNy.TimeOfDay <= new TimeSpan(16, 0, 0);
+                   && t > inicioSinais && t <= fimSinais;
         }
 
-        private void DetectarSinais(int idx, DateTime horaNy, double delta, double volMediaMinuto)
+        private void DetectarSinais(int idx, DateTime horaNy, double delta, double volMediaMinuto, double ampMediaMinuto)
         {
             double compra = serieCompra.GetValueAt(idx);
             double venda  = serieVenda.GetValueAt(idx);
@@ -523,6 +578,10 @@ namespace NinjaTrader.NinjaScript.Indicators
             double rvol = volMediaMinuto > 0 ? Bars.GetVolume(idx) / volMediaMinuto : 0;
             bool rvolOk = RvolMinimo <= 0 || volMediaMinuto <= 0 || rvol >= RvolMinimo;
 
+            if (ModoPesquisa)
+                RegistrarPesquisa(idx, horaNy, compra, venda, delta, z, ratio, clv, rvol, ampMediaMinuto > 0 ? amp / ampMediaMinuto : 0);
+            if (!MostrarSinais) return;
+
             int tipo = -1;
             if (z >= ZScoreMinimo && ratio >= LimiarForte && clv >= 0.7 && c > o && rvolOk)       tipo = 0;
             else if (z <= -ZScoreMinimo && ratio <= -LimiarForte && clv <= 0.3 && c < o && rvolOk) tipo = 1;
@@ -540,7 +599,7 @@ namespace NinjaTrader.NinjaScript.Indicators
             int ini = idx - CandlesDivergencia;
             if (ini < 0) return;
             DateTime horaIni = TimeZoneInfo.ConvertTime(Bars.GetTime(ini), tzGrafico, tzNy);
-            if (!NoPregao(horaIni) || horaIni.Date != horaNy.Date) return;
+            if (!AposAbertura(horaIni) || horaIni.Date != horaNy.Date) return;   // so dentro do mesmo pregao
 
             int jMax = ini, jMin = ini;
             for (int j = ini; j < idx; j++)
@@ -549,12 +608,13 @@ namespace NinjaTrader.NinjaScript.Indicators
                 if (Bars.GetLow(j)  < Bars.GetLow(jMin))  jMin = j;
             }
             double cvd = serieAcum.GetValueAt(idx);
-            if (h > Bars.GetHigh(jMax) && cvd < serieAcum.GetValueAt(jMax))
+            double difMin = DivergenciaMinZ * desvio;
+            if (h > Bars.GetHigh(jMax) && cvd < serieAcum.GetValueAt(jMax) - difMin)
                 RegistrarSinal(5, idx, horaNy, string.Format(new CultureInfo("pt-BR"),
                     "nova maxima de {0} candles com delta acumulado {1:+#,##0;-#,##0} abaixo do topo anterior ({2:+#,##0;-#,##0})",
                     CandlesDivergencia, cvd, serieAcum.GetValueAt(jMax)),
                     CamposCsv(delta, z, ratio, clv, rvol));
-            else if (l < Bars.GetLow(jMin) && cvd > serieAcum.GetValueAt(jMin))
+            else if (l < Bars.GetLow(jMin) && cvd > serieAcum.GetValueAt(jMin) + difMin)
                 RegistrarSinal(4, idx, horaNy, string.Format(new CultureInfo("pt-BR"),
                     "nova minima de {0} candles com delta acumulado {1:+#,##0;-#,##0} acima do fundo anterior ({2:+#,##0;-#,##0})",
                     CandlesDivergencia, cvd, serieAcum.GetValueAt(jMin)),
@@ -573,6 +633,11 @@ namespace NinjaTrader.NinjaScript.Indicators
             }
         }
 
+        private static string SemSeta(int tipo)
+        {
+            return NomeSinal[tipo].Replace("\u25B2", " compra").Replace("\u25BC", " venda");
+        }
+
         private static string CamposCsv(double delta, double z, double ratio, double clv, double rvol)
         {
             CultureInfo br = new CultureInfo("pt-BR");
@@ -588,6 +653,9 @@ namespace NinjaTrader.NinjaScript.Indicators
             int extra = tipo >= 4 ? 14 : 0;
             int offset = (ModoGrafico == SPForcaModoGrafico.DeltaColorido || dir < 0) ? 16 + extra : -16 - extra;
             string tag = "SPF_S" + idx + "_" + tipo;
+
+            string ja;
+            sinaisPorCandle[idx] = sinaisPorCandle.TryGetValue(idx, out ja) ? ja + " " + SemSeta(tipo) : SemSeta(tipo);
 
             pendentes.Add(new SinalPendente
             {
@@ -647,6 +715,86 @@ namespace NinjaTrader.NinjaScript.Indicators
                 AnexarCsv(linha);
         }
 
+        // ------------------------------------------------------------------
+        //  Modo pesquisa: um registro por candle do horario dos sinais
+        // ------------------------------------------------------------------
+        private const string PESQ_CABECALHO =
+            "data;hora_ET;min_desde_abertura;abertura;maxima;minima;fechamento;volume;compra;venda;delta;zscore;pct_volume;" +
+            "fechamento_no_candle_pct;rvol;amplitude;amplitude_rel;delta_acum;delta_acum_5min;pos_na_faixa_pct;sinal;" +
+            "fwd5_pts;fwd10_pts;fwd15_pts;max_alta15_pts;max_baixa15_pts;compra_alvo_antes_stop;compra_candles;venda_alvo_antes_stop;venda_candles";
+
+        private void RegistrarPesquisa(int idx, DateTime horaNy, double compra, double venda, double delta, double z,
+                                       double ratio, double clv, double rvol, double ampRel)
+        {
+            if (!NoPregao(horaNy)) return;
+            CultureInfo br = new CultureInfo("pt-BR");
+            double o = Bars.GetOpen(idx), h = Bars.GetHigh(idx), l = Bars.GetLow(idx), c = Bars.GetClose(idx);
+            double cvd = serieAcum.GetValueAt(idx);
+            string cvd5 = "";
+            if (idx >= 5)
+            {
+                DateTime h5 = TimeZoneInfo.ConvertTime(Bars.GetTime(idx - 5), tzGrafico, tzNy);
+                if (h5.Date == horaNy.Date && AposAbertura(h5))
+                    cvd5 = (cvd - serieAcum.GetValueAt(idx - 5)).ToString("0", br);
+            }
+            string posFaixa = (janela.Ativo && janela.Maxima > janela.Minima)
+                ? (100 * (c - janela.Minima) / (janela.Maxima - janela.Minima)).ToString("0", br) : "";
+            int minAbertura = (int)(horaNy.TimeOfDay - aberturaEt).TotalMinutes;
+
+            string b = string.Format(br, "{0:dd/MM/yyyy};{0:HH:mm};{1};{2:0.00};{3:0.00};{4:0.00};{5:0.00};{6:0};{7:0};{8:0};{9:0};{10:0.00};{11:0};{12:0};{13:0.00};{14:0.00};{15:0.00};{16:0};{17};{18}",
+                horaNy, minAbertura, o, h, l, c, Bars.GetVolume(idx), compra, venda, delta, z, 100 * ratio, 100 * clv,
+                rvol, h - l, ampRel, cvd, cvd5, posFaixa);
+            pesqPendentes.Add(new LinhaPesquisa { BarIdx = idx, Base = b, Close = c, MaxH = c, MinL = c });
+        }
+
+        // Acompanha os 15 candles seguintes de cada registro e grava quando completa.
+        private void AvaliarPesquisa(int idx)
+        {
+            double h = Bars.GetHigh(idx), l = Bars.GetLow(idx), c = Bars.GetClose(idx);
+            for (int k = pesqPendentes.Count - 1; k >= 0; k--)
+            {
+                LinhaPesquisa r = pesqPendentes[k];
+                int n = idx - r.BarIdx;
+                if (n <= 0) continue;
+                r.MaxH = Math.Max(r.MaxH, h);
+                r.MinL = Math.Min(r.MinL, l);
+                if (r.ResCompra == 0)
+                {
+                    if (l <= r.Close - StopPontos)       { r.ResCompra = -1; r.CandlesCompra = n; }
+                    else if (h >= r.Close + AlvoPontos)  { r.ResCompra = 1;  r.CandlesCompra = n; }
+                }
+                if (r.ResVenda == 0)
+                {
+                    if (h >= r.Close + StopPontos)       { r.ResVenda = -1; r.CandlesVenda = n; }
+                    else if (l <= r.Close - AlvoPontos)  { r.ResVenda = 1;  r.CandlesVenda = n; }
+                }
+                if (n == 5)  r.F5  = c - r.Close;
+                if (n == 10) r.F10 = c - r.Close;
+                if (n < PESQ_HORIZONTE) continue;
+                r.F15 = c - r.Close;
+
+                CultureInfo br = new CultureInfo("pt-BR");
+                string linha = r.Base + ";" + SinalDoCandle(r.BarIdx) + ";" + string.Format(br, "{0:0.00};{1:0.00};{2:0.00};{3:0.00};{4:0.00};{5};{6};{7};{8}",
+                    r.F5, r.F10, r.F15, r.MaxH - r.Close, r.Close - r.MinL,
+                    TextoRes(r.ResCompra), r.ResCompra != 0 ? r.CandlesCompra.ToString() : "",
+                    TextoRes(r.ResVenda),  r.ResVenda  != 0 ? r.CandlesVenda.ToString()  : "");
+                linhasPesquisa.Add(linha);
+                if (csvGravado)
+                    AnexarArquivo(arquivoPesquisa, linha);
+                pesqPendentes.RemoveAt(k);
+            }
+        }
+
+        private static string TextoRes(int r) { return r > 0 ? "alvo" : (r < 0 ? "stop" : "nenhum"); }
+
+        private readonly Dictionary<int, string> sinaisPorCandle = new Dictionary<int, string>();
+
+        private string SinalDoCandle(int idx)
+        {
+            string s;
+            return sinaisPorCandle.TryGetValue(idx, out s) ? s : "";
+        }
+
         private const string CSV_CABECALHO = "data;hora_ET;sinal;descricao;entrada;delta;zscore;pct_volume;fechamento_no_candle_pct;rvol;resultado;hora_resultado_ET;candles;max_a_favor_pts;max_contra_pts";
 
         // Ao entrar em tempo real: grava todos os sinais do historico (arquivo refeito a cada carga).
@@ -661,14 +809,30 @@ namespace NinjaTrader.NinjaScript.Indicators
                 sb.AppendLine(CSV_CABECALHO);
                 foreach (string l in linhasCsv) sb.AppendLine(l);
                 File.WriteAllText(arquivoCsv, sb.ToString(), Encoding.UTF8);
+
+                if (ModoPesquisa)
+                {
+                    StringBuilder sp = new StringBuilder();
+                    sp.AppendLine(string.Format(CultureInfo.InvariantCulture,
+                        "# SPForcaMercado pesquisa | {0} | candles de {1:hh\\:mm} a {2:hh\\:mm} NY | alvo {3} / stop {4} pts | horizonte {5} candles | gerado {6:dd/MM/yyyy HH:mm}",
+                        Instrument.FullName, inicioSinais, fimSinais, AlvoPontos, StopPontos, PESQ_HORIZONTE, DateTime.Now));
+                    sp.AppendLine(PESQ_CABECALHO);
+                    foreach (string l in linhasPesquisa) sp.AppendLine(l);
+                    File.WriteAllText(arquivoPesquisa, sp.ToString(), Encoding.UTF8);
+                }
                 csvGravado = true;
             }
-            catch (Exception ex) { Print("SPForcaMercado: falha ao gravar " + arquivoCsv + ": " + ex.Message); }
+            catch (Exception ex) { Print("SPForcaMercado: falha ao gravar os arquivos CSV: " + ex.Message); }
         }
 
         private void AnexarCsv(string linha)
         {
-            try { File.AppendAllText(arquivoCsv, linha + Environment.NewLine, Encoding.UTF8); }
+            AnexarArquivo(arquivoCsv, linha);
+        }
+
+        private static void AnexarArquivo(string caminho, string linha)
+        {
+            try { File.AppendAllText(caminho, linha + Environment.NewLine, Encoding.UTF8); }
             catch (Exception) { }
         }
 
