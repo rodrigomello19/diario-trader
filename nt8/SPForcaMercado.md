@@ -1,4 +1,4 @@
-# SPForcaMercado v1.5: força compradora x vendedora (NinjaTrader 8)
+# SPForcaMercado v1.6: força compradora x vendedora (NinjaTrader 8)
 
 Indicador para futuros (MNQ, NQ, MGC, GC...) no gráfico de **1 minuto**. Ele mede **quem agrediu**, compradores ou vendedores, e **quanto o mercado está se mexendo** em relação ao normal daquele horário.
 
@@ -25,37 +25,34 @@ Indicador para futuros (MNQ, NQ, MGC, GC...) no gráfico de **1 minuto**. Ele me
   ```
 - O horário de NY é convertido automaticamente para o fuso do NT8, inclusive no horário de verão.
 
-## Novidades da v1.5: as suas regiões no estudo
+## Novidades da v1.6: leitura do candle em tempo real
 
-O estudo de padrões agora usa **as regiões que você opera**:
+O estudo de regiões e padrões (v1.4 e v1.5) foi **retirado**. No lugar, abaixo do filtro de volatilidade, entra a caixa **LEITURA DO CANDLE**, com as três informações para a hora da operação:
 
-| Região | Origem |
+```
+LEITURA DO CANDLE
+Agressao ultimos 5 min: COMPRADORES 64% x 36% VENDEDORES (delta +1.240)
+Candle em formacao: compradores 71% | delta +210 (z +2,4: FORTE)
+Ultimo candle 10:42: COMPRA | fechou a 88% do extremo | corpo 75% | delta +860 (z +2,6: FORTE, 31% do volume) | RVOL 1,8x | amplitude 1,6x
+Continua (rompe a maxima antes da minima em ate 5 min): 87% no seu historico (n=812) | pela posicao do fechamento: 88% -> a agressao NAO mudou a chance (dif. -1 p.p.)
+Sinais: agressao forte a favor e fechou no extremo
+```
+
+| Linha | O que mostra |
 |---|---|
-| **Suas linhas e zonas** | Desenhadas por você no gráfico do NT8 (veja abaixo) |
-| **vwap** | VWAP do pregão, desde a abertura |
-| **max_dia / min_dia** | Máxima e mínima do dia **incluindo o overnight** (desde 18:00 NY do dia anterior), conhecidas até o candle anterior |
+| Agressão últimos 5 min | Quem dominou os últimos 5 minutos (candle atual incluído). A borda da caixa fica verde ou vermelha conforme o lado. |
+| Candle em formação | Agressão do candle atual, ao vivo, com o nível pelo z-score: fraca (< 1), moderada (1–2), **FORTE** (2–3), **EXTREMA** (≥ 3) |
+| Último candle | Tipo, posição do fechamento (100% = no extremo a favor), tamanho do corpo, delta, z-score, % do volume, RVOL e amplitude relativa |
+| **Continua** | Em candles parecidos no seu histórico (mesma faixa de posição do fechamento e de agressão), quantas vezes o preço **rompeu o extremo a favor antes do oposto** nos 5 minutos seguintes. Ao lado, a chance **só pela posição do fechamento**: um candle que fecha na máxima tem a máxima a 1 tick e a mínima longe, então "continuar" é quase automático. A diferença entre os dois números é o que a **agressão acrescentou de fato**. |
+| Sinais | Descrição do candle: agressão forte a favor; absorção ou esgotamento (agressão forte, mas o candle fechou longe do extremo); agressão contrária; pavio de rejeição; candle climático (amplitude e volume ≥ 2x) |
 
-As regiões automáticas da v1.4 (dia anterior, overnight separado, faixas de 5 e 15 min) **não entram mais nos padrões**. Continuam só como colunas de distância no arquivo de pesquisa.
+- A estatística de continuação usa os candles do **horário dos sinais** (padrão 09:30–10:30 NY), com dados de negócio (Tick Replay), e fica mais precisa conforme você carrega mais dias.
+- **Liga/desliga:** grupo **7. Leitura do candle**.
 
-### Como marcar as regiões
-Use as ferramentas de desenho do NT8 no gráfico do MNQ, o mesmo em que está o indicador:
-- **Linha horizontal** (*Horizontal Line*): uma região num preço. **Vale a partir do horário do ponto onde você clicou.** Clique no candle do dia em que identificou a região, normalmente antes da abertura.
-- **Destaque de região Y** (*Region Highlight Y*): uma **zona** de preço (ex.: 21.400–21.420). Também vale a partir do horário do ponto clicado.
-- **Retângulo** (*Rectangle*): uma zona válida **só entre o horário inicial e o final** do retângulo. É útil para marcar regiões em dias passados e montar o histórico do estudo.
-
-**Regras das zonas no estudo:**
-- Na compra, o rompimento é pela **borda superior** e o toque vindo de baixo é pela **borda inferior**. Na venda, é o contrário.
-- Uma linha é uma zona de espessura zero.
-
-**Por que a regra do "a partir de":** uma região identificada hoje não pode ser usada para avaliar operações de semanas atrás, porque isso seria olhar o futuro. Por isso cada desenho só vale do ponto de clique em diante, e o retângulo só no seu intervalo.
-
-**Depois de desenhar ou alterar regiões,** recarregue o indicador para refazer os arquivos: clique com o botão direito no gráfico e escolha **Recarregar NinjaScript**, ou use **F5** no gráfico. O cabeçalho de `padroes_<contrato>.csv` informa quantas regiões suas foram lidas (`suas regioes no grafico: N`).
-
-### Como montar o estudo
-1. **Daqui para frente (recomendado):** todo dia, antes da abertura, desenhe as suas regiões, como já faz. O indicador registra os padrões em tempo real, e o arquivo cresce a cada pregão. Esse é o teste mais fiel do seu método.
-2. **Para o histórico (opcional):** escolha alguns dias passados e marque com **retângulos** as regiões que você teria identificado naquele dia, antes da abertura. Cada retângulo deve cobrir só aquele dia.
-
-O arquivo de pesquisa ganhou as colunas `dist_max_dia`, `dist_min_dia` e `dist_sua_regiao`, que é a distância até a borda da sua região válida mais próxima (0 = dentro de uma zona).
+**O que os seus 93 pregões mostraram:**
+- A chance de continuar segue quase exatamente a posição do fechamento. Fechou a 90% ou mais do extremo: ~94% de continuação, contra ~95% esperados pelo acaso. Fechou abaixo de 30%: ~22%, contra ~22%.
+- **Descontado isso, a agressão não mudou a chance em nenhuma faixa** (diferenças de ±3 p.p., sem repetir entre as duas metades dos dados).
+- A caixa mostra os dois números para você acompanhar ao vivo se isso continua valendo.
 
 ## Novidades da v1.4
 

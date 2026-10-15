@@ -1,5 +1,5 @@
 // ============================================================================
-//  SPForcaMercado v1.5 - forca compradora x vendedora, sinais e volatilidade (NT8)
+//  SPForcaMercado v1.6 - forca compradora x vendedora, sinais e volatilidade (NT8)
 // ----------------------------------------------------------------------------
 //  Para futuros (MNQ/NQ, MGC/GC...) no grafico de 1 minuto.
 //
@@ -34,16 +34,14 @@
 //  em Documentos\NinjaTrader 8\SPForca\pesquisa_<contrato>.csv.
 //
 //  v1.4: filtro de volatilidade (LENTA/NORMAL/RAPIDA, com a estatistica do
-//  proprio historico) e estudo do metodo regiao + volatilidade + gatilho:
-//  regioes (max/min/fech. do dia anterior, overnight, faixa de abertura 5/15
-//  min, VWAP) e padroes climax, pullback, falha de rompimento e reversao,
-//  gravados em padroes_<contrato>.csv. O modo pesquisa funciona tambem sem
-//  Tick Replay (colunas de delta ficam zeradas), para estudar anos de dados.
+//  proprio historico). O modo pesquisa funciona tambem sem Tick Replay
+//  (colunas de delta ficam zeradas), para estudar anos de dados.
+//  (o estudo de regioes/padroes da v1.4-1.5 foi retirado a pedido)
 //
-//  v1.5: regioes do estudo = as SUAS linhas/zonas desenhadas no grafico
-//  (Linha horizontal, Destaque de regiao Y e Retangulo), VWAP e maxima/minima
-//  do dia incluindo o overnight. Cada desenho so vale a partir do horario do
-//  ponto onde foi clicado (retangulo: entre os seus horarios), sem olhar o futuro.
+//  v1.6: LEITURA DO CANDLE em tempo real (sem regioes): agressao do candle e
+//  dos ultimos 5 min, sinais de esgotamento e a chance de o candle romper a
+//  propria maxima antes da minima (continuacao) medida no seu historico, ao
+//  lado da chance "por acaso" dada so pela posicao do fechamento.
 //
 //  Historico: precisa de "Tick Replay" ligado no grafico (Data Series >
 //  Tick Replay). Sem ele, o delta comeca a ser contado quando o grafico abre.
@@ -151,29 +149,8 @@ namespace NinjaTrader.NinjaScript.Indicators
         private bool   emOvernight;
         private double or5H = double.NaN, or5L = double.NaN, or15H = double.NaN, or15L = double.NaN;
         private double vwapPV, vwapV;
-        private class EstadoNivel
-        {
-            public int    RompeuIdx = -1, ReteIdx = -1, RejIdx = -1;
-            public double Nivel;                 // nivel no momento do rompimento (VWAP/max do dia se movem)
-            public bool[] Usado = new bool[4];
-        }
-
-        private class Regiao
-        {
-            public string   Nome;
-            public double   Lo, Hi;              // linha: Lo = Hi; zona: borda inferior e superior
-            public DateTime De  = DateTime.MinValue;
-            public DateTime Ate = DateTime.MaxValue;
-        }
-        private readonly List<Regiao> regioesUsuario = new List<Regiao>();
-        private int      nRegioesUsuario;
         private DateTime diaGlobex = DateTime.MinValue;
         private double   diaH = double.NaN, diaL = double.NaN;
-        private readonly Dictionary<string, EstadoNivel> estadoNiveis = new Dictionary<string, EstadoNivel>();
-        private static readonly string[] NomePadrao = { "climax", "pullback", "falha", "reversao" };
-        private readonly List<LinhaPesquisa> padroesPendentes = new List<LinhaPesquisa>();
-        private readonly List<string> linhasPadroes = new List<string>();
-        private string arquivoPadroes = "";
 
         // --- filtro de volatilidade (v1.4)
         private readonly Queue<double> ampRelRecentes = new Queue<double>();
@@ -183,6 +160,26 @@ namespace NinjaTrader.NinjaScript.Indicators
         private readonly double[] volMov  = new double[3];
         private string textoVol = "";
         private Brush  corVol = Brushes.Gainsboro;
+
+        // --- leitura do candle (v1.6)
+        private double zMedia, zDesvio;
+        private readonly Queue<double[]> ultimos5 = new Queue<double[]>();   // {compra, venda} dos ultimos candles fechados
+        private int      ultDir;
+        private bool     ultTemNeg, ultValido;
+        private double   ultZ, ultClvAl, ultCorpo, ultRatio, ultRvol, ultAmpRel, ultDelta;
+        private DateTime ultHoraNy;
+        private string   ultSinais = "";
+        private class PendCont
+        {
+            public int    Idx, Dir, Fx, Fz;
+            public double H, L, ClvAl;
+        }
+        private readonly List<PendCont> pendCont = new List<PendCont>();
+        private readonly int[,]    contN   = new int[5, 3];
+        private readonly int[,]    contK   = new int[5, 3];
+        private readonly double[,] contEsp = new double[5, 3];
+        private string textoLeitura = "";
+        private Brush  corLeitura = Brushes.Gainsboro;
         private const int PESQ_HORIZONTE = 15;
         private readonly List<LinhaPesquisa> pesqPendentes = new List<LinhaPesquisa>();
         private readonly List<string> linhasPesquisa = new List<string>();
@@ -289,18 +286,12 @@ namespace NinjaTrader.NinjaScript.Indicators
         public bool ModoPesquisa { get; set; }
 
         [NinjaScriptProperty]
-        [Range(0.0, 1000.0)]
-        [Display(Name = "Regioes: tolerancia de toque (pontos)", Description = "Distancia maxima do pavio ao nivel para contar como teste/reteste", GroupName = "5. Pesquisa", Order = 2)]
-        public double ToleranciaRegiao { get; set; }
-
-        [NinjaScriptProperty]
-        [Range(0.0, 100000.0)]
-        [Display(Name = "Reversao: movimento minimo ate a regiao (pontos, 15 candles)", GroupName = "5. Pesquisa", Order = 3)]
-        public double ImpulsoMinimo { get; set; }
-
-        [NinjaScriptProperty]
         [Display(Name = "Mostrar filtro de volatilidade", GroupName = "6. Volatilidade", Order = 1)]
         public bool MostrarVolatilidade { get; set; }
+
+        [NinjaScriptProperty]
+        [Display(Name = "Mostrar leitura do candle (agressao e continuacao)", GroupName = "7. Leitura do candle", Order = 1)]
+        public bool MostrarLeitura { get; set; }
 
         [NinjaScriptProperty]
         [Range(1, 30)]
@@ -373,9 +364,8 @@ namespace NinjaTrader.NinjaScript.Indicators
                 FimSinaisNY        = "10:30";
                 DivergenciaMinZ    = 1.0;
                 ModoPesquisa       = true;
-                ToleranciaRegiao   = 5;
-                ImpulsoMinimo      = 60;
                 MostrarVolatilidade = true;
+                MostrarLeitura     = true;
                 CandlesVolatilidade = 3;
                 VolLentaAbaixo     = 0.65;
                 VolRapidaAcima     = 1.28;
@@ -409,7 +399,6 @@ namespace NinjaTrader.NinjaScript.Indicators
                 string pasta = Path.Combine(NinjaTrader.Core.Globals.UserDataDir, "SPForca");
                 arquivoCsv = Path.Combine(pasta, "sinais_" + NomeArquivo(Instrument.FullName) + ".csv");
                 arquivoPesquisa = Path.Combine(pasta, "pesquisa_" + NomeArquivo(Instrument.FullName) + ".csv");
-                arquivoPadroes  = Path.Combine(pasta, "padroes_" + NomeArquivo(Instrument.FullName) + ".csv");
                 if (!LerHora(InicioSinaisNY, out inicioSinais)) inicioSinais = aberturaEt;
                 if (!LerHora(FimSinaisNY, out fimSinais))       fimSinais = new TimeSpan(16, 0, 0);
             }
@@ -475,21 +464,27 @@ namespace NinjaTrader.NinjaScript.Indicators
                 RenderTarget.DrawTextLayout(new SharpDX.Vector2(x + 8f, y + 6f), layout, pincel);
                 pincel.Dispose();
 
-                string tv = textoVol;
-                if (!string.IsNullOrEmpty(tv))
-                {
-                    using (SharpDX.DirectWrite.TextLayout lv = new SharpDX.DirectWrite.TextLayout(NinjaTrader.Core.Globals.DirectWriteFactory,
-                               tv, formato, 4000f, 4000f))
-                    {
-                        SharpDX.RectangleF rv = new SharpDX.RectangleF(x, y + h + 4f, lv.Metrics.Width + 16f, lv.Metrics.Height + 10f);
-                        using (SharpDX.Direct2D1.SolidColorBrush fundo2 = new SharpDX.Direct2D1.SolidColorBrush(RenderTarget, new SharpDX.Color4(0f, 0f, 0f, 0.75f)))
-                            RenderTarget.FillRectangle(rv, fundo2);
-                        SharpDX.Direct2D1.Brush pv = corVol.ToDxBrush(RenderTarget);
-                        RenderTarget.DrawRectangle(rv, pv, 1.5f);
-                        RenderTarget.DrawTextLayout(new SharpDX.Vector2(rv.X + 8f, rv.Y + 5f), lv, pv);
-                        pv.Dispose();
-                    }
-                }
+                float yProx = y + h + 4f;
+                yProx = DesenharCaixa(textoVol, corVol, formato, x, yProx);
+                DesenharCaixa(textoLeitura, corLeitura, formato, x, yProx);
+            }
+        }
+
+        // Caixa de texto com borda colorida; retorna a posicao Y para a proxima caixa.
+        private float DesenharCaixa(string texto, Brush cor, SharpDX.DirectWrite.TextFormat formato, float x, float y)
+        {
+            if (string.IsNullOrEmpty(texto)) return y;
+            using (SharpDX.DirectWrite.TextLayout lv = new SharpDX.DirectWrite.TextLayout(NinjaTrader.Core.Globals.DirectWriteFactory,
+                       texto, formato, 4000f, 4000f))
+            {
+                SharpDX.RectangleF rv = new SharpDX.RectangleF(x, y, lv.Metrics.Width + 16f, lv.Metrics.Height + 10f);
+                using (SharpDX.Direct2D1.SolidColorBrush fundo = new SharpDX.Direct2D1.SolidColorBrush(RenderTarget, new SharpDX.Color4(0f, 0f, 0f, 0.75f)))
+                    RenderTarget.FillRectangle(rv, fundo);
+                SharpDX.Direct2D1.Brush pv = cor.ToDxBrush(RenderTarget);
+                RenderTarget.DrawRectangle(rv, pv, 1.5f);
+                RenderTarget.DrawTextLayout(new SharpDX.Vector2(rv.X + 8f, rv.Y + 5f), lv, pv);
+                pv.Dispose();
+                return rv.Y + rv.Height + 4f;
             }
         }
 
@@ -641,12 +636,10 @@ namespace NinjaTrader.NinjaScript.Indicators
             }
 
             RolarSessaoRegioes(horaNy);
-            if (MostrarSinais || ModoPesquisa)
-            {
-                if (MostrarSinais) AvaliarPendentes(idx);
-                if (ModoPesquisa)  AvaliarPesquisa(idx);
-                DetectarSinais(idx, horaNy, delta, volMediaMinuto, ampMediaMinuto);
-            }
+            if (MostrarSinais) AvaliarPendentes(idx);
+            if (ModoPesquisa)  AvaliarPesquisa(idx);
+            ResolverContinuacao(idx);
+            DetectarSinais(idx, horaNy, delta, volMediaMinuto, ampMediaMinuto);
             AtualizarRegioes(idx, horaNy);
             AdicionarMedia(ampPorMinuto, minuto, Bars.GetHigh(idx) - Bars.GetLow(idx));
             AdicionarMedia(volPorMinuto, minuto, Bars.GetVolume(idx));
@@ -690,8 +683,8 @@ namespace NinjaTrader.NinjaScript.Indicators
                 deltasRecentes.Enqueue(delta);
                 while (deltasRecentes.Count > JANELA_ZSCORE) deltasRecentes.Dequeue();
             }
-            if (!NoPregao(horaNy)) return;
             bool temNegocios = vol > 0 && n >= 30 && desvio > 0;
+            if (n >= 30 && desvio > 0) { zMedia = media; zDesvio = desvio; }
 
             double z     = temNegocios ? (delta - media) / desvio : 0;
             double ratio = vol > 0 ? delta / vol : 0;
@@ -700,13 +693,13 @@ namespace NinjaTrader.NinjaScript.Indicators
             double clv = amp > 0 ? (c - l) / amp : 0.5;
             double rvol = volMediaMinuto > 0 ? Bars.GetVolume(idx) / volMediaMinuto : 0;
             bool rvolOk = RvolMinimo <= 0 || volMediaMinuto <= 0 || rvol >= RvolMinimo;
-
             double ampRel = ampMediaMinuto > 0 ? amp / ampMediaMinuto : 0;
+
+            RegistrarLeitura(idx, horaNy, compra, venda, delta, z, ratio, clv, rvol, ampRel, temNegocios);
+            if (!NoPregao(horaNy) || (!MostrarSinais && !ModoPesquisa)) return;
             if (ModoPesquisa)
             {
-                LerRegioesUsuario();
                 RegistrarPesquisa(idx, horaNy, compra, venda, delta, z, ratio, clv, rvol, ampRel, temNegocios);
-                DetectarPadroes(idx, horaNy, z, clv, ampRel, temNegocios);
             }
             if (!MostrarSinais || !temNegocios) return;
 
@@ -889,22 +882,8 @@ namespace NinjaTrader.NinjaScript.Indicators
                 idx >= 15 ? (c - Bars.GetClose(idx - 15)).ToString("0.00", br) : "",
                 ampRel3Atual.ToString("0.00", br),
                 temNegocios ? "1" : "0",
-                Dist(c, diaH, br), Dist(c, diaL, br),
-                RegiaoMaisProxima(c, Bars.GetTime(idx), br)
+                Dist(c, diaH, br), Dist(c, diaL, br)
             });
-        }
-
-        // Distancia (com sinal) ate a borda mais proxima das suas regioes validas; 0 = dentro de uma zona.
-        private string RegiaoMaisProxima(double c, DateTime horaGrafico, CultureInfo br)
-        {
-            double melhor = double.NaN;
-            foreach (Regiao u in regioesUsuario)
-            {
-                if (horaGrafico < u.De || horaGrafico > u.Ate) continue;
-                double d = c > u.Hi ? c - u.Hi : (c < u.Lo ? c - u.Lo : 0);
-                if (double.IsNaN(melhor) || Math.Abs(d) < Math.Abs(melhor)) melhor = d;
-            }
-            return double.IsNaN(melhor) ? "" : melhor.ToString("0.00", br);
         }
 
         private static string Dist(double c, double nivel, CultureInfo br)
@@ -914,7 +893,7 @@ namespace NinjaTrader.NinjaScript.Indicators
 
         private const string PESQ_CABECALHO_EXTRA =
             ";dist_max_ontem;dist_min_ontem;dist_fech_ontem;dist_max_overnight;dist_min_overnight;dist_vwap;dist_max_faixa15;dist_min_faixa15;" +
-            "ret5_pts;ret15_pts;volat_rel;tem_negocios;dist_max_dia;dist_min_dia;dist_sua_regiao";
+            "ret5_pts;ret15_pts;volat_rel;tem_negocios;dist_max_dia;dist_min_dia";
 
         // ------------------------------------------------------------------
         //  Regioes: dia anterior (pregao), overnight, faixa de abertura, VWAP
@@ -942,7 +921,6 @@ namespace NinjaTrader.NinjaScript.Indicators
             or5H = or5L = or15H = or15L = double.NaN;
             vwapPV = vwapV = 0;
             emOvernight = false;
-            estadoNiveis.Clear();
         }
 
         // Dia de negociacao do CME: comeca as 18:00 NY do dia anterior.
@@ -984,174 +962,10 @@ namespace NinjaTrader.NinjaScript.Indicators
             }
         }
 
-        // Linhas e zonas desenhadas por voce no grafico (lidas a cada candle da janela).
-        private void LerRegioesUsuario()
-        {
-            regioesUsuario.Clear();
-            if (DrawObjects == null) return;
-            CultureInfo br = new CultureInfo("pt-BR");
-            foreach (DrawingTool dt in DrawObjects.ToList())
-            {
-                if (dt == null || !dt.IsUserDrawn) continue;
-                HorizontalLine hl = dt as HorizontalLine;
-                if (hl != null)
-                {
-                    regioesUsuario.Add(new Regiao { Nome = "linha " + hl.StartAnchor.Price.ToString("0.00", br),
-                        Lo = hl.StartAnchor.Price, Hi = hl.StartAnchor.Price, De = hl.StartAnchor.Time });
-                    continue;
-                }
-                RegionHighlightY ry = dt as RegionHighlightY;
-                if (ry != null)
-                {
-                    double lo = Math.Min(ry.StartAnchor.Price, ry.EndAnchor.Price), hi = Math.Max(ry.StartAnchor.Price, ry.EndAnchor.Price);
-                    regioesUsuario.Add(new Regiao { Nome = "zona " + lo.ToString("0.00", br) + "-" + hi.ToString("0.00", br),
-                        Lo = lo, Hi = hi, De = ry.StartAnchor.Time < ry.EndAnchor.Time ? ry.StartAnchor.Time : ry.EndAnchor.Time });
-                    continue;
-                }
-                Rectangle rc = dt as Rectangle;
-                if (rc != null)
-                {
-                    double lo = Math.Min(rc.StartAnchor.Price, rc.EndAnchor.Price), hi = Math.Max(rc.StartAnchor.Price, rc.EndAnchor.Price);
-                    DateTime t1 = rc.StartAnchor.Time < rc.EndAnchor.Time ? rc.StartAnchor.Time : rc.EndAnchor.Time;
-                    DateTime t2 = rc.StartAnchor.Time < rc.EndAnchor.Time ? rc.EndAnchor.Time : rc.StartAnchor.Time;
-                    regioesUsuario.Add(new Regiao { Nome = "zona " + lo.ToString("0.00", br) + "-" + hi.ToString("0.00", br),
-                        Lo = lo, Hi = hi, De = t1, Ate = t2 });
-                }
-            }
-            nRegioesUsuario = regioesUsuario.Count;
-        }
-
-        // Regioes validas no candle (conhecidas ANTES dele): VWAP, max/min do dia (com overnight) e as suas.
-        private List<Regiao> RegioesAtivas(DateTime horaGrafico, DateTime horaNy)
-        {
-            List<Regiao> r = new List<Regiao>();
-            if (vwapV > 0)
-            {
-                double v = vwapPV / vwapV;
-                r.Add(new Regiao { Nome = "vwap", Lo = v, Hi = v });
-            }
-            if (diaGlobex == DiaGlobex(horaNy) && !double.IsNaN(diaH))
-            {
-                r.Add(new Regiao { Nome = "max_dia", Lo = diaH, Hi = diaH });
-                r.Add(new Regiao { Nome = "min_dia", Lo = diaL, Hi = diaL });
-            }
-            foreach (Regiao u in regioesUsuario)
-                if (horaGrafico >= u.De && horaGrafico <= u.Ate)
-                    r.Add(u);
-            return r;
-        }
-
-        // ------------------------------------------------------------------
-        //  Padroes do metodo (regiao + gatilho), lado comprador s=+1 e vendedor s=-1.
-        //  Zona: rompimento pela borda de fora (compra: borda superior), toque pela borda de dentro.
-        //   climax   : fecha alem da regiao com candle forte (amplitude >= 1,2x e fecha no extremo) -> continua
-        //   pullback : rompeu, volta a testar o nivel rompido sem fechar dentro e um candle supera
-        //              a maxima do candle do teste -> continua
-        //   falha    : rompeu e em ate 5 candles fecha de volta para dentro -> reverte
-        //   reversao : chega na regiao vindo de um movimento >= ImpulsoMinimo, toca sem romper
-        //              e em ate 3 candles fecha abaixo da minima do candle do toque -> reverte
-        // ------------------------------------------------------------------
-        private void DetectarPadroes(int idx, DateTime horaNy, double z, double clv, double ampRel, bool temNegocios)
-        {
-            if (idx < 16) return;
-            double c = Bars.GetClose(idx), cAnt = Bars.GetClose(idx - 1), h = Bars.GetHigh(idx), l = Bars.GetLow(idx);
-            double tol = ToleranciaRegiao;
-
-            double min15 = double.MaxValue, max15 = double.MinValue;
-            for (int j = idx - 15; j < idx; j++)
-            {
-                min15 = Math.Min(min15, Bars.GetLow(j));
-                max15 = Math.Max(max15, Bars.GetHigh(j));
-            }
-
-            foreach (Regiao reg in RegioesAtivas(Bars.GetTime(idx), horaNy))
-            {
-                for (int s = 1; s >= -1; s -= 2)
-                {
-                    string chave = reg.Nome + (s > 0 ? "+" : "-");
-                    EstadoNivel st;
-                    if (!estadoNiveis.TryGetValue(chave, out st)) { st = new EstadoNivel(); estadoNiveis[chave] = st; }
-
-                    double rompe = s > 0 ? reg.Hi : reg.Lo;   // borda de rompimento
-                    double toque = s > 0 ? reg.Lo : reg.Hi;   // borda tocada vindo de dentro
-                    double clvLado = s > 0 ? clv : 1 - clv;
-
-                    if (st.RompeuIdx >= 0)
-                    {
-                        double L = st.Nivel;
-                        if ((c - L) * s <= 0)
-                        {
-                            // falha: rompeu ha ate 5 candles e fechou de volta para dentro
-                            if (idx - st.RompeuIdx <= 5)
-                                RegistrarPadrao(2, -s, idx, horaNy, reg.Nome, L, z, ampRel, temNegocios, st);
-                            st.RompeuIdx = -1;
-                            st.ReteIdx = -1;
-                        }
-                        else if (st.ReteIdx >= 0 && idx > st.ReteIdx && idx - st.ReteIdx <= 3
-                                 && (s > 0 ? c > Bars.GetHigh(st.ReteIdx) : c < Bars.GetLow(st.ReteIdx)))
-                        {
-                            RegistrarPadrao(1, s, idx, horaNy, reg.Nome, L, z, ampRel, temNegocios, st);
-                            st.ReteIdx = -1;
-                        }
-                        else if (idx - st.RompeuIdx <= 10 && (s > 0 ? l <= L + tol : h >= L - tol))
-                            st.ReteIdx = idx;   // reteste: pavio volta ao nivel, fechamento continua fora
-                        continue;
-                    }
-
-                    bool foraAgora = (c - rompe) * s > 0;
-                    bool foraAntes = (cAnt - rompe) * s > 0;
-                    if (foraAgora && !foraAntes)
-                    {
-                        st.RompeuIdx = idx;
-                        st.Nivel = rompe;
-                        st.ReteIdx = -1;
-                        st.RejIdx = -1;
-                        if (ampRel >= 1.2 && clvLado >= 0.7)
-                            RegistrarPadrao(0, s, idx, horaNy, reg.Nome, rompe, z, ampRel, temNegocios, st);
-                        continue;
-                    }
-                    if (foraAgora) continue;
-
-                    // reversao: toque vindo de dentro, sem romper, depois de um movimento forte
-                    if (st.RejIdx >= 0 && idx > st.RejIdx && idx - st.RejIdx <= 3
-                        && (s > 0 ? c < Bars.GetLow(st.RejIdx) : c > Bars.GetHigh(st.RejIdx)))
-                    {
-                        RegistrarPadrao(3, -s, idx, horaNy, reg.Nome, toque, z, ampRel, temNegocios, st);
-                        st.RejIdx = -1;
-                    }
-                    else if ((s > 0 ? h >= toque - tol : l <= toque + tol)
-                             && (s > 0 ? h - min15 >= ImpulsoMinimo : max15 - l >= ImpulsoMinimo))
-                        st.RejIdx = idx;
-                    else if (st.RejIdx >= 0 && idx - st.RejIdx > 3)
-                        st.RejIdx = -1;
-                }
-            }
-        }
-
-        private void RegistrarPadrao(int tipo, int dir, int idx, DateTime horaNy, string regiao, double nivel,
-                                     double z, double ampRel, bool temNegocios, EstadoNivel st)
-        {
-            if (st.Usado[tipo]) return;    // um por regiao, lado e dia
-            st.Usado[tipo] = true;
-            CultureInfo br = new CultureInfo("pt-BR");
-            double c = Bars.GetClose(idx);
-            double cvd = serieAcum.GetValueAt(idx);
-            string cvd5 = idx >= 5 ? (cvd - serieAcum.GetValueAt(idx - 5)).ToString("0", br) : "";
-            string b = string.Format(br, "{0:dd/MM/yyyy};{0:HH:mm};{1};{2};{3};{4};{5:0.00};{6:0.00};{7:0.00};{8:0.00};{9:0.00};{10:0.00};{11};{12}",
-                horaNy, (int)(horaNy.TimeOfDay - aberturaEt).TotalMinutes, NomePadrao[tipo], regiao, dir > 0 ? "compra" : "venda",
-                c, nivel, c - nivel, ampRel, ampRel3Atual, z, cvd5, temNegocios ? "1" : "0");
-            padroesPendentes.Add(new LinhaPesquisa { BarIdx = idx, Base = b, Close = c, MaxH = c, MinL = c, Dir = dir, AmpRel3 = ampRel3Atual });
-        }
-
-        private const string PADROES_CABECALHO =
-            "data;hora_ET;min_desde_abertura;padrao;regiao;direcao;entrada;nivel;dist_nivel;amplitude_rel;volat_rel;zscore;delta_acum_5min;tem_negocios;" +
-            "resultado;candles;fwd15_a_favor_pts;max_a_favor15_pts;max_contra15_pts";
-
         // Acompanha os 15 candles seguintes de cada registro e grava quando completa.
         private void AvaliarPesquisa(int idx)
         {
-            AvaliarLista(pesqPendentes, idx, false);
-            AvaliarLista(padroesPendentes, idx, true);
+            AvaliarLista(pesqPendentes, idx);
         }
 
         private int FaixaVol(double ampRel3)
@@ -1160,7 +974,7 @@ namespace NinjaTrader.NinjaScript.Indicators
             return ampRel3 >= VolRapidaAcima ? 2 : 1;
         }
 
-        private void AvaliarLista(List<LinhaPesquisa> lista, int idx, bool padroes)
+        private void AvaliarLista(List<LinhaPesquisa> lista, int idx)
         {
             double h = Bars.GetHigh(idx), l = Bars.GetLow(idx), c = Bars.GetClose(idx);
             for (int k = lista.Count - 1; k >= 0; k--)
@@ -1187,19 +1001,6 @@ namespace NinjaTrader.NinjaScript.Indicators
                 lista.RemoveAt(k);
 
                 CultureInfo br = new CultureInfo("pt-BR");
-                if (padroes)
-                {
-                    int res = r.Dir > 0 ? r.ResCompra : r.ResVenda;
-                    int cand = r.Dir > 0 ? r.CandlesCompra : r.CandlesVenda;
-                    double favor  = r.Dir > 0 ? r.MaxH - r.Close : r.Close - r.MinL;
-                    double contra = r.Dir > 0 ? r.Close - r.MinL : r.MaxH - r.Close;
-                    string lp = r.Base + ";" + string.Format(br, "{0};{1};{2:0.00};{3:0.00};{4:0.00}",
-                        TextoRes(res), res != 0 ? cand.ToString() : "", r.F15 * r.Dir, favor, contra);
-                    linhasPadroes.Add(lp);
-                    if (csvGravado) AnexarArquivo(arquivoPadroes, lp);
-                    continue;
-                }
-
                 // estatistica do filtro de volatilidade: o alvo era alcancavel para algum lado em 15 candles?
                 int fv = FaixaVol(r.AmpRel3);
                 volN[fv]++;
@@ -1252,17 +1053,155 @@ namespace NinjaTrader.NinjaScript.Indicators
                     foreach (string l in linhasPesquisa) sp.AppendLine(l);
                     File.WriteAllText(arquivoPesquisa, sp.ToString(), Encoding.UTF8);
 
-                    StringBuilder spd = new StringBuilder();
-                    spd.AppendLine(string.Format(CultureInfo.InvariantCulture,
-                        "# SPForcaMercado padroes | {0} | {1:hh\\:mm} a {2:hh\\:mm} NY | alvo {3} / stop {4} pts | horizonte {5} candles | tolerancia {6} | impulso {7} | suas regioes no grafico: {8} | gerado {9:dd/MM/yyyy HH:mm}",
-                        Instrument.FullName, inicioSinais, fimSinais, AlvoPontos, StopPontos, PESQ_HORIZONTE, ToleranciaRegiao, ImpulsoMinimo, nRegioesUsuario, DateTime.Now));
-                    spd.AppendLine(PADROES_CABECALHO);
-                    foreach (string l in linhasPadroes) spd.AppendLine(l);
-                    File.WriteAllText(arquivoPadroes, spd.ToString(), Encoding.UTF8);
                 }
                 csvGravado = true;
             }
             catch (Exception ex) { Print("SPForcaMercado: falha ao gravar os arquivos CSV: " + ex.Message); }
+        }
+
+        // ------------------------------------------------------------------
+        //  Leitura do candle
+        // ------------------------------------------------------------------
+        private static int FaixaClv(double clvAl)   // posicao do fechamento a favor do candle (0..1)
+        {
+            if (clvAl < 0.3) return 0;
+            if (clvAl < 0.5) return 1;
+            if (clvAl < 0.7) return 2;
+            return clvAl < 0.9 ? 3 : 4;
+        }
+
+        private static int FaixaZ(double zAl)       // agressao a favor do candle
+        {
+            if (zAl < 1.0) return 0;
+            return zAl < 2.5 ? 1 : 2;
+        }
+
+        private static string NivelZ(double z)
+        {
+            double a = Math.Abs(z);
+            if (a < 1) return "fraca";
+            if (a < 2) return "moderada";
+            return a < 3 ? "FORTE" : "EXTREMA";
+        }
+
+        private void RegistrarLeitura(int idx, DateTime horaNy, double compra, double venda, double delta, double z,
+                                      double ratio, double clv, double rvol, double ampRel, bool temNegocios)
+        {
+            ultimos5.Enqueue(new[] { compra, venda });
+            while (ultimos5.Count > 5) ultimos5.Dequeue();
+
+            double o = Bars.GetOpen(idx), h = Bars.GetHigh(idx), l = Bars.GetLow(idx), c = Bars.GetClose(idx);
+            int dir = c > o ? 1 : (c < o ? -1 : 0);
+            double amp = h - l;
+            ultValido = true;
+            ultDir    = dir;
+            ultHoraNy = horaNy;
+            ultTemNeg = temNegocios;
+            ultZ      = z;
+            ultDelta  = delta;
+            ultRatio  = ratio;
+            ultRvol   = rvol;
+            ultAmpRel = ampRel;
+            ultClvAl  = dir >= 0 ? clv : 1 - clv;
+            ultCorpo  = amp > 0 ? Math.Abs(c - o) / amp : 0;
+
+            // sinais descritivos do candle (o que aconteceu, nao previsao)
+            List<string> sinais = new List<string>();
+            double zAl = z * dir;
+            string lado = dir > 0 ? "compradores" : "vendedores";
+            if (dir != 0 && temNegocios)
+            {
+                if (zAl >= 2 && ultClvAl >= 0.7)      sinais.Add("agressao forte a favor e fechou no extremo");
+                if (zAl >= 2 && ultClvAl < 0.5)       sinais.Add(lado + " agrediram forte mas o candle fechou longe do extremo (absorcao/esgotamento)");
+                if (zAl <= -1.5)                      sinais.Add("agressao contraria ao candle (o lado oposto foi absorvido)");
+            }
+            if (dir != 0 && ultClvAl < 0.35)          sinais.Add("pavio de rejeicao: fechou longe do extremo");
+            if (ampRel >= 2 && rvol >= 2)             sinais.Add("candle climatico: amplitude e volume acima de 2x o normal");
+            ultSinais = sinais.Count > 0 ? string.Join(" | ", sinais) : "nenhum";
+
+            // estatistica de continuacao (so na janela do estudo e com dados de negocio)
+            if (dir != 0 && temNegocios && NoPregao(horaNy))
+                pendCont.Add(new PendCont { Idx = idx, Dir = dir, H = h, L = l, ClvAl = ultClvAl,
+                                            Fx = FaixaClv(ultClvAl), Fz = FaixaZ(zAl) });
+        }
+
+        // O candle continuou (rompeu a propria maxima, no candle de compra) antes de reverter
+        // (romper a propria minima) nos 5 candles seguintes?
+        private void ResolverContinuacao(int idx)
+        {
+            double h = Bars.GetHigh(idx), l = Bars.GetLow(idx), tick = TickSize;
+            for (int k = pendCont.Count - 1; k >= 0; k--)
+            {
+                PendCont p = pendCont[k];
+                if (idx <= p.Idx) continue;
+                bool sobe = h >= p.H + tick, desce = l <= p.L - tick;
+                if (sobe && desce) { pendCont.RemoveAt(k); continue; }     // os dois no mesmo candle: ignora
+                if (sobe || desce)
+                {
+                    contN[p.Fx, p.Fz]++;
+                    if ((sobe && p.Dir > 0) || (desce && p.Dir < 0)) contK[p.Fx, p.Fz]++;
+                    contEsp[p.Fx, p.Fz] += p.ClvAl;
+                    pendCont.RemoveAt(k);
+                }
+                else if (idx - p.Idx >= 5)
+                    pendCont.RemoveAt(k);
+            }
+        }
+
+        private void AtualizarTextoLeitura()
+        {
+            if (!MostrarLeitura || !ultValido) { textoLeitura = ""; return; }
+            CultureInfo br = new CultureInfo("pt-BR");
+            StringBuilder sb = new StringBuilder();
+
+            double c5 = candleCompra, v5 = candleVenda;
+            foreach (double[] cv in ultimos5) { c5 += cv[0]; v5 += cv[1]; }
+            double t5 = c5 + v5;
+            sb.Append("LEITURA DO CANDLE\n");
+            if (t5 > 0)
+                sb.AppendFormat(br, "Agressao ultimos 5 min: COMPRADORES {0:0}% x {1:0}% VENDEDORES (delta {2:+#,##0;-#,##0;0})\n",
+                    100 * c5 / t5, 100 * v5 / t5, c5 - v5);
+            else
+                sb.Append("Agressao ultimos 5 min: sem dados de negocio\n");
+
+            double vAt = candleCompra + candleVenda;
+            if (vAt > 0)
+            {
+                double dAt = candleCompra - candleVenda;
+                string zTxt = zDesvio > 0 ? string.Format(br, " (z {0:+0.0;-0.0}: {1})", (dAt - zMedia) / zDesvio, NivelZ((dAt - zMedia) / zDesvio)) : "";
+                sb.AppendFormat(br, "Candle em formacao: compradores {0:0}% | delta {1:+#,##0;-#,##0;0}{2}\n", 100 * candleCompra / vAt, dAt, zTxt);
+            }
+
+            string tipo = ultDir > 0 ? "COMPRA" : (ultDir < 0 ? "VENDA" : "DOJI");
+            sb.AppendFormat(br, "Ultimo candle {0:HH:mm}: {1} | fechou a {2:0}% do extremo | corpo {3:0}%", ultHoraNy, tipo, 100 * ultClvAl, 100 * ultCorpo);
+            if (ultTemNeg)
+                sb.AppendFormat(br, " | delta {0:+#,##0;-#,##0;0} (z {1:+0.0;-0.0}: {2}, {3:0}% do volume)", ultDelta, ultZ, NivelZ(ultZ), 100 * Math.Abs(ultRatio));
+            if (ultRvol > 0) sb.AppendFormat(br, " | RVOL {0:0.0}x", ultRvol);
+            if (ultAmpRel > 0) sb.AppendFormat(br, " | amplitude {0:0.0}x", ultAmpRel);
+            sb.Append("\n");
+
+            if (ultDir != 0 && ultTemNeg)
+            {
+                int fx = FaixaClv(ultClvAl), fz = FaixaZ(ultZ * ultDir);
+                int n = contN[fx, fz];
+                string extremo = ultDir > 0 ? "maxima" : "minima", oposto = ultDir > 0 ? "minima" : "maxima";
+                if (n >= 30)
+                {
+                    double real = 100.0 * contK[fx, fz] / n, acaso = 100.0 * contEsp[fx, fz] / n;
+                    double dif = real - acaso;
+                    string leitura = Math.Abs(dif) < 5
+                        ? "a agressao NAO mudou a chance (dif. " + dif.ToString("+0;-0;0", br) + " p.p.)"
+                        : (dif > 0 ? "a agressao AUMENTOU a chance em " : "a agressao REDUZIU a chance em ") + Math.Abs(dif).ToString("0", br) + " p.p.";
+                    sb.AppendFormat(br, "Continua (rompe a {0} antes da {1} em ate 5 min): {2:0}% no seu historico (n={3}) | pela posicao do fechamento: {4:0}% -> {5}\n",
+                        extremo, oposto, real, n, acaso, leitura);
+                }
+                else
+                    sb.AppendFormat(br, "Continuacao: historico insuficiente para candles assim (n={0}; precisa de 30)\n", n);
+            }
+            sb.Append("Sinais: " + ultSinais);
+
+            textoLeitura = sb.ToString();
+            corLeitura = t5 <= 0 ? Brushes.Gainsboro : (c5 >= v5 ? Brushes.LimeGreen : Brushes.Tomato);
         }
 
         private void AtualizarTextoVolatilidade()
@@ -1417,6 +1356,7 @@ namespace NinjaTrader.NinjaScript.Indicators
 
             Brush cor = total <= 0 ? Brushes.Gainsboro : (compra >= venda ? Brushes.LimeGreen : Brushes.Tomato);
             AtualizarTextoVolatilidade();
+            AtualizarTextoLeitura();
             corResumo   = cor;
             textoResumo = titulo + "   (arraste para mover)\n" + linhaForca + "\n" + linhaCandle
                         + (linhaRange != "" ? "\n" + linhaRange : "") + linhaSinais;
