@@ -1,4 +1,4 @@
-# SPForcaMercado v1.6: força compradora x vendedora (NinjaTrader 8)
+# SPForcaMercado v1.7: força compradora x vendedora (NinjaTrader 8)
 
 Indicador para futuros (MNQ, NQ, MGC, GC...) no gráfico de **1 minuto**. Ele mede **quem agrediu**, compradores ou vendedores, e **quanto o mercado está se mexendo** em relação ao normal daquele horário.
 
@@ -14,16 +14,68 @@ Indicador para futuros (MNQ, NQ, MGC, GC...) no gráfico de **1 minuto**. Ele me
 | **Amplitude da janela** | Máxima − mínima desde a abertura, comparada à média dos dias anteriores |
 
 ### No gráfico
-- **Barras do delta:** verde (compradores) ou vermelho (vendedores).
-- **Cor forte:** quando um lado dominou o candle, ou seja, quando |delta| ≥ 25% do volume do candle (ajustável).
-- **Resumo no canto superior esquerdo do painel**, por exemplo:
-  ```
-  FORCA DA ABERTURA DE NY (09:30 ET, 60 min)
-  Compradores 58%  x  Vendedores 42%   |   Delta +3.420   |   Delta acumulado +3.420
-  Candle atual: delta +210 | amplitude 42,5 (2,3x a media do horario) | volume 4.812 (RVOL 1,9x)
-  Amplitude da janela: 185,25 pts (1,3x a media de 20 dias: 140,1 pts)
-  ```
+- **Barras do delta** (painel do indicador): verde (compradores) ou vermelho (vendedores). A cor fica forte quando um lado dominou o candle, ou seja, quando |delta| ≥ 25% do volume (ajustável).
+- **Setas e marcas EX** no gráfico de **preço** (v1.7).
+- **Painéis** de volatilidade e de leitura do candle no painel do indicador, arrastáveis com o mouse.
 - O horário de NY é convertido automaticamente para o fuso do NT8, inclusive no horário de verão.
+
+## Novidades da v1.7: seta de agressão e esgotamento no gráfico
+
+- **Saiu o painel "Força da abertura".** Ficam só a caixa de **volatilidade** e a de **leitura do candle**. A primeira caixa pode ser arrastada e leva a outra junto.
+- Os sinais antigos **C/A/D ficam desligados por padrão**, porque o estudo não mostrou vantagem neles. Para religar, use "Mostrar sinais antigos C/A/D".
+
+### Seta de agressão acima da média (↑ / ↓)
+- Aparece no **fechamento** do candle quando o delta fica **pelo menos 2 desvios padrão** acima ou abaixo da média dos últimos 200 candles (z-score ≥ 2,0, ajustável). Isso acontece em cerca de 1 candle a cada 20.
+- **↑ verde** abaixo da mínima = compradores agrediram muito acima do normal. **↓ vermelha** acima da máxima = vendedores.
+- A seta não muda depois de desenhada, porque só é avaliada com o candle fechado. Para acompanhar a agressão **durante** o candle, use a linha "Candle em formação" da leitura, que mostra o z-score ao vivo.
+- Precisa de dados de negócio (**Tick Replay** no histórico).
+
+### Esgotamento / absorção (EX▲ / EX▼)
+Exemplo na venda (EX▲, amarelo, abaixo da mínima):
+1. Nos **5 candles anteriores**, pelo menos **3 foram de baixa** e o preço caiu no período.
+2. Vem um candle com **amplitude ≥ 1,8x** e **volume ≥ 1,8x** a média dos 10 candles anteriores...
+3. ...que faz **nova mínima** dos 5 candles.
+
+Leitura: os vendedores podem ter gasto a força nesse empurrão, e há chance de os compradores entrarem a partir do fechamento desse candle ou dos próximos. Na compra é o espelho (**EX▼**, magenta, acima da máxima).
+
+O texto do sinal na caixa de leitura classifica o candle:
+
+| Classificação | Quando |
+|---|---|
+| **ABSORÇÃO** | O delta foi forte na direção da tendência (z ≥ 1,5), mas o candle voltou pelo menos 40% do extremo: a agressão bateu em ordens passivas |
+| **REJEIÇÃO** | O candle voltou pelo menos 50% do extremo |
+| **CLÍMAX** | Fechou no extremo (menos de 25% de volta). Pode haver mais um empurrão antes de virar, então é mais prudente esperar o candle seguinte confirmar |
+| **ESGOTAMENTO** | Os demais casos |
+
+- Usa só **preço e volume**, então funciona **também sem Tick Replay**. Com dados de negócio, o delta entra na classificação.
+- O candle do EX é pintado (opção "Pintar o candle do sinal").
+
+### Estatística no seu histórico
+Na caixa de leitura aparece, para cada sinal ligado, o resultado no histórico carregado:
+```
+Sinais no seu historico (40 pregao(oes) com negocios; alvo 40 antes de stop 40 pts em ate 15 candles):
+  F▲ 52% (31/60) +4 neutros, a favor 38 / contra 41 pts   |   F▼ 49% (28/57) +3 neutros, a favor 36 / contra 40 pts
+  EX▲ 58% (11/19), a favor 45 / contra 33 pts   |   EX▼ 50% (8/16) +1 neutros, a favor 39 / contra 37 pts
+Ultimo sinal: EX▲ 10:12 ET - esgotamento da venda (possivel entrada compradora): ABSORCAO: vendedores agrediram forte e o preco nao acompanhou | ...
+```
+(números ilustrativos)
+- Entrada no fechamento do candle do sinal, alvo 40 antes de stop 40 em até 15 candles, como nos outros sinais. "A favor / contra" é a média do maior movimento a favor e contra no prazo.
+- Com alvo = stop, o acaso dá **~50%**. Só confie numa taxa **acima disso, com 30 casos ou mais**. O EX é raro (alguns por semana na janela), então precisa de muitos dias carregados.
+- Todos os sinais vão também para `sinais_<contrato>.csv`.
+- Por padrão os sinais só aparecem no **horário dos sinais (09:30–10:30 NY)**. Para vê-los o dia todo, desmarque "Sinais só no horário abaixo".
+
+### Parâmetros (grupo "3a. Setas e esgotamento")
+
+| Parâmetro | Padrão | Descrição |
+|---|---|---|
+| Seta de agressão acima da média | sim | Liga as setas |
+| Seta: z-score mínimo do delta | 2,0 | 2,0 ≈ 1 candle em 20; 3,0 ≈ 1 em 100 |
+| Marcar esgotamento/absorção (EX) | sim | Liga as marcas EX |
+| EX: candles da tendência anterior | 5 | Quantos candles olhar para trás |
+| EX: mínimo de candles na direção | 3 | Quantos deles precisam fechar na direção da tendência |
+| EX: candles para a média de amplitude e volume | 10 | Base de comparação do candle grande |
+| EX: amplitude mínima (x a média) | 1,8 | Quanto maior, mais raro e mais "climático" |
+| EX: volume mínimo (x a média) | 1,8 | Idem para o volume |
 
 ## Novidades da v1.6: leitura do candle em tempo real
 
@@ -150,7 +202,7 @@ Cada candle fechado é avaliado. A **agressão forte** é medida pelo **z-score 
 | **A▲** (azul) / **A▼** (laranja) | Absorção | Agressão forte, mas o candle **fechou contra** a agressão. Ex.: venda forte e candle de alta. | Ordens passivas seguraram o preço. Possível reversão no sentido da seta. |
 | **D▲** / **D▼** (violeta) | Divergência | Nova máxima (ou mínima) dos últimos 10 candles **sem o delta acumulado confirmar** | O movimento perdeu agressão. Possível exaustão ou reversão. |
 
-As marcas aparecem no painel do indicador, e o candle do sinal é pintado com a mesma cor no gráfico de preço (opcional). Por padrão, só são gerados sinais no pregão de NY (da abertura até 16:00 ET).
+A partir da v1.7 as marcas aparecem no gráfico de preço, e o candle do sinal é pintado com a mesma cor no gráfico de preço (opcional). Por padrão, só são gerados sinais no pregão de NY (da abertura até 16:00 ET).
 
 ### Probabilidade medida no seu histórico
 O indicador **testa cada sinal nos dias carregados** e mostra a taxa de acerto no resumo:
@@ -179,7 +231,7 @@ Os números acima são ilustrativos.
 
 | Parâmetro | Padrão | Descrição |
 |---|---|---|
-| Mostrar sinais | sim | Liga as marcas e a estatística |
+| Mostrar sinais antigos C/A/D | não (v1.7) | Liga as marcas C/A/D e a estatística delas |
 | Agressão forte: z-score do delta | 2,0 | Quanto maior, mais raros e mais fortes os sinais |
 | Continuação: RVOL mínimo | 1,2 | Volume do candle em relação à média do mesmo minuto. 0 = não exigir. |
 | Divergência: candles da máxima/mínima | 20 | Tamanho da janela usada para identificar a nova máxima ou mínima |
@@ -192,7 +244,7 @@ Os números acima são ilustrativos.
 | Alvo / Stop para contar acerto (pontos) | 40 / 40 | Critério da estatística e do modo pesquisa |
 | Candles para avaliar | 15 | Prazo máximo para alvo ou stop |
 
-Se usar o indicador duas vezes (delta por candle e delta acumulado), deixe **"Mostrar sinais" ligado em só uma** das instâncias. Assim as marcas e o alerta não aparecem em dobro.
+Se usar o indicador duas vezes (delta por candle e delta acumulado), deixe **os sinais e as setas ligados em só uma** das instâncias. Assim as marcas e o alerta não aparecem em dobro.
 
 ## Instalação
 
@@ -214,14 +266,13 @@ O Tick Replay carrega todos os negócios do histórico. Com muitos dias, o gráf
 | Abertura de NY (horário de NY) | 09:30 | Início da contagem do delta acumulado e da janela |
 | Janela da abertura (min) | 60 | Período resumido no painel. 0 = sessão toda. |
 | Dias para a média do horário | 20 | Base da amplitude relativa, do RVOL e da amplitude média da abertura |
-| Gráfico | DeltaPorCandle | DeltaPorCandle (barras) ou DeltaAcumulado (linha) |
+| Gráfico | DeltaColorido | DeltaColorido (barras para cima), DeltaPorCandle ou DeltaAcumulado (linha) |
 | Limiar de candle forte | 0,25 | Fração do volume num só lado para pintar com a cor forte |
-| Mostrar resumo no gráfico | sim | Texto no canto superior esquerdo do painel |
+| Mostrar painéis | sim | Caixas de volatilidade e leitura do candle no painel do indicador |
 
 ## Como ler
 - **Delta acumulado subindo junto com o preço:** a alta tem agressão compradora real por trás.
 - **Divergência:** o preço faz nova máxima e o delta acumulado não acompanha. A alta perde força, porque a agressão compradora está diminuindo.
 - **Candle com amplitude ou RVOL bem acima de 1x:** o mercado está mais ativo que o normal para aquele horário. Isso costuma acontecer na abertura e em notícias.
-- **Compradores x Vendedores na janela:** resume quem dominou a abertura. Perto de 50/50 indica uma abertura disputada.
 
 Os indicadores descrevem o que já aconteceu. Use como contexto do seu plano, não como sinal isolado.
