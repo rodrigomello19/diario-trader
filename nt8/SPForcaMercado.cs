@@ -1,5 +1,5 @@
 // ============================================================================
-//  SPForcaMercado v1.4 - forca compradora x vendedora, sinais e volatilidade (NT8)
+//  SPForcaMercado v1.5 - forca compradora x vendedora, sinais e volatilidade (NT8)
 // ----------------------------------------------------------------------------
 //  Para futuros (MNQ/NQ, MGC/GC...) no grafico de 1 minuto.
 //
@@ -40,6 +40,11 @@
 //  gravados em padroes_<contrato>.csv. O modo pesquisa funciona tambem sem
 //  Tick Replay (colunas de delta ficam zeradas), para estudar anos de dados.
 //
+//  v1.5: regioes do estudo = as SUAS linhas/zonas desenhadas no grafico
+//  (Linha horizontal, Destaque de regiao Y e Retangulo), VWAP e maxima/minima
+//  do dia incluindo o overnight. Cada desenho so vale a partir do horario do
+//  ponto onde foi clicado (retangulo: entre os seus horarios), sem olhar o futuro.
+//
 //  Historico: precisa de "Tick Replay" ligado no grafico (Data Series >
 //  Tick Replay). Sem ele, o delta comeca a ser contado quando o grafico abre.
 // ============================================================================
@@ -49,6 +54,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Media;
@@ -147,9 +153,22 @@ namespace NinjaTrader.NinjaScript.Indicators
         private double vwapPV, vwapV;
         private class EstadoNivel
         {
-            public int  RompeuIdx = -1, ReteIdx = -1, RejIdx = -1;
+            public int    RompeuIdx = -1, ReteIdx = -1, RejIdx = -1;
+            public double Nivel;                 // nivel no momento do rompimento (VWAP/max do dia se movem)
             public bool[] Usado = new bool[4];
         }
+
+        private class Regiao
+        {
+            public string   Nome;
+            public double   Lo, Hi;              // linha: Lo = Hi; zona: borda inferior e superior
+            public DateTime De  = DateTime.MinValue;
+            public DateTime Ate = DateTime.MaxValue;
+        }
+        private readonly List<Regiao> regioesUsuario = new List<Regiao>();
+        private int      nRegioesUsuario;
+        private DateTime diaGlobex = DateTime.MinValue;
+        private double   diaH = double.NaN, diaL = double.NaN;
         private readonly Dictionary<string, EstadoNivel> estadoNiveis = new Dictionary<string, EstadoNivel>();
         private static readonly string[] NomePadrao = { "climax", "pullback", "falha", "reversao" };
         private readonly List<LinhaPesquisa> padroesPendentes = new List<LinhaPesquisa>();
@@ -685,6 +704,7 @@ namespace NinjaTrader.NinjaScript.Indicators
             double ampRel = ampMediaMinuto > 0 ? amp / ampMediaMinuto : 0;
             if (ModoPesquisa)
             {
+                LerRegioesUsuario();
                 RegistrarPesquisa(idx, horaNy, compra, venda, delta, z, ratio, clv, rvol, ampRel, temNegocios);
                 DetectarPadroes(idx, horaNy, z, clv, ampRel, temNegocios);
             }
@@ -868,8 +888,23 @@ namespace NinjaTrader.NinjaScript.Indicators
                 idx >= 5  ? (c - Bars.GetClose(idx - 5)).ToString("0.00", br)  : "",
                 idx >= 15 ? (c - Bars.GetClose(idx - 15)).ToString("0.00", br) : "",
                 ampRel3Atual.ToString("0.00", br),
-                temNegocios ? "1" : "0"
+                temNegocios ? "1" : "0",
+                Dist(c, diaH, br), Dist(c, diaL, br),
+                RegiaoMaisProxima(c, Bars.GetTime(idx), br)
             });
+        }
+
+        // Distancia (com sinal) ate a borda mais proxima das suas regioes validas; 0 = dentro de uma zona.
+        private string RegiaoMaisProxima(double c, DateTime horaGrafico, CultureInfo br)
+        {
+            double melhor = double.NaN;
+            foreach (Regiao u in regioesUsuario)
+            {
+                if (horaGrafico < u.De || horaGrafico > u.Ate) continue;
+                double d = c > u.Hi ? c - u.Hi : (c < u.Lo ? c - u.Lo : 0);
+                if (double.IsNaN(melhor) || Math.Abs(d) < Math.Abs(melhor)) melhor = d;
+            }
+            return double.IsNaN(melhor) ? "" : melhor.ToString("0.00", br);
         }
 
         private static string Dist(double c, double nivel, CultureInfo br)
@@ -879,7 +914,7 @@ namespace NinjaTrader.NinjaScript.Indicators
 
         private const string PESQ_CABECALHO_EXTRA =
             ";dist_max_ontem;dist_min_ontem;dist_fech_ontem;dist_max_overnight;dist_min_overnight;dist_vwap;dist_max_faixa15;dist_min_faixa15;" +
-            "ret5_pts;ret15_pts;volat_rel;tem_negocios";
+            "ret5_pts;ret15_pts;volat_rel;tem_negocios;dist_max_dia;dist_min_dia;dist_sua_regiao";
 
         // ------------------------------------------------------------------
         //  Regioes: dia anterior (pregao), overnight, faixa de abertura, VWAP
@@ -910,9 +945,18 @@ namespace NinjaTrader.NinjaScript.Indicators
             estadoNiveis.Clear();
         }
 
+        // Dia de negociacao do CME: comeca as 18:00 NY do dia anterior.
+        private static DateTime DiaGlobex(DateTime horaNy)
+        {
+            return horaNy.TimeOfDay > new TimeSpan(18, 0, 0) ? horaNy.Date.AddDays(1) : horaNy.Date;
+        }
+
         private void AtualizarRegioes(int idx, DateTime horaNy)
         {
             double h = Bars.GetHigh(idx), l = Bars.GetLow(idx), c = Bars.GetClose(idx);
+            DateTime dg = DiaGlobex(horaNy);
+            if (dg != diaGlobex) { diaGlobex = dg; diaH = h; diaL = l; }
+            else { diaH = Math.Max(diaH, h); diaL = Math.Min(diaL, l); }
             if (NoRth(horaNy) && horaNy.Date == rthDia)
             {
                 rthH = double.IsNaN(rthH) ? h : Math.Max(rthH, h);
@@ -940,34 +984,69 @@ namespace NinjaTrader.NinjaScript.Indicators
             }
         }
 
-        // Regioes conhecidas ANTES do candle atual (faixa de abertura so depois de formada).
-        private List<KeyValuePair<string, double>> RegioesAtivas(int minAbertura)
+        // Linhas e zonas desenhadas por voce no grafico (lidas a cada candle da janela).
+        private void LerRegioesUsuario()
         {
-            List<KeyValuePair<string, double>> r = new List<KeyValuePair<string, double>>();
-            if (!double.IsNaN(pdh)) r.Add(new KeyValuePair<string, double>("max_ontem", pdh));
-            if (!double.IsNaN(pdl)) r.Add(new KeyValuePair<string, double>("min_ontem", pdl));
-            if (!double.IsNaN(pdc)) r.Add(new KeyValuePair<string, double>("fech_ontem", pdc));
-            if (!double.IsNaN(onHHoje)) r.Add(new KeyValuePair<string, double>("max_overnight", onHHoje));
-            if (!double.IsNaN(onLHoje)) r.Add(new KeyValuePair<string, double>("min_overnight", onLHoje));
-            if (minAbertura > 5 && !double.IsNaN(or5H))
+            regioesUsuario.Clear();
+            if (DrawObjects == null) return;
+            CultureInfo br = new CultureInfo("pt-BR");
+            foreach (DrawingTool dt in DrawObjects.ToList())
             {
-                r.Add(new KeyValuePair<string, double>("max_faixa5", or5H));
-                r.Add(new KeyValuePair<string, double>("min_faixa5", or5L));
+                if (dt == null || !dt.IsUserDrawn) continue;
+                HorizontalLine hl = dt as HorizontalLine;
+                if (hl != null)
+                {
+                    regioesUsuario.Add(new Regiao { Nome = "linha " + hl.StartAnchor.Price.ToString("0.00", br),
+                        Lo = hl.StartAnchor.Price, Hi = hl.StartAnchor.Price, De = hl.StartAnchor.Time });
+                    continue;
+                }
+                RegionHighlightY ry = dt as RegionHighlightY;
+                if (ry != null)
+                {
+                    double lo = Math.Min(ry.StartAnchor.Price, ry.EndAnchor.Price), hi = Math.Max(ry.StartAnchor.Price, ry.EndAnchor.Price);
+                    regioesUsuario.Add(new Regiao { Nome = "zona " + lo.ToString("0.00", br) + "-" + hi.ToString("0.00", br),
+                        Lo = lo, Hi = hi, De = ry.StartAnchor.Time < ry.EndAnchor.Time ? ry.StartAnchor.Time : ry.EndAnchor.Time });
+                    continue;
+                }
+                Rectangle rc = dt as Rectangle;
+                if (rc != null)
+                {
+                    double lo = Math.Min(rc.StartAnchor.Price, rc.EndAnchor.Price), hi = Math.Max(rc.StartAnchor.Price, rc.EndAnchor.Price);
+                    DateTime t1 = rc.StartAnchor.Time < rc.EndAnchor.Time ? rc.StartAnchor.Time : rc.EndAnchor.Time;
+                    DateTime t2 = rc.StartAnchor.Time < rc.EndAnchor.Time ? rc.EndAnchor.Time : rc.StartAnchor.Time;
+                    regioesUsuario.Add(new Regiao { Nome = "zona " + lo.ToString("0.00", br) + "-" + hi.ToString("0.00", br),
+                        Lo = lo, Hi = hi, De = t1, Ate = t2 });
+                }
             }
-            if (minAbertura > 15 && !double.IsNaN(or15H))
+            nRegioesUsuario = regioesUsuario.Count;
+        }
+
+        // Regioes validas no candle (conhecidas ANTES dele): VWAP, max/min do dia (com overnight) e as suas.
+        private List<Regiao> RegioesAtivas(DateTime horaGrafico, DateTime horaNy)
+        {
+            List<Regiao> r = new List<Regiao>();
+            if (vwapV > 0)
             {
-                r.Add(new KeyValuePair<string, double>("max_faixa15", or15H));
-                r.Add(new KeyValuePair<string, double>("min_faixa15", or15L));
+                double v = vwapPV / vwapV;
+                r.Add(new Regiao { Nome = "vwap", Lo = v, Hi = v });
             }
-            if (vwapV > 0) r.Add(new KeyValuePair<string, double>("vwap", vwapPV / vwapV));
+            if (diaGlobex == DiaGlobex(horaNy) && !double.IsNaN(diaH))
+            {
+                r.Add(new Regiao { Nome = "max_dia", Lo = diaH, Hi = diaH });
+                r.Add(new Regiao { Nome = "min_dia", Lo = diaL, Hi = diaL });
+            }
+            foreach (Regiao u in regioesUsuario)
+                if (horaGrafico >= u.De && horaGrafico <= u.Ate)
+                    r.Add(u);
             return r;
         }
 
         // ------------------------------------------------------------------
-        //  Padroes do metodo (regiao + gatilho), lado comprador s=+1 e vendedor s=-1
-        //   climax   : rompe a regiao com candle forte (amplitude >= 1,2x e fecha no extremo) -> continua
-        //   pullback : rompeu, volta a testar a regiao sem fechar dentro e o candle seguinte
-        //              supera a maxima do candle do teste -> continua
+        //  Padroes do metodo (regiao + gatilho), lado comprador s=+1 e vendedor s=-1.
+        //  Zona: rompimento pela borda de fora (compra: borda superior), toque pela borda de dentro.
+        //   climax   : fecha alem da regiao com candle forte (amplitude >= 1,2x e fecha no extremo) -> continua
+        //   pullback : rompeu, volta a testar o nivel rompido sem fechar dentro e um candle supera
+        //              a maxima do candle do teste -> continua
         //   falha    : rompeu e em ate 5 candles fecha de volta para dentro -> reverte
         //   reversao : chega na regiao vindo de um movimento >= ImpulsoMinimo, toca sem romper
         //              e em ate 3 candles fecha abaixo da minima do candle do toque -> reverte
@@ -975,7 +1054,6 @@ namespace NinjaTrader.NinjaScript.Indicators
         private void DetectarPadroes(int idx, DateTime horaNy, double z, double clv, double ampRel, bool temNegocios)
         {
             if (idx < 16) return;
-            int minAbertura = (int)(horaNy.TimeOfDay - aberturaEt).TotalMinutes;
             double c = Bars.GetClose(idx), cAnt = Bars.GetClose(idx - 1), h = Bars.GetHigh(idx), l = Bars.GetLow(idx);
             double tol = ToleranciaRegiao;
 
@@ -986,66 +1064,66 @@ namespace NinjaTrader.NinjaScript.Indicators
                 max15 = Math.Max(max15, Bars.GetHigh(j));
             }
 
-            foreach (KeyValuePair<string, double> reg in RegioesAtivas(minAbertura))
+            foreach (Regiao reg in RegioesAtivas(Bars.GetTime(idx), horaNy))
             {
-                double L = reg.Value;
                 for (int s = 1; s >= -1; s -= 2)
                 {
-                    string chave = reg.Key + (s > 0 ? "+" : "-");
+                    string chave = reg.Nome + (s > 0 ? "+" : "-");
                     EstadoNivel st;
                     if (!estadoNiveis.TryGetValue(chave, out st)) { st = new EstadoNivel(); estadoNiveis[chave] = st; }
 
-                    bool foraAgora = (c - L) * s > 0;
-                    bool foraAntes = (cAnt - L) * s > 0;
+                    double rompe = s > 0 ? reg.Hi : reg.Lo;   // borda de rompimento
+                    double toque = s > 0 ? reg.Lo : reg.Hi;   // borda tocada vindo de dentro
                     double clvLado = s > 0 ? clv : 1 - clv;
 
-                    // falha: rompeu ha ate 5 candles e fechou de volta para dentro
-                    if (st.RompeuIdx >= 0 && !foraAgora)
+                    if (st.RompeuIdx >= 0)
                     {
-                        if (idx - st.RompeuIdx <= 5)
-                            RegistrarPadrao(2, -s, idx, horaNy, reg.Key, L, z, ampRel, temNegocios, st);
-                        st.RompeuIdx = -1;
-                        st.ReteIdx = -1;
+                        double L = st.Nivel;
+                        if ((c - L) * s <= 0)
+                        {
+                            // falha: rompeu ha ate 5 candles e fechou de volta para dentro
+                            if (idx - st.RompeuIdx <= 5)
+                                RegistrarPadrao(2, -s, idx, horaNy, reg.Nome, L, z, ampRel, temNegocios, st);
+                            st.RompeuIdx = -1;
+                            st.ReteIdx = -1;
+                        }
+                        else if (st.ReteIdx >= 0 && idx > st.ReteIdx && idx - st.ReteIdx <= 3
+                                 && (s > 0 ? c > Bars.GetHigh(st.ReteIdx) : c < Bars.GetLow(st.ReteIdx)))
+                        {
+                            RegistrarPadrao(1, s, idx, horaNy, reg.Nome, L, z, ampRel, temNegocios, st);
+                            st.ReteIdx = -1;
+                        }
+                        else if (idx - st.RompeuIdx <= 10 && (s > 0 ? l <= L + tol : h >= L - tol))
+                            st.ReteIdx = idx;   // reteste: pavio volta ao nivel, fechamento continua fora
+                        continue;
                     }
 
-                    // rompimento (fechou fora vindo de dentro)
+                    bool foraAgora = (c - rompe) * s > 0;
+                    bool foraAntes = (cAnt - rompe) * s > 0;
                     if (foraAgora && !foraAntes)
                     {
                         st.RompeuIdx = idx;
+                        st.Nivel = rompe;
                         st.ReteIdx = -1;
+                        st.RejIdx = -1;
                         if (ampRel >= 1.2 && clvLado >= 0.7)
-                            RegistrarPadrao(0, s, idx, horaNy, reg.Key, L, z, ampRel, temNegocios, st);
+                            RegistrarPadrao(0, s, idx, horaNy, reg.Nome, rompe, z, ampRel, temNegocios, st);
+                        continue;
                     }
-                    else if (st.RompeuIdx >= 0 && foraAgora)
-                    {
-                        // pullback: gatilho depois do reteste
-                        if (st.ReteIdx >= 0 && idx > st.ReteIdx && idx - st.ReteIdx <= 3
-                            && (s > 0 ? c > Bars.GetHigh(st.ReteIdx) : c < Bars.GetLow(st.ReteIdx)))
-                        {
-                            RegistrarPadrao(1, s, idx, horaNy, reg.Key, L, z, ampRel, temNegocios, st);
-                            st.ReteIdx = -1;
-                        }
-                        // reteste: pavio volta ate a regiao, fechamento continua fora
-                        else if (idx - st.RompeuIdx <= 10 && idx > st.RompeuIdx
-                                 && (s > 0 ? l <= L + tol : h >= L - tol))
-                            st.ReteIdx = idx;
-                    }
+                    if (foraAgora) continue;
 
-                    // reversao: toque na regiao vindo de dentro, sem romper, depois de um movimento forte
-                    if (st.RompeuIdx < 0 && !foraAgora)
+                    // reversao: toque vindo de dentro, sem romper, depois de um movimento forte
+                    if (st.RejIdx >= 0 && idx > st.RejIdx && idx - st.RejIdx <= 3
+                        && (s > 0 ? c < Bars.GetLow(st.RejIdx) : c > Bars.GetHigh(st.RejIdx)))
                     {
-                        if (st.RejIdx >= 0 && idx > st.RejIdx && idx - st.RejIdx <= 3
-                            && (s > 0 ? c < Bars.GetLow(st.RejIdx) : c > Bars.GetHigh(st.RejIdx)))
-                        {
-                            RegistrarPadrao(3, -s, idx, horaNy, reg.Key, L, z, ampRel, temNegocios, st);
-                            st.RejIdx = -1;
-                        }
-                        else if ((s > 0 ? h >= L - tol : l <= L + tol)
-                                 && (s > 0 ? h - min15 >= ImpulsoMinimo : max15 - l >= ImpulsoMinimo))
-                            st.RejIdx = idx;
-                        else if (st.RejIdx >= 0 && idx - st.RejIdx > 3)
-                            st.RejIdx = -1;
+                        RegistrarPadrao(3, -s, idx, horaNy, reg.Nome, toque, z, ampRel, temNegocios, st);
+                        st.RejIdx = -1;
                     }
+                    else if ((s > 0 ? h >= toque - tol : l <= toque + tol)
+                             && (s > 0 ? h - min15 >= ImpulsoMinimo : max15 - l >= ImpulsoMinimo))
+                        st.RejIdx = idx;
+                    else if (st.RejIdx >= 0 && idx - st.RejIdx > 3)
+                        st.RejIdx = -1;
                 }
             }
         }
@@ -1176,8 +1254,8 @@ namespace NinjaTrader.NinjaScript.Indicators
 
                     StringBuilder spd = new StringBuilder();
                     spd.AppendLine(string.Format(CultureInfo.InvariantCulture,
-                        "# SPForcaMercado padroes | {0} | {1:hh\\:mm} a {2:hh\\:mm} NY | alvo {3} / stop {4} pts | horizonte {5} candles | tolerancia {6} | impulso {7} | gerado {8:dd/MM/yyyy HH:mm}",
-                        Instrument.FullName, inicioSinais, fimSinais, AlvoPontos, StopPontos, PESQ_HORIZONTE, ToleranciaRegiao, ImpulsoMinimo, DateTime.Now));
+                        "# SPForcaMercado padroes | {0} | {1:hh\\:mm} a {2:hh\\:mm} NY | alvo {3} / stop {4} pts | horizonte {5} candles | tolerancia {6} | impulso {7} | suas regioes no grafico: {8} | gerado {9:dd/MM/yyyy HH:mm}",
+                        Instrument.FullName, inicioSinais, fimSinais, AlvoPontos, StopPontos, PESQ_HORIZONTE, ToleranciaRegiao, ImpulsoMinimo, nRegioesUsuario, DateTime.Now));
                     spd.AppendLine(PADROES_CABECALHO);
                     foreach (string l in linhasPadroes) spd.AppendLine(l);
                     File.WriteAllText(arquivoPadroes, spd.ToString(), Encoding.UTF8);

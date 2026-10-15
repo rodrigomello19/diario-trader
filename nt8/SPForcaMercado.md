@@ -1,4 +1,4 @@
-# SPForcaMercado v1.4: força compradora x vendedora (NinjaTrader 8)
+# SPForcaMercado v1.5: força compradora x vendedora (NinjaTrader 8)
 
 Indicador para futuros (MNQ, NQ, MGC, GC...) no gráfico de **1 minuto**. Ele mede **quem agrediu**, compradores ou vendedores, e **quanto o mercado está se mexendo** em relação ao normal daquele horário.
 
@@ -24,6 +24,38 @@ Indicador para futuros (MNQ, NQ, MGC, GC...) no gráfico de **1 minuto**. Ele me
   Amplitude da janela: 185,25 pts (1,3x a media de 20 dias: 140,1 pts)
   ```
 - O horário de NY é convertido automaticamente para o fuso do NT8, inclusive no horário de verão.
+
+## Novidades da v1.5: as suas regiões no estudo
+
+O estudo de padrões agora usa **as regiões que você opera**:
+
+| Região | Origem |
+|---|---|
+| **Suas linhas e zonas** | Desenhadas por você no gráfico do NT8 (veja abaixo) |
+| **vwap** | VWAP do pregão, desde a abertura |
+| **max_dia / min_dia** | Máxima e mínima do dia **incluindo o overnight** (desde 18:00 NY do dia anterior), conhecidas até o candle anterior |
+
+As regiões automáticas da v1.4 (dia anterior, overnight separado, faixas de 5 e 15 min) **não entram mais nos padrões**. Continuam só como colunas de distância no arquivo de pesquisa.
+
+### Como marcar as regiões
+Use as ferramentas de desenho do NT8 no gráfico do MNQ, o mesmo em que está o indicador:
+- **Linha horizontal** (*Horizontal Line*): uma região num preço. **Vale a partir do horário do ponto onde você clicou.** Clique no candle do dia em que identificou a região, normalmente antes da abertura.
+- **Destaque de região Y** (*Region Highlight Y*): uma **zona** de preço (ex.: 21.400–21.420). Também vale a partir do horário do ponto clicado.
+- **Retângulo** (*Rectangle*): uma zona válida **só entre o horário inicial e o final** do retângulo. É útil para marcar regiões em dias passados e montar o histórico do estudo.
+
+**Regras das zonas no estudo:**
+- Na compra, o rompimento é pela **borda superior** e o toque vindo de baixo é pela **borda inferior**. Na venda, é o contrário.
+- Uma linha é uma zona de espessura zero.
+
+**Por que a regra do "a partir de":** uma região identificada hoje não pode ser usada para avaliar operações de semanas atrás, porque isso seria olhar o futuro. Por isso cada desenho só vale do ponto de clique em diante, e o retângulo só no seu intervalo.
+
+**Depois de desenhar ou alterar regiões,** recarregue o indicador para refazer os arquivos: clique com o botão direito no gráfico e escolha **Recarregar NinjaScript**, ou use **F5** no gráfico. O cabeçalho de `padroes_<contrato>.csv` informa quantas regiões suas foram lidas (`suas regioes no grafico: N`).
+
+### Como montar o estudo
+1. **Daqui para frente (recomendado):** todo dia, antes da abertura, desenhe as suas regiões, como já faz. O indicador registra os padrões em tempo real, e o arquivo cresce a cada pregão. Esse é o teste mais fiel do seu método.
+2. **Para o histórico (opcional):** escolha alguns dias passados e marque com **retângulos** as regiões que você teria identificado naquele dia, antes da abertura. Cada retângulo deve cobrir só aquele dia.
+
+O arquivo de pesquisa ganhou as colunas `dist_max_dia`, `dist_min_dia` e `dist_sua_regiao`, que é a distância até a borda da sua região válida mais próxima (0 = dentro de uma zona).
 
 ## Novidades da v1.4
 
