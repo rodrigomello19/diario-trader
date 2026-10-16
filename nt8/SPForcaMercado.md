@@ -1,4 +1,4 @@
-# SPForcaMercado v1.8: força compradora x vendedora (NinjaTrader 8)
+# SPForcaMercado v1.9: força compradora x vendedora (NinjaTrader 8)
 
 Indicador para futuros (MNQ, NQ, MGC, GC...) no gráfico de **1 minuto**. Ele mede **quem agrediu**, compradores ou vendedores, e **quanto o mercado está se mexendo** em relação ao normal daquele horário.
 
@@ -18,6 +18,25 @@ Indicador para futuros (MNQ, NQ, MGC, GC...) no gráfico de **1 minuto**. Ele me
 - **Setas e marcas EX** no gráfico de **preço** (v1.7).
 - **Painéis** de volatilidade e de leitura do candle no painel do indicador, arrastáveis com o mouse.
 - O horário de NY é convertido automaticamente para o fuso do NT8, inclusive no horário de verão.
+
+## Novidades da v1.9: barras para cima e painel compacto
+
+- **Barras do delta sempre para cima.** A altura é o tamanho do delta, mesmo que o gráfico salvo esteja no modo antigo "DeltaPorCandle". O modo DeltaAcumulado continua sendo uma linha.
+- **Cor das barras** (grupo 2. Exibição):
+  - **PelaAgressao** (padrão): verde quando os compradores dominaram o delta, vermelho quando foram os vendedores.
+  - **PeloCandle**: verde em candle de alta, vermelho em candle de baixa.
+  - Nos dois casos, a cor fica forte quando um lado ficou com 25% ou mais do volume.
+- **Painel compacto** (padrão): uma caixa só, fonte 11, fundo 45% transparente e cerca de 6 linhas curtas:
+  ```
+  VOL LENTA 0,58x | alvo 40: 61%
+  5min C 64% x 36% V  Δ+1.240
+  Agora Δ+210 z+2,4 FORTE
+  10:42 ALTA fech 88% z+2,6 RVOL 1,8x
+  F 51% n387 | EX 52% n141 | EXc 67% n72
+  Ult: EXc▲ 10:13
+  ```
+  - **Clique** no painel para alternar entre compacto e detalhado. **Arraste** para mover.
+  - Tamanho da fonte e opacidade do fundo (0 = sem fundo) ficam no grupo 2. Exibição.
 
 ## Novidades da v1.8 (depois do estudo de 93 pregões)
 

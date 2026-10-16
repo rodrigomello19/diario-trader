@@ -1,5 +1,5 @@
 // ============================================================================
-//  SPForcaMercado v1.8 - forca compradora x vendedora, sinais e volatilidade (NT8)
+//  SPForcaMercado v1.9 - forca compradora x vendedora, sinais e volatilidade (NT8)
 // ----------------------------------------------------------------------------
 //  Para futuros (MNQ/NQ, MGC/GC...) no grafico de 1 minuto.
 //
@@ -58,6 +58,10 @@
 //  abertura viravam seta). Nova marca EXc: EX confirmado pelo candle seguinte
 //  (fecha a favor da reversao), com estatistica propria.
 //
+//  v1.9: barras do delta sempre para cima (cor pela agressao ou pelo candle);
+//  painel COMPACTO por padrao (fonte menor, fundo mais transparente, poucas
+//  linhas). Clique no painel alterna compacto/detalhado; arraste para mover.
+//
 //  Historico: precisa de "Tick Replay" ligado no grafico (Data Series >
 //  Tick Replay). Sem ele, o delta comeca a ser contado quando o grafico abre.
 // ============================================================================
@@ -85,6 +89,12 @@ public enum SPForcaModoGrafico
     DeltaPorCandle,
     DeltaAcumulado,
     DeltaColorido      // barras so para cima, verde = compradores, vermelho = vendedores
+}
+
+public enum SPForcaCorBarras
+{
+    PelaAgressao,      // verde = delta comprador, vermelho = delta vendedor
+    PeloCandle         // verde = candle de alta, vermelho = candle de baixa
 }
 
 namespace NinjaTrader.NinjaScript.Indicators
@@ -201,6 +211,8 @@ namespace NinjaTrader.NinjaScript.Indicators
         private readonly int[,]    contK   = new int[5, 3];
         private readonly double[,] contEsp = new double[5, 3];
         private string textoLeitura = "";
+        private string textoCompacto = "";
+        private string ultimoSinalCurto = "";
         private Brush  corLeitura = Brushes.Gainsboro;
         private const int PESQ_HORIZONTE = 15;
         private readonly List<LinhaPesquisa> pesqPendentes = new List<LinhaPesquisa>();
@@ -262,6 +274,21 @@ namespace NinjaTrader.NinjaScript.Indicators
         [NinjaScriptProperty]
         [Display(Name = "Mostrar paineis (volatilidade e leitura do candle)", GroupName = "2. Exibicao", Order = 3)]
         public bool MostrarResumo { get; set; }
+
+        [NinjaScriptProperty]
+        [Display(Name = "Cor das barras", Description = "PelaAgressao: lado que dominou o delta. PeloCandle: direcao do preco no candle", GroupName = "2. Exibicao", Order = 4)]
+        public SPForcaCorBarras CorBarras { get; set; }
+
+        [Display(Name = "Painel compacto (clique no painel para alternar)", GroupName = "2. Exibicao", Order = 5)]
+        public bool PainelCompacto { get; set; }
+
+        [Range(8, 20)]
+        [Display(Name = "Tamanho da fonte do painel", GroupName = "2. Exibicao", Order = 6)]
+        public int TamanhoFonte { get; set; }
+
+        [Range(0, 100)]
+        [Display(Name = "Opacidade do fundo do painel (%)", Description = "0 = sem fundo, 100 = fundo preto solido", GroupName = "2. Exibicao", Order = 7)]
+        public int OpacidadeFundo { get; set; }
 
         // posicao do resumo (arrastado com o mouse; salva no workspace/template)
         [Browsable(false)]
@@ -416,6 +443,10 @@ namespace NinjaTrader.NinjaScript.Indicators
                 ResumoX       = 10;
                 ResumoY       = 10;
                 LimiarForte   = 0.25;
+                CorBarras     = SPForcaCorBarras.PelaAgressao;
+                PainelCompacto = true;
+                TamanhoFonte  = 11;
+                OpacidadeFundo = 45;
                 MostrarResumo = true;
 
                 MostrarSinais      = false;
@@ -511,18 +542,20 @@ namespace NinjaTrader.NinjaScript.Indicators
         protected override void OnRender(ChartControl chartControl, ChartScale chartScale)
         {
             base.OnRender(chartControl, chartScale);
-            string tv = textoVol, tl = textoLeitura;
-            if (!MostrarResumo || RenderTarget == null || (string.IsNullOrEmpty(tv) && string.IsNullOrEmpty(tl))) return;
+            string tv = textoVol, tl = textoLeitura, tc = textoCompacto;
+            if (!MostrarResumo || RenderTarget == null) return;
+            if (PainelCompacto) { tv = tc; tl = ""; }
+            if (string.IsNullOrEmpty(tv) && string.IsNullOrEmpty(tl)) return;
 
             using (SharpDX.DirectWrite.TextFormat formato = new SharpDX.DirectWrite.TextFormat(NinjaTrader.Core.Globals.DirectWriteFactory,
-                       "Consolas", SharpDX.DirectWrite.FontWeight.Normal, SharpDX.DirectWrite.FontStyle.Normal, 13f))
+                       "Consolas", SharpDX.DirectWrite.FontWeight.Normal, SharpDX.DirectWrite.FontStyle.Normal, (float)TamanhoFonte))
             {
                 int maxX = Math.Max(0, ChartPanel.W - 60);
                 int maxY = Math.Max(0, ChartPanel.H - 20);
                 float x = ChartPanel.X + Math.Max(0, Math.Min(ResumoX, maxX));
                 float y = ChartPanel.Y + Math.Max(0, Math.Min(ResumoY, maxY));
                 float largura = 0;
-                float yFim = DesenharCaixa(tv, corVol, formato, x, y, ref largura);
+                float yFim = DesenharCaixa(tv, PainelCompacto ? corLeitura : corVol, formato, x, y, ref largura);
                 yFim = DesenharCaixa(tl, corLeitura, formato, x, yFim, ref largura);
                 retResumo = new SharpDX.RectangleF(x, y, largura, Math.Max(0, yFim - y - 4f));   // area para arrastar
             }
@@ -535,15 +568,17 @@ namespace NinjaTrader.NinjaScript.Indicators
             using (SharpDX.DirectWrite.TextLayout lv = new SharpDX.DirectWrite.TextLayout(NinjaTrader.Core.Globals.DirectWriteFactory,
                        texto, formato, 4000f, 4000f))
             {
-                SharpDX.RectangleF rv = new SharpDX.RectangleF(x, y, lv.Metrics.Width + 16f, lv.Metrics.Height + 10f);
+                SharpDX.RectangleF rv = new SharpDX.RectangleF(x, y, lv.Metrics.Width + 10f, lv.Metrics.Height + 6f);
                 largura = Math.Max(largura, rv.Width);
-                using (SharpDX.Direct2D1.SolidColorBrush fundo = new SharpDX.Direct2D1.SolidColorBrush(RenderTarget, new SharpDX.Color4(0f, 0f, 0f, 0.75f)))
-                    RenderTarget.FillRectangle(rv, fundo);
+                if (OpacidadeFundo > 0)
+                    using (SharpDX.Direct2D1.SolidColorBrush fundo = new SharpDX.Direct2D1.SolidColorBrush(RenderTarget, new SharpDX.Color4(0f, 0f, 0f, OpacidadeFundo / 100f)))
+                        RenderTarget.FillRectangle(rv, fundo);
                 SharpDX.Direct2D1.Brush pv = cor.ToDxBrush(RenderTarget);
-                RenderTarget.DrawRectangle(rv, pv, 1.5f);
-                RenderTarget.DrawTextLayout(new SharpDX.Vector2(rv.X + 8f, rv.Y + 5f), lv, pv);
+                pv.Opacity = 0.9f;
+                RenderTarget.DrawRectangle(rv, pv, 1f);
+                RenderTarget.DrawTextLayout(new SharpDX.Vector2(rv.X + 5f, rv.Y + 3f), lv, pv);
                 pv.Dispose();
-                return rv.Y + rv.Height + 4f;
+                return rv.Y + rv.Height + 3f;
             }
         }
 
@@ -586,6 +621,9 @@ namespace NinjaTrader.NinjaScript.Indicators
             if (!arrastando) return;
             arrastando = false;
             e.Handled  = true;
+            float x, y;
+            if (PosicaoMouse(e, out x, out y) && Math.Abs(x - arrIniMouseX) < 4 && Math.Abs(y - arrIniMouseY) < 4)
+                PainelCompacto = !PainelCompacto;   // clique sem arrastar: alterna compacto / detalhado
             ChartControl.InvalidateVisual();
         }
 
@@ -644,10 +682,12 @@ namespace NinjaTrader.NinjaScript.Indicators
             }
             else
             {
-                Value[0] = ModoGrafico == SPForcaModoGrafico.DeltaColorido ? Math.Abs(delta) : delta;
+                // sempre para cima (o modo antigo DeltaPorCandle tambem): altura = tamanho do delta
+                Value[0] = Math.Abs(delta);
                 double vol = candleCompra + candleVenda;
                 bool forte = vol > 0 && Math.Abs(delta) / vol >= LimiarForte;
-                PlotBrushes[0][0] = delta >= 0
+                bool alta = CorBarras == SPForcaCorBarras.PeloCandle ? Close[0] >= Open[0] : delta >= 0;
+                PlotBrushes[0][0] = alta
                     ? (forte ? Brushes.LimeGreen : Brushes.DarkGreen)
                     : (forte ? Brushes.Red : Brushes.DarkRed);
             }
@@ -663,6 +703,7 @@ namespace NinjaTrader.NinjaScript.Indicators
             {
                 AtualizarTextoVolatilidade();
                 AtualizarTextoLeitura();
+                AtualizarTextoCompacto();
             }
         }
 
@@ -982,6 +1023,7 @@ namespace NinjaTrader.NinjaScript.Indicators
                 BarBrushes[barsAgo] = cor;
 
             ultimoSinalTexto = string.Format("Ultimo sinal: {0} {1:HH:mm} ET - {2}: {3}", NomeSinal[tipo], horaNy, DescSinal[tipo], detalhe);
+            ultimoSinalCurto = string.Format("{0} {1:HH:mm}", NomeSinal[tipo], horaNy);
             if (AlertaSonoro && State == State.Realtime)
                 Alert("SPF_" + tipo, Priority.Medium, "SPForca " + NomeSinal[tipo] + " " + DescSinal[tipo],
                     NinjaTrader.Core.Globals.InstallDir + @"\sounds\Alert2.wav", 10, Brushes.Black, cor);
@@ -1409,6 +1451,56 @@ namespace NinjaTrader.NinjaScript.Indicators
 
             textoLeitura = sb.ToString();
             corLeitura = t5 <= 0 ? Brushes.Gainsboro : (c5 >= v5 ? Brushes.LimeGreen : Brushes.Tomato);
+        }
+
+        // Painel compacto: o essencial em poucas linhas curtas (clique para ver o detalhado).
+        private void AtualizarTextoCompacto()
+        {
+            CultureInfo br = new CultureInfo("pt-BR");
+            List<string> l = new List<string>();
+            if (MostrarVolatilidade && ampRelRecentes.Count > 0)
+            {
+                int fv = FaixaVol(ampRel3Atual);
+                string est = volN[fv] >= 30 ? string.Format(br, " | alvo {0:0}: {1:0}%", AlvoPontos, 100.0 * volAlvo[fv] / volN[fv]) : "";
+                l.Add(string.Format(br, "VOL {0} {1:0.00}x{2}", fv == 0 ? "LENTA" : (fv == 2 ? "RAPIDA" : "NORMAL"), ampRel3Atual, est));
+            }
+            if (MostrarLeitura && ultValido)
+            {
+                double c5 = candleCompra, v5 = candleVenda;
+                foreach (double[] cv in ultimos5) { c5 += cv[0]; v5 += cv[1]; }
+                double t5 = c5 + v5;
+                if (t5 > 0)
+                    l.Add(string.Format(br, "5min C {0:0}% x {1:0}% V  \u0394{2:+#,##0;-#,##0;0}", 100 * c5 / t5, 100 * v5 / t5, c5 - v5));
+                double vAt = candleCompra + candleVenda;
+                if (vAt > 0)
+                {
+                    double dAt = candleCompra - candleVenda, mD, dD;
+                    int minAt = (int)TimeZoneInfo.ConvertTime(Time[0], tzGrafico, tzNy).TimeOfDay.TotalMinutes;
+                    if (!(MediaDesvio(deltaPorMinuto, minAt, out mD, out dD) && dD > 0)) { mD = zMedia; dD = zDesvio; }
+                    l.Add(string.Format(br, "Agora \u0394{0:+#,##0;-#,##0;0}{1}", dAt,
+                        dD > 0 ? string.Format(br, " z{0:+0.0;-0.0} {1}", (dAt - mD) / dD, NivelZ((dAt - mD) / dD)) : ""));
+                }
+                string ult = string.Format(br, "{0:HH:mm} {1} fech {2:0}%", ultHoraNy, ultDir > 0 ? "ALTA" : (ultDir < 0 ? "BAIXA" : "DOJI"), 100 * ultClvAl);
+                if (ultTemNeg) ult += string.Format(br, " z{0:+0.0;-0.0}", ultZ);
+                if (ultRvol > 0) ult += string.Format(br, " RVOL {0:0.0}x", ultRvol);
+                l.Add(ult);
+            }
+            if (AlgumSinal)
+            {
+                // acerto por familia (compra + venda somados)
+                StringBuilder sf = new StringBuilder();
+                for (int t = 0; t < NTIPOS; t += 2)
+                {
+                    bool ativo = t >= TIPO_EXAUSTAO ? MostrarExaustao : (t >= TIPO_SETA ? MostrarSetas : MostrarSinais);
+                    int a = acertos[t] + acertos[t + 1], dec = a + erros[t] + erros[t + 1];
+                    if (!ativo || dec == 0) continue;
+                    if (sf.Length > 0) sf.Append(" | ");
+                    sf.AppendFormat(br, "{0} {1:0}% n{2}", NomeSinal[t].Replace("\u25B2", ""), 100.0 * a / dec, dec);
+                }
+                if (sf.Length > 0) l.Add(sf.ToString());
+                if (ultimoSinalCurto != "") l.Add("Ult: " + ultimoSinalCurto);
+            }
+            textoCompacto = string.Join("\n", l);
         }
 
         private void AtualizarTextoVolatilidade()
