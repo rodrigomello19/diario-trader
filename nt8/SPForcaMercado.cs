@@ -1,5 +1,5 @@
 // ============================================================================
-//  SPForcaMercado v1.9 - forca compradora x vendedora, sinais e volatilidade (NT8)
+//  SPForcaMercado v1.10 - forca compradora x vendedora, sinais e volatilidade (NT8)
 // ----------------------------------------------------------------------------
 //  Para futuros (MNQ/NQ, MGC/GC...) no grafico de 1 minuto.
 //
@@ -61,6 +61,8 @@
 //  v1.9: barras do delta sempre para cima (cor pela agressao ou pelo candle);
 //  painel COMPACTO por padrao (fonte menor, fundo mais transparente, poucas
 //  linhas). Clique no painel alterna compacto/detalhado; arraste para mover.
+//  v1.10: legibilidade - texto branco em negrito, fonte 13, fundo 85% opaco;
+//  a cor (lado comprador/vendedor, volatilidade) fica na borda e numa faixa lateral.
 //
 //  Historico: precisa de "Tick Replay" ligado no grafico (Data Series >
 //  Tick Replay). Sem ele, o delta comeca a ser contado quando o grafico abre.
@@ -282,13 +284,14 @@ namespace NinjaTrader.NinjaScript.Indicators
         [Display(Name = "Painel compacto (clique no painel para alternar)", GroupName = "2. Exibicao", Order = 5)]
         public bool PainelCompacto { get; set; }
 
-        [Range(8, 20)]
+        // nomes novos na v1.10: os valores salvos da v1.9 (fonte 11, fundo 45%) deixam de valer
+        [Range(8, 24)]
         [Display(Name = "Tamanho da fonte do painel", GroupName = "2. Exibicao", Order = 6)]
-        public int TamanhoFonte { get; set; }
+        public int FontePainel { get; set; }
 
         [Range(0, 100)]
         [Display(Name = "Opacidade do fundo do painel (%)", Description = "0 = sem fundo, 100 = fundo preto solido", GroupName = "2. Exibicao", Order = 7)]
-        public int OpacidadeFundo { get; set; }
+        public int FundoPainel { get; set; }
 
         // posicao do resumo (arrastado com o mouse; salva no workspace/template)
         [Browsable(false)]
@@ -445,8 +448,8 @@ namespace NinjaTrader.NinjaScript.Indicators
                 LimiarForte   = 0.25;
                 CorBarras     = SPForcaCorBarras.PelaAgressao;
                 PainelCompacto = true;
-                TamanhoFonte  = 11;
-                OpacidadeFundo = 45;
+                FontePainel   = 13;
+                FundoPainel   = 85;
                 MostrarResumo = true;
 
                 MostrarSinais      = false;
@@ -548,7 +551,7 @@ namespace NinjaTrader.NinjaScript.Indicators
             if (string.IsNullOrEmpty(tv) && string.IsNullOrEmpty(tl)) return;
 
             using (SharpDX.DirectWrite.TextFormat formato = new SharpDX.DirectWrite.TextFormat(NinjaTrader.Core.Globals.DirectWriteFactory,
-                       "Consolas", SharpDX.DirectWrite.FontWeight.Normal, SharpDX.DirectWrite.FontStyle.Normal, (float)TamanhoFonte))
+                       "Consolas", SharpDX.DirectWrite.FontWeight.Bold, SharpDX.DirectWrite.FontStyle.Normal, (float)FontePainel))
             {
                 int maxX = Math.Max(0, ChartPanel.W - 60);
                 int maxY = Math.Max(0, ChartPanel.H - 20);
@@ -568,16 +571,18 @@ namespace NinjaTrader.NinjaScript.Indicators
             using (SharpDX.DirectWrite.TextLayout lv = new SharpDX.DirectWrite.TextLayout(NinjaTrader.Core.Globals.DirectWriteFactory,
                        texto, formato, 4000f, 4000f))
             {
-                SharpDX.RectangleF rv = new SharpDX.RectangleF(x, y, lv.Metrics.Width + 10f, lv.Metrics.Height + 6f);
+                // texto branco sobre fundo escuro (contraste); a cor do estado vai na borda e na faixa lateral
+                SharpDX.RectangleF rv = new SharpDX.RectangleF(x, y, lv.Metrics.Width + 18f, lv.Metrics.Height + 8f);
                 largura = Math.Max(largura, rv.Width);
-                if (OpacidadeFundo > 0)
-                    using (SharpDX.Direct2D1.SolidColorBrush fundo = new SharpDX.Direct2D1.SolidColorBrush(RenderTarget, new SharpDX.Color4(0f, 0f, 0f, OpacidadeFundo / 100f)))
+                if (FundoPainel > 0)
+                    using (SharpDX.Direct2D1.SolidColorBrush fundo = new SharpDX.Direct2D1.SolidColorBrush(RenderTarget, new SharpDX.Color4(0.05f, 0.05f, 0.07f, FundoPainel / 100f)))
                         RenderTarget.FillRectangle(rv, fundo);
                 SharpDX.Direct2D1.Brush pv = cor.ToDxBrush(RenderTarget);
-                pv.Opacity = 0.9f;
-                RenderTarget.DrawRectangle(rv, pv, 1f);
-                RenderTarget.DrawTextLayout(new SharpDX.Vector2(rv.X + 5f, rv.Y + 3f), lv, pv);
+                RenderTarget.DrawRectangle(rv, pv, 1.5f);
+                RenderTarget.FillRectangle(new SharpDX.RectangleF(rv.X, rv.Y, 5f, rv.Height), pv);
                 pv.Dispose();
+                using (SharpDX.Direct2D1.SolidColorBrush texto2 = new SharpDX.Direct2D1.SolidColorBrush(RenderTarget, new SharpDX.Color4(1f, 1f, 1f, 1f)))
+                    RenderTarget.DrawTextLayout(new SharpDX.Vector2(rv.X + 11f, rv.Y + 4f), lv, texto2);
                 return rv.Y + rv.Height + 3f;
             }
         }
