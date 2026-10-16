@@ -1,4 +1,4 @@
-# SPForcaMercado v1.7: força compradora x vendedora (NinjaTrader 8)
+# SPForcaMercado v1.8: força compradora x vendedora (NinjaTrader 8)
 
 Indicador para futuros (MNQ, NQ, MGC, GC...) no gráfico de **1 minuto**. Ele mede **quem agrediu**, compradores ou vendedores, e **quanto o mercado está se mexendo** em relação ao normal daquele horário.
 
@@ -18,6 +18,22 @@ Indicador para futuros (MNQ, NQ, MGC, GC...) no gráfico de **1 minuto**. Ele me
 - **Setas e marcas EX** no gráfico de **preço** (v1.7).
 - **Painéis** de volatilidade e de leitura do candle no painel do indicador, arrastáveis com o mouse.
 - O horário de NY é convertido automaticamente para o fuso do NT8, inclusive no horário de verão.
+
+## Novidades da v1.8 (depois do estudo de 93 pregões)
+
+**O que o estudo mostrou** (18/05 a 15/10/2026, 09:30–10:30 NY, alvo 40 antes de stop 40 em 15 candles; o acaso dá ~50%):
+
+| Sinal | Casos | Acerto | Leitura |
+|---|---|---|---|
+| Seta F (v1.7, z contra os últimos 200 candles) | 1.779 | 49–50% | Sem vantagem. E aparecia em **35% dos candles**: o normal dos últimos 200 candles inclui o overnight calmo, então quase todo candle da abertura parecia "acima da média". |
+| Seta com z do **mesmo minuto** (v1.8) | 387 (8,5% dos candles) | 48–53% | Mais seletiva, mas também **sem vantagem direcional**. Serve como informação de agressão, não como gatilho. |
+| EX (v1.7) | 141 | 51% | Sem vantagem sozinho. 129 dos 149 EX caíram nos 10 primeiros minutos. |
+| **EX + candle seguinte confirmando** | 72 | **67%** (±11) | Único resultado acima do acaso, **mas ainda não confirmado**: 54% na 1ª metade dos dias e 77% na 2ª. Testei cerca de 10 variações, e uma delas pode ter dado certo por sorte. Ele precisa repetir em dias **novos**. |
+
+**Mudanças:**
+- **Seta e z-score da leitura:** o delta agora é comparado ao **mesmo minuto dos últimos 20 dias**, como já acontecia com a amplitude e o RVOL. São necessários pelo menos 10 dias de base. Antes disso, vale o cálculo antigo. Com o padrão 2,0, a seta aparece em ~1 candle a cada 12 na abertura.
+- **Nova marca EXc▲ / EXc▼:** aparece no candle **seguinte** a um EX quando ele fecha na direção da reversão (candle de alta, no EX▲) e acima do fechamento do EX. A entrada medida é o fechamento desse candle. A estatística é separada na caixa de leitura e no CSV.
+- O arquivo de pesquisa ganhou a coluna `zscore_horario`.
 
 ## Novidades da v1.7: seta de agressão e esgotamento no gráfico
 

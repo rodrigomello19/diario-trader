@@ -1,5 +1,5 @@
 // ============================================================================
-//  SPForcaMercado v1.7 - forca compradora x vendedora, sinais e volatilidade (NT8)
+//  SPForcaMercado v1.8 - forca compradora x vendedora, sinais e volatilidade (NT8)
 // ----------------------------------------------------------------------------
 //  Para futuros (MNQ/NQ, MGC/GC...) no grafico de 1 minuto.
 //
@@ -51,6 +51,12 @@
 //             um candle muito maior e com volume bem acima dos anteriores
 //             faz novo extremo -> possivel entrada do lado oposto
 //  Os sinais antigos C/A/D ficam desligados por padrao.
+//
+//  v1.8 (apos o estudo de 93 pregoes): o z-score da seta e da leitura passa a
+//  comparar o delta com o MESMO MINUTO dos ultimos N dias (antes, contra os
+//  ultimos 200 candles, que incluem o overnight calmo, 35% dos candles da
+//  abertura viravam seta). Nova marca EXc: EX confirmado pelo candle seguinte
+//  (fecha a favor da reversao), com estatistica propria.
 //
 //  Historico: precisa de "Tick Replay" ligado no grafico (Data Series >
 //  Tick Replay). Sem ele, o delta comeca a ser contado quando o grafico abre.
@@ -113,17 +119,18 @@ namespace NinjaTrader.NinjaScript.Indicators
         private readonly DadosDia janela = new DadosDia();
 
         // --- sinais
-        private const int NTIPOS = 10;
-        private const int TIPO_SETA = 6, TIPO_EXAUSTAO = 8;
+        private const int NTIPOS = 12;
+        private const int TIPO_SETA = 6, TIPO_EXAUSTAO = 8, TIPO_EXC = 10;
         private static readonly string[] NomeSinal = { "C\u25B2", "C\u25BC", "A\u25B2", "A\u25BC", "D\u25B2", "D\u25BC",
-                                                       "F\u25B2", "F\u25BC", "EX\u25B2", "EX\u25BC" };
+                                                       "F\u25B2", "F\u25BC", "EX\u25B2", "EX\u25BC", "EXc\u25B2", "EXc\u25BC" };
         private static readonly string[] DescSinal =
         {
             "continuacao compradora", "continuacao vendedora",
             "absorcao da venda (reversao p/ cima)", "absorcao da compra (reversao p/ baixo)",
             "divergencia de fundo (delta nao confirmou a minima)", "divergencia de topo (delta nao confirmou a maxima)",
             "agressao compradora acima da media", "agressao vendedora acima da media",
-            "esgotamento da venda (possivel entrada compradora)", "esgotamento da compra (possivel entrada vendedora)"
+            "esgotamento da venda (possivel entrada compradora)", "esgotamento da compra (possivel entrada vendedora)",
+            "esgotamento da venda confirmado pelo candle seguinte", "esgotamento da compra confirmado pelo candle seguinte"
         };
         private readonly Dictionary<int, int> rotulosPorLado = new Dictionary<int, int>();   // empilha os rotulos do mesmo candle
         private readonly double[] somaFavor  = new double[NTIPOS];
@@ -222,6 +229,11 @@ namespace NinjaTrader.NinjaScript.Indicators
         // estatistica por minuto do dia (ET): ultimos N valores
         private readonly Dictionary<int, Queue<double>> ampPorMinuto = new Dictionary<int, Queue<double>>();
         private readonly Dictionary<int, Queue<double>> volPorMinuto = new Dictionary<int, Queue<double>>();
+        private readonly Dictionary<int, Queue<double>> deltaPorMinuto = new Dictionary<int, Queue<double>>();
+        private double zMinutoAtual = double.NaN;   // z do delta contra o mesmo minuto dos ultimos dias (NaN = sem base)
+        private int    exPendIdx = -1, exPendDir;   // EX aguardando a confirmacao do candle seguinte
+        private double exPendClose;
+        private const int MIN_DIAS_Z_MINUTO = 10;
 
         #region Parametros
         [NinjaScriptProperty]
@@ -268,7 +280,7 @@ namespace NinjaTrader.NinjaScript.Indicators
 
         [NinjaScriptProperty]
         [Range(0.5, 10.0)]
-        [Display(Name = "Seta: z-score minimo do delta", Description = "Quantos desvios padrao o delta do candle precisa estar acima da media dos ultimos 200 candles. 2,0 = cerca de 1 candle em 20", GroupName = "3a. Setas e esgotamento", Order = 2)]
+        [Display(Name = "Seta: z-score minimo do delta", Description = "Quantos desvios padrao o delta do candle precisa estar acima do normal do MESMO MINUTO nos ultimos dias. 2,0 = cerca de 1 candle em 12 na abertura", GroupName = "3a. Setas e esgotamento", Order = 2)]
         public double ZSetaMinimo { get; set; }
 
         [NinjaScriptProperty]
@@ -675,6 +687,13 @@ namespace NinjaTrader.NinjaScript.Indicators
             int minuto = (int)horaNy.TimeOfDay.TotalMinutes;
             double volMediaMinuto = Media(volPorMinuto, minuto);   // antes de incluir este candle
             double ampMediaMinuto = Media(ampPorMinuto, minuto);
+            double deltaIdx = serieCompra.GetValueAt(idx) + serieVenda.GetValueAt(idx) > 0 ? delta : double.NaN;
+            zMinutoAtual = double.NaN;
+            if (!double.IsNaN(deltaIdx))
+            {
+                double mD, dD;
+                if (MediaDesvio(deltaPorMinuto, minuto, out mD, out dD) && dD > 0) zMinutoAtual = (delta - mD) / dD;
+            }
 
             // volatilidade recente: amplitude / normal do horario, media dos ultimos N candles
             if (ampMediaMinuto > 0)
@@ -694,6 +713,21 @@ namespace NinjaTrader.NinjaScript.Indicators
             AtualizarRegioes(idx, horaNy);
             AdicionarMedia(ampPorMinuto, minuto, Bars.GetHigh(idx) - Bars.GetLow(idx));
             AdicionarMedia(volPorMinuto, minuto, Bars.GetVolume(idx));
+            if (!double.IsNaN(deltaIdx)) AdicionarMedia(deltaPorMinuto, minuto, delta);
+        }
+
+        // Media e desvio padrao dos ultimos dias no mesmo minuto (exige MIN_DIAS_Z_MINUTO valores).
+        private static bool MediaDesvio(Dictionary<int, Queue<double>> d, int minuto, out double media, out double desvio)
+        {
+            media = 0;
+            desvio = 0;
+            Queue<double> q;
+            if (!d.TryGetValue(minuto, out q) || q.Count < MIN_DIAS_Z_MINUTO) return false;
+            foreach (double v in q) media += v;
+            media /= q.Count;
+            foreach (double v in q) desvio += (v - media) * (v - media);
+            desvio = Math.Sqrt(desvio / q.Count);
+            return true;
         }
 
         // ------------------------------------------------------------------
@@ -746,8 +780,10 @@ namespace NinjaTrader.NinjaScript.Indicators
             bool rvolOk = RvolMinimo <= 0 || volMediaMinuto <= 0 || rvol >= RvolMinimo;
             double ampRel = ampMediaMinuto > 0 ? amp / ampMediaMinuto : 0;
 
-            RegistrarLeitura(idx, horaNy, compra, venda, delta, z, ratio, clv, rvol, ampRel, temNegocios);
-            if (!NoPregao(horaNy)) return;
+            // z do horario (mesmo minuto dos ultimos dias); sem base suficiente, usa o dos ultimos 200 candles
+            double zH = temNegocios && !double.IsNaN(zMinutoAtual) ? zMinutoAtual : z;
+            RegistrarLeitura(idx, horaNy, compra, venda, delta, zH, ratio, clv, rvol, ampRel, temNegocios);
+            if (!NoPregao(horaNy)) { exPendIdx = -1; return; }
             if (ModoPesquisa)
             {
                 RegistrarPesquisa(idx, horaNy, compra, venda, delta, z, ratio, clv, rvol, ampRel, temNegocios);
@@ -755,19 +791,27 @@ namespace NinjaTrader.NinjaScript.Indicators
             CultureInfo br = new CultureInfo("pt-BR");
 
             // seta: agressao acima da media, na direcao da agressao
-            if (MostrarSetas && temNegocios && Math.Abs(z) >= ZSetaMinimo)
+            if (MostrarSetas && temNegocios && Math.Abs(zH) >= ZSetaMinimo)
             {
-                int dirF = z > 0 ? 1 : -1;
-                RegistrarSinal(z > 0 ? TIPO_SETA : TIPO_SETA + 1, idx, horaNy, string.Format(br,
+                int dirF = zH > 0 ? 1 : -1;
+                RegistrarSinal(zH > 0 ? TIPO_SETA : TIPO_SETA + 1, idx, horaNy, string.Format(br,
                     "delta {0:+#,##0;-#,##0} (z {1:+0.0;-0.0}: {2}), {3:0}% do volume, candle {4}, fechou a {5:0}% do extremo da agressao{6}",
-                    delta, z, NivelZ(z), 100 * Math.Abs(ratio), c > o ? "de alta" : (c < o ? "de baixa" : "doji"),
+                    delta, zH, NivelZ(zH), 100 * Math.Abs(ratio), c > o ? "de alta" : (c < o ? "de baixa" : "doji"),
                     100 * (dirF > 0 ? clv : 1 - clv),
                     volMediaMinuto > 0 ? string.Format(br, ", RVOL {0:0.0}x", rvol) : ""),
-                    CamposCsv(delta, z, ratio, clv, rvol));
+                    CamposCsv(delta, zH, ratio, clv, rvol));
             }
 
             if (MostrarExaustao)
-                DetectarExaustao(idx, horaNy, delta, z, ratio, clv, rvol, temNegocios);
+            {
+                // confirmacao: o candle seguinte ao EX fecha na direcao da reversao e alem do fechamento do EX
+                if (exPendIdx == idx - 1 && exPendDir * (c - exPendClose) > 0 && exPendDir * (c - o) > 0)
+                    RegistrarSinal(exPendDir > 0 ? TIPO_EXC : TIPO_EXC + 1, idx, horaNy, string.Format(br,
+                        "candle seguinte ao EX fechou {0:0.00} pts a favor da reversao", exPendDir * (c - exPendClose)),
+                        CamposCsv(delta, zH, ratio, clv, rvol));
+                exPendIdx = -1;
+                DetectarExaustao(idx, horaNy, delta, zH, ratio, clv, rvol, temNegocios);
+            }
 
             if (!MostrarSinais || !temNegocios) return;
 
@@ -863,6 +907,9 @@ namespace NinjaTrader.NinjaScript.Indicators
             else
                 natureza = "ESGOTAMENTO";
 
+            exPendIdx   = idx;
+            exPendDir   = -dirTend;
+            exPendClose = c;
             CultureInfo br = new CultureInfo("pt-BR");
             RegistrarSinal(tipo, idx, horaNy, string.Format(br,
                 "{0} | depois de {1} de {2} candles {3}, amplitude {4:0.0}x e volume {5:0.0}x a media dos {6} anteriores, fechou a {7:0}% do extremo{8}",
@@ -882,8 +929,10 @@ namespace NinjaTrader.NinjaScript.Indicators
                 case 3: return Brushes.Orange;
                 case 6: return Brushes.Lime;
                 case 7: return Brushes.OrangeRed;
-                case 8: return Brushes.Gold;
-                case 9: return Brushes.Magenta;
+                case 8:
+                case 10: return Brushes.Gold;
+                case 9:
+                case 11: return Brushes.Magenta;
                 default: return Brushes.Violet;
             }
         }
@@ -1028,7 +1077,8 @@ namespace NinjaTrader.NinjaScript.Indicators
                 idx >= 15 ? (c - Bars.GetClose(idx - 15)).ToString("0.00", br) : "",
                 ampRel3Atual.ToString("0.00", br),
                 temNegocios ? "1" : "0",
-                Dist(c, diaH, br), Dist(c, diaL, br)
+                Dist(c, diaH, br), Dist(c, diaL, br),
+                double.IsNaN(zMinutoAtual) ? "" : zMinutoAtual.ToString("0.00", br)
             });
         }
 
@@ -1039,7 +1089,7 @@ namespace NinjaTrader.NinjaScript.Indicators
 
         private const string PESQ_CABECALHO_EXTRA =
             ";dist_max_ontem;dist_min_ontem;dist_fech_ontem;dist_max_overnight;dist_min_overnight;dist_vwap;dist_max_faixa15;dist_min_faixa15;" +
-            "ret5_pts;ret15_pts;volat_rel;tem_negocios;dist_max_dia;dist_min_dia";
+            "ret5_pts;ret15_pts;volat_rel;tem_negocios;dist_max_dia;dist_min_dia;zscore_horario";
 
         // ------------------------------------------------------------------
         //  Regioes: dia anterior (pregao), overnight, faixa de abertura, VWAP
@@ -1315,7 +1365,12 @@ namespace NinjaTrader.NinjaScript.Indicators
             if (vAt > 0)
             {
                 double dAt = candleCompra - candleVenda;
-                string zTxt = zDesvio > 0 ? string.Format(br, " (z {0:+0.0;-0.0}: {1})", (dAt - zMedia) / zDesvio, NivelZ((dAt - zMedia) / zDesvio)) : "";
+                // z ao vivo contra o mesmo minuto dos ultimos dias (o candle ainda nao fechou: tende a subir ate o fim)
+                double mD, dD;
+                int minAt = (int)TimeZoneInfo.ConvertTime(Time[0], tzGrafico, tzNy).TimeOfDay.TotalMinutes;
+                bool temBase = MediaDesvio(deltaPorMinuto, minAt, out mD, out dD) && dD > 0;
+                if (!temBase) { mD = zMedia; dD = zDesvio; }
+                string zTxt = dD > 0 ? string.Format(br, " (z {0:+0.0;-0.0}: {1})", (dAt - mD) / dD, NivelZ((dAt - mD) / dD)) : "";
                 sb.AppendFormat(br, "Candle em formacao: compradores {0:0}% | delta {1:+#,##0;-#,##0;0}{2}\n", 100 * candleCompra / vAt, dAt, zTxt);
             }
 
