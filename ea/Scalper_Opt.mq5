@@ -1,13 +1,13 @@
 //+------------------------------------------------------------------+
-//|                     SCALPER PRO v5.87 - MT5                       |
+//|                     SCALPER PRO v5.88 - MT5                       |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, Scalper Pro"
-#property version       "5.87"
+#property version       "5.88"
 #property strict
 
 #include <Trade/Trade.mqh>
 
-const string SP_EA_VERSAO = "5.87";
+const string SP_EA_VERSAO = "5.88";
 
 CTrade trade;
 
@@ -89,7 +89,12 @@ input long           InpCopyMagic         = 53504350;              // Filha: mag
 
 input group "=== Pendentes ==="
 input double InpOffsetPendPts      = 0.0;     // Entrada acima corpo (pts)
-input string InpAtivoCopiarLinhas  = "US100"; // Ativo origem para copiar HLine
+input string InpAtivoCopiarLinhas  = "";      // SYNC: ativo do grafico de estudo ("" = mesmo ativo deste grafico)
+
+input group "=== Linhas do dia (arquivo SP_Linhas.txt) ==="
+input bool   InpLinhasArquivo      = true;    // Desenhar as linhas do arquivo Common\Files\SP_Linhas.txt
+input bool   InpLinhasAutoRecarga  = true;    // Redesenhar sozinho quando o arquivo for salvo
+input double InpLinhasFaixaPct     = 10.0;    // Ignorar precos a mais de X% do preco atual (erro de digitacao)
 
 input group "=== Timer grafico ==="
 input double InpTimerDeslocPts     = 1.0;    // Deslocamento vertical (pts)
@@ -286,6 +291,14 @@ string OBJ_BTN_CLOSEALL = "SP_CLOSEALL";
 string OBJ_BTN_SYNC_HL  = "SP_SYNC_HL";
 string OBJ_BTN_LIMITS   = "SP_BTN_LIMITS";
 string OBJ_BTN_SETUP    = "SP_BTN_SETUP";
+string OBJ_BTN_LINHAS   = "SP_BTN_LINHAS";
+
+// Linhas do dia: arquivo em Common\Files (vale para todos os terminais) e objetos com prefixo proprio
+// (fora do "SP_" do painel, para nao serem tratados como objetos do painel nem apagados pelo SYNC).
+const string LIN_ARQ    = "SP_Linhas.txt";
+const string LIN_PREFIX = "SPDIA_";
+long   g_linArqData = -1;
+long   g_linArqTam  = -1;
 string OBJ_BTN_MINIMIZE = "SP_BTN_MINIMIZE";
 int      g_setupAtivo = PERFIL_NORMAL;
 ENUM_MODO_TRAIL g_modoTrail = TRAIL_FIXO;
@@ -796,6 +809,9 @@ double   LucroPontosPosicao(ulong posTkt);
 bool     EhLinhaHorizontalNoGrafico(const long chartId, const string nome);
 bool     EhLinhaVerticalNoGrafico(const long chartId, const string nome);
 void     LimparLinhasHorizontaisAntesSync(const long chartId);
+void     LinhasCriarModelo();
+void     LinhasCarregar(const bool avisar);
+void     LinhasVerificarArquivo();
 void     SincronizarLinhasHorizontais();
 
 string GVOpCounted(ulong dealTkt)  { return GV_PREFIX + "OC_" + IntegerToString(dealTkt); }
@@ -5239,20 +5255,30 @@ string NormalizarAtivo(const string ativo)
    return s;
 }
 
+// Grafico de origem do SYNC: outro grafico do ativo indicado. Entre varios, prefere o que
+// NAO tem EA (o grafico de estudo), para nao puxar de outro grafico de operacao.
 long BuscarGraficoOrigemPorAtivo(const string ativoNormalizado, const long chartAtual)
 {
    if(StringLen(ativoNormalizado) == 0) return -1;
 
+   long melhor = -1;
+   bool melhorSemEA = false;
    for(long cid = ChartFirst(); cid >= 0; cid = ChartNext(cid))
    {
       if(cid == chartAtual) continue;
 
       string sym = ChartSymbol(cid);
       StringToUpper(sym);
-      if(sym == ativoNormalizado)
-         return cid;
+      if(sym != ativoNormalizado) continue;
+
+      bool semEA = (ChartGetString(cid, CHART_EXPERT_NAME) == "");
+      if(melhor < 0 || (semEA && !melhorSemEA))
+      {
+         melhor = cid;
+         melhorSemEA = semEA;
+      }
    }
-   return -1;
+   return melhor;
 }
 
 bool EhObjetoLinhaSLTPGrafico(const string nome)
@@ -5267,6 +5293,7 @@ bool EhObjetoLinhaSLTPGrafico(const string nome)
 
 bool EhHlineProtegidaDoEA(const string nome)
 {
+   if(StringFind(nome, LIN_PREFIX) == 0) return true;   // linhas do dia (arquivo)
    if(StringFind(nome, "SP_TRAIL_") == 0) return true;
    if(EhObjetoLinhaSLTPGrafico(nome)) return true;
    return false;
@@ -5365,6 +5392,8 @@ void SincronizarLinhasHorizontais()
    const long chartAtual = ChartID();
    string ativo = NormalizarAtivo(InpAtivoCopiarLinhas);
    if(StringLen(ativo) == 0)
+      ativo = NormalizarAtivo(_Symbol);   // grafico de estudo do mesmo ativo
+   if(StringLen(ativo) == 0)
    {
       Status(SP_MSG_SYNC_ATIVO, clrOrange, true);
       return;
@@ -5385,12 +5414,13 @@ void SincronizarLinhasHorizontais()
    {
       string nomeOrigem = ObjectName(chartOrigem, i, -1, -1);
       if(nomeOrigem == "") continue;
-      if(StringFind(nomeOrigem, "SP_SYNC_HL_") == 0) continue;
+      if(StringFind(nomeOrigem, "SP_") == 0) continue;          // objetos do Scalper Pro do outro grafico
       if(EhHlineProtegidaDoEA(nomeOrigem)) continue;
-      if((ENUM_OBJECT)ObjectGetInteger(chartOrigem, nomeOrigem, OBJPROP_TYPE) != OBJ_HLINE) continue;
+      // linha horizontal ou linha de tendencia horizontal (mesmo preco nas duas pontas)
+      if(!EhLinhaHorizontalNoGrafico(chartOrigem, nomeOrigem)) continue;
 
       string nomeDestino = "SP_SYNC_HL_" + IntegerToString(copiadas + 1);
-      double preco = ObjectGetDouble(chartOrigem, nomeOrigem, OBJPROP_PRICE);
+      double preco = ObjectGetDouble(chartOrigem, nomeOrigem, OBJPROP_PRICE, 0);
       color cor = (color)ObjectGetInteger(chartOrigem, nomeOrigem, OBJPROP_COLOR);
       int estilo = (int)ObjectGetInteger(chartOrigem, nomeOrigem, OBJPROP_STYLE);
       int largura = (int)ObjectGetInteger(chartOrigem, nomeOrigem, OBJPROP_WIDTH);
@@ -5412,7 +5442,12 @@ void SincronizarLinhasHorizontais()
    GarantirTextoBotaoSync();
 
    if(copiadas > 0)
-      StatusComAutoReset(SP_MSG_SYNC_OK, C_STATUS_OK, true);
+   {
+      string tf = StringSubstr(EnumToString(ChartPeriod(chartOrigem)), 7);
+      StatusComAutoReset(StringFormat("SYNC: %d linhas de %s %s", copiadas, ChartSymbol(chartOrigem), tf), C_STATUS_OK, true);
+      PrintFormat("SP SYNC: %d linhas copiadas do grafico %s %s (id %I64d, %s)", copiadas, ChartSymbol(chartOrigem), tf,
+                  chartOrigem, ChartGetString(chartOrigem, CHART_EXPERT_NAME) == "" ? "sem EA" : "com EA");
+   }
    else
       Status(SP_MSG_SEM_LINHAS, clrOrange, true);
 }
@@ -6241,7 +6276,7 @@ void AplicarEstiloBotaoAux(const string name, const bool press)
 
    RemoverDecorBotao(name);
 
-   if(name != OBJ_BTN_SETUP && name != OBJ_BTN_SYNC_HL && name != OBJ_BTN_LIMITS)
+   if(name != OBJ_BTN_SETUP && name != OBJ_BTN_SYNC_HL && name != OBJ_BTN_LIMITS && name != OBJ_BTN_LINHAS)
       return;
 
    color bg  = press ? C_AUX_LIMITS_PRESS : C_AUX_LIMITS_BG;
@@ -6256,6 +6291,8 @@ void AplicarEstiloBotaoAux(const string name, const bool press)
    }
    else if(name == OBJ_BTN_SYNC_HL)
       ObjectSetString(0, name, OBJPROP_TEXT, "SYNC");
+   else if(name == OBJ_BTN_LINHAS)
+      ObjectSetString(0, name, OBJPROP_TEXT, "LINHAS");
    else
       ObjectSetString(0, name, OBJPROP_TEXT, "LIMITES");
 
@@ -6271,7 +6308,7 @@ void AplicarEstiloBotaoAux(const string name, const bool press)
 bool EhBotaoExecPainel(const string name)
 {
    return (name == OBJ_BTN_BUY || name == OBJ_BTN_SELL || name == OBJ_BTN_CLOSEALL
-           || name == OBJ_BTN_SYNC_HL || name == OBJ_BTN_LIMITS
+           || name == OBJ_BTN_SYNC_HL || name == OBJ_BTN_LIMITS || name == OBJ_BTN_LINHAS
            || name == OBJ_BTN_SETUP || name == OBJ_BTN_MINIMIZE || name == OBJ_BTN_CLOSE);
 }
 
@@ -6285,7 +6322,7 @@ void AplicarEstiloBotao(const string name, bool press)
    color brd = press ? C_BTN_BORDER_PRESS : C_BTN_BORDER;
    color txt = C_BTN_TEXT;
    if(g_painelBloqueado && EhBotaoExecPainel(name)
-      && name != OBJ_BTN_CLOSE && name != OBJ_BTN_LIMITS
+      && name != OBJ_BTN_CLOSE && name != OBJ_BTN_LIMITS && name != OBJ_BTN_LINHAS
       && name != OBJ_BTN_SETUP && name != OBJ_BTN_MINIMIZE)
       txt = C_MUTED;
 
@@ -6301,7 +6338,7 @@ void AplicarEstiloBotao(const string name, bool press)
       return;
    }
 
-   if(name == OBJ_BTN_SETUP || name == OBJ_BTN_SYNC_HL || name == OBJ_BTN_LIMITS)
+   if(name == OBJ_BTN_SETUP || name == OBJ_BTN_SYNC_HL || name == OBJ_BTN_LIMITS || name == OBJ_BTN_LINHAS)
    {
       AplicarEstiloBotaoAux(name, press);
       return;
@@ -6512,6 +6549,8 @@ void CreateParamRowHoriz(const string lblName, const string editName, const int 
 
 void GarantirTextoBotaoSync()
 {
+   if(ObjectFind(0, OBJ_BTN_LINHAS) >= 0)
+      AplicarEstiloBotaoAux(OBJ_BTN_LINHAS, false);
    if(ObjectFind(0, OBJ_BTN_SYNC_HL) < 0) return;
    AplicarEstiloBotaoAux(OBJ_BTN_SYNC_HL, false);
 }
@@ -6531,7 +6570,7 @@ void ProcessarCliqueBotaoPainel(const string btn)
       FinalizarEdicaoCampo(true);
 
    if(g_painelBloqueado && btn != OBJ_BTN_MINIMIZE && btn != OBJ_BTN_CLOSE
-      && btn != OBJ_BTN_LIMITS && btn != OBJ_BTN_SETUP)
+      && btn != OBJ_BTN_LIMITS && btn != OBJ_BTN_SETUP && btn != OBJ_BTN_LINHAS)
       return;
 
    if(TimeCurrent() == ultimoClique) return;
@@ -6547,6 +6586,7 @@ void ProcessarCliqueBotaoPainel(const string btn)
    ulong tPress = GetTickCount64();
 
    if(btn == OBJ_BTN_SYNC_HL) SincronizarLinhasHorizontais();
+   else if(btn == OBJ_BTN_LINHAS) LinhasCarregar(true);
    else if(btn == OBJ_BTN_LIMITS) AbrirPopupLimites();
    else if(btn == OBJ_BTN_SETUP)    AlternarPerfilSetup();
    else if(btn == OBJ_BTN_MINIMIZE) ToggleMinimizarPainel();
@@ -6565,7 +6605,7 @@ void ProcessarCliqueBotaoPainel(const string btn)
 string ResolverCliqueBotaoPainel(const string sparam)
 {
    if(sparam == OBJ_BTN_BUY || sparam == OBJ_BTN_SELL || sparam == OBJ_BTN_CLOSEALL
-      || sparam == OBJ_BTN_SYNC_HL || sparam == OBJ_BTN_LIMITS
+      || sparam == OBJ_BTN_SYNC_HL || sparam == OBJ_BTN_LIMITS || sparam == OBJ_BTN_LINHAS
       || sparam == OBJ_BTN_SETUP || sparam == OBJ_BTN_MINIMIZE || sparam == OBJ_BTN_CLOSE)
       return sparam;
 
@@ -6573,6 +6613,7 @@ string ResolverCliqueBotaoPainel(const string sparam)
    if(StringFind(sparam, OBJ_BTN_SELL + "_") == 0) return OBJ_BTN_SELL;
    if(StringFind(sparam, OBJ_BTN_CLOSEALL + "_") == 0) return OBJ_BTN_CLOSEALL;
    if(StringFind(sparam, OBJ_BTN_LIMITS + "_") == 0) return OBJ_BTN_LIMITS;
+   if(StringFind(sparam, OBJ_BTN_LINHAS + "_") == 0) return OBJ_BTN_LINHAS;
    if(StringFind(sparam, OBJ_BTN_SETUP + "_") == 0) return OBJ_BTN_SETUP;
    if(StringFind(sparam, OBJ_BTN_MINIMIZE + "_") == 0) return OBJ_BTN_MINIMIZE;
    if(StringFind(sparam, OBJ_BTN_CLOSE + "_") == 0) return OBJ_BTN_CLOSE;
@@ -6781,7 +6822,7 @@ void ReposicionarBotoesExec(const int lx, const int divW, const int yExec)
 
 void ReposicionarBotoesAux(const int lx, const int divW, const int yAux)
 {
-   int btnW = (divW - EXEC_BTN_GAP * 2) / 3;
+   int btnW = (divW - EXEC_BTN_GAP * 3) / 4;
    int ex   = lx;
 
    if(ObjectFind(0, OBJ_BTN_SETUP) >= 0)
@@ -6803,6 +6844,18 @@ void ReposicionarBotoesAux(const int lx, const int divW, const int yAux)
       ObjectSetInteger(0, OBJ_BTN_SYNC_HL, OBJPROP_YSIZE, SEC_AUX_BTN_H);
       ExibirObjetoPainel(OBJ_BTN_SYNC_HL);
       AplicarEstiloBotaoAux(OBJ_BTN_SYNC_HL, false);
+   }
+   ex += btnW + EXEC_BTN_GAP;
+
+   if(ObjectFind(0, OBJ_BTN_LINHAS) >= 0)
+   {
+      ObjectSetInteger(0, OBJ_BTN_LINHAS, OBJPROP_XDISTANCE, ex);
+      ObjectSetInteger(0, OBJ_BTN_LINHAS, OBJPROP_YDISTANCE, yAux);
+      ObjectSetInteger(0, OBJ_BTN_LINHAS, OBJPROP_XSIZE, btnW);
+      ObjectSetInteger(0, OBJ_BTN_LINHAS, OBJPROP_YSIZE, SEC_AUX_BTN_H);
+      ExibirObjetoPainel(OBJ_BTN_LINHAS);
+      AplicarEstiloBotaoAux(OBJ_BTN_LINHAS, false);
+      ObjectSetString(0, OBJ_BTN_LINHAS, OBJPROP_TOOLTIP, "Carregar as linhas do arquivo Common\\Files\\SP_Linhas.txt");
    }
    ex += btnW + EXEC_BTN_GAP;
 
@@ -7158,10 +7211,11 @@ void CriarPainel()
    CreateParamRowHoriz("SP_TR", OBJ_EDIT_TRAIL_START, col2X, fieldsY + rowH, fldW, "Trail", DoubleToString(TrailingStart, 0));
    CreateParamRowHoriz("SP_ST", OBJ_EDIT_TRAIL_STEP, lx, fieldsY + rowH * 2, fldW, "Step", DoubleToString(TrailingStep, 0));
 
-   // --- Acoes rapidas: perfil / sync / limites (pilulas em linha) ---
+   // --- Acoes rapidas: perfil / sync / linhas / limites (pilulas em linha) ---
    int auxY = fieldsY + rowH * 2 + PARAM_FLD_H + SEC_EXEC_GAP;
    CreateButton(OBJ_BTN_SETUP, lx, auxY, 10, SEC_AUX_BTN_H, NomeSetupAtivo(), 7);
    CreateButton(OBJ_BTN_SYNC_HL, lx, auxY, 10, SEC_AUX_BTN_H, "SYNC", 7);
+   CreateButton(OBJ_BTN_LINHAS, lx, auxY, 10, SEC_AUX_BTN_H, "LINHAS", 7);
    CreateButton(OBJ_BTN_LIMITS, lx, auxY, 10, SEC_AUX_BTN_H, "LIMITES", 7);
    ReposicionarBotoesAux(lx, divW, auxY);
 
@@ -8585,6 +8639,11 @@ int OnInit()
    g_ultimoPtsPainel = -999999.0;
    g_ultimoSpreadPainel = -1;
    AtualizarPainelEstatisticas(true);
+   if(InpLinhasArquivo)
+   {
+      LinhasCriarModelo();
+      LinhasCarregar(false);
+   }
    ChartRedraw(0);
 
    if(RestaurarBloqueioLimiteDia())
@@ -8610,7 +8669,10 @@ void OnDeinit(const int reason)
    RestaurarGrafico();
    // Em troca de timeframe/parametros/recompile, preserva objetos SP_ (inclui linhas sincronizadas/trailing).
    if(reason != REASON_CHARTCHANGE && reason != REASON_PARAMETERS && reason != REASON_RECOMPILE)
+   {
       ObjectsDeleteAll(0, "SP_");
+      ObjectsDeleteAll(0, LIN_PREFIX);
+   }
    ObjectDelete(0, OBJ_CANDLE_TIMER);
    if(reason != REASON_INITFAILED)
       RemoverQuadroMensagem();
@@ -8793,6 +8855,8 @@ void OnTimer()
 
    ProcessarResetStatusGeralAgendado();
    SincronizarStatusImpedimento();
+   if(InpLinhasArquivo && InpLinhasAutoRecarga)
+      LinhasVerificarArquivo();
    ProcessarResetPontosOperacaoAgendado();
    AtualizarPainelEstatisticas(false);
    AtualizarSpread();
@@ -8947,3 +9011,297 @@ void OnChartEvent(const int id, const long &lparam,
    }
 }
 //+------------------------------------------------------------------+
+
+//+------------------------------------------------------------------+
+//| LINHAS DO DIA: arquivo Common\Files\SP_Linhas.txt                |
+//|   TIPO <NOME> = <cor>, <espessura>, <estilo>                      |
+//|   <NOME>: preco; preco; preco      (virgula ou ponto decimal)     |
+//+------------------------------------------------------------------+
+string g_linTipoNome[];
+color  g_linTipoCor[];
+int    g_linTipoLarg[];
+int    g_linTipoEstilo[];
+
+void LinhasTiposPadrao()
+{
+   ArrayResize(g_linTipoNome, 0);
+   ArrayResize(g_linTipoCor, 0);
+   ArrayResize(g_linTipoLarg, 0);
+   ArrayResize(g_linTipoEstilo, 0);
+   LinhasDefinirTipo("NIVEL1",    clrBlack,     3, STYLE_SOLID);
+   LinhasDefinirTipo("NIVEL2",    clrBlack,     1, STYLE_SOLID);
+   LinhasDefinirTipo("TRACEJADA", clrDimGray,   1, STYLE_DASH);
+   LinhasDefinirTipo("DESTAQUE",  clrRoyalBlue, 3, STYLE_SOLID);
+}
+
+int LinhasIndiceTipo(const string nome)
+{
+   for(int i = 0; i < ArraySize(g_linTipoNome); i++)
+      if(g_linTipoNome[i] == nome) return i;
+   return -1;
+}
+
+void LinhasDefinirTipo(const string nome, const color cor, const int larg, const int estilo)
+{
+   int i = LinhasIndiceTipo(nome);
+   if(i < 0)
+   {
+      i = ArraySize(g_linTipoNome);
+      ArrayResize(g_linTipoNome, i + 1);
+      ArrayResize(g_linTipoCor, i + 1);
+      ArrayResize(g_linTipoLarg, i + 1);
+      ArrayResize(g_linTipoEstilo, i + 1);
+   }
+   g_linTipoNome[i]   = nome;
+   g_linTipoCor[i]    = cor;
+   g_linTipoLarg[i]   = MathMax(1, MathMin(5, larg));
+   g_linTipoEstilo[i] = estilo;
+}
+
+string LinhasLimpar(string t)
+{
+   // remove BOM/caracteres invisiveis do inicio (arquivo salvo em UTF-8 pelo Bloco de Notas)
+   while(StringLen(t) > 0 && (StringGetCharacter(t, 0) > 126 || StringGetCharacter(t, 0) < 32))
+      t = StringSubstr(t, 1);
+   StringTrimLeft(t);
+   StringTrimRight(t);
+   return t;
+}
+
+color LinhasCor(string c, bool &ok)
+{
+   ok = true;
+   c = LinhasLimpar(c);
+   StringToUpper(c);
+   if(c == "PRETO" || c == "BLACK")                       return clrBlack;
+   if(c == "AZUL" || c == "BLUE")                         return clrRoyalBlue;
+   if(c == "AZULESCURO" || c == "NAVY")                   return clrNavy;
+   if(c == "VERMELHO" || c == "RED")                      return clrRed;
+   if(c == "VERDE" || c == "GREEN")                       return clrGreen;
+   if(c == "CINZA" || c == "GRAY" || c == "GREY")         return clrDimGray;
+   if(c == "CINZACLARO" || c == "SILVER")                 return clrSilver;
+   if(c == "LARANJA" || c == "ORANGE")                    return clrDarkOrange;
+   if(c == "AMARELO" || c == "YELLOW" || c == "GOLD")     return clrGold;
+   if(c == "ROXO" || c == "PURPLE" || c == "MAGENTA")     return clrMagenta;
+   if(c == "BRANCO" || c == "WHITE")                      return clrWhite;
+   ok = false;
+   return clrBlack;
+}
+
+int LinhasEstilo(string e)
+{
+   e = LinhasLimpar(e);
+   StringToUpper(e);
+   if(e == "TRACEJADA" || e == "DASH")       return STYLE_DASH;
+   if(e == "PONTILHADA" || e == "DOT")       return STYLE_DOT;
+   if(e == "TRACO_PONTO" || e == "DASHDOT")  return STYLE_DASHDOT;
+   return STYLE_SOLID;
+}
+
+// Converte "29465,08" / "29465.08" / "29.465,08" em preco. false se nao for um numero valido.
+bool LinhasPreco(string t, double &preco)
+{
+   t = LinhasLimpar(t);
+   if(StringLen(t) == 0) return false;
+   bool temVirg = (StringFind(t, ",") >= 0), temPonto = (StringFind(t, ".") >= 0);
+   if(temVirg && temPonto) StringReplace(t, ".", "");   // ponto de milhar
+   StringReplace(t, ",", ".");
+   int pontos = 0;
+   for(int i = 0; i < StringLen(t); i++)
+   {
+      ushort ch = StringGetCharacter(t, i);
+      if(ch == '.') { pontos++; continue; }
+      if(ch < '0' || ch > '9') return false;
+   }
+   if(pontos > 1) return false;
+   preco = StringToDouble(t);
+   return (preco > 0);
+}
+
+void LinhasCriarModelo()
+{
+   if(FileIsExist(LIN_ARQ, FILE_COMMON)) return;
+   int h = FileOpen(LIN_ARQ, FILE_WRITE | FILE_TXT | FILE_ANSI | FILE_COMMON);
+   if(h == INVALID_HANDLE)
+   {
+      PrintFormat("SP LINHAS: nao foi possivel criar %s (erro %d)", LIN_ARQ, GetLastError());
+      return;
+   }
+   FileWriteString(h, "# LINHAS DO DIA - Scalper Pro\r\n");
+   FileWriteString(h, "# Cole os precos depois dos dois pontos, separados por ponto e virgula, e SALVE.\r\n");
+   FileWriteString(h, "# O Scalper Pro redesenha sozinho (ou clique no botao LINHAS do painel).\r\n");
+   FileWriteString(h, "# Virgula ou ponto decimal: 29465,08 ou 29465.08. Linhas com # sao ignoradas.\r\n");
+   FileWriteString(h, "#\r\n");
+   FileWriteString(h, "# Aparencia de cada tipo: cor, espessura (1 a 5), estilo\r\n");
+   FileWriteString(h, "# Cores: PRETO AZUL AZULESCURO VERMELHO VERDE CINZA CINZACLARO LARANJA AMARELO ROXO BRANCO\r\n");
+   FileWriteString(h, "# Estilos: SOLIDA TRACEJADA PONTILHADA TRACO_PONTO\r\n");
+   FileWriteString(h, "TIPO NIVEL1    = PRETO, 3, SOLIDA\r\n");
+   FileWriteString(h, "TIPO NIVEL2    = PRETO, 1, SOLIDA\r\n");
+   FileWriteString(h, "TIPO TRACEJADA = CINZA, 1, TRACEJADA\r\n");
+   FileWriteString(h, "TIPO DESTAQUE  = AZUL, 3, SOLIDA\r\n");
+   FileWriteString(h, "\r\n");
+   FileWriteString(h, "# Exemplo: NIVEL1: 29465,08; 29361,12; 29323,97\r\n");
+   FileWriteString(h, "NIVEL1:\r\n");
+   FileWriteString(h, "NIVEL2:\r\n");
+   FileWriteString(h, "TRACEJADA:\r\n");
+   FileWriteString(h, "DESTAQUE:\r\n");
+   FileClose(h);
+   PrintFormat("SP LINHAS: modelo criado em %s\\Files\\%s",
+               TerminalInfoString(TERMINAL_COMMONDATA_PATH), LIN_ARQ);
+}
+
+// Confere a data/tamanho do arquivo (1x por segundo) e redesenha quando ele for salvo.
+void LinhasVerificarArquivo()
+{
+   if(!FileIsExist(LIN_ARQ, FILE_COMMON)) return;
+   long data = FileGetInteger(LIN_ARQ, FILE_MODIFY_DATE, true);
+   long tam  = FileGetInteger(LIN_ARQ, FILE_SIZE, true);
+   if(data < 0) return;
+   if(data == g_linArqData && tam == g_linArqTam) return;
+   LinhasCarregar(true);
+}
+
+// Le o arquivo e redesenha as linhas. avisar = mostra o resultado na barra de status.
+void LinhasCarregar(const bool avisar)
+{
+   if(!FileIsExist(LIN_ARQ, FILE_COMMON))
+   {
+      LinhasCriarModelo();
+      if(avisar) Status("LINHAS: arquivo criado em Common\\Files\\" + LIN_ARQ, clrOrange, true);
+      g_linArqData = FileGetInteger(LIN_ARQ, FILE_MODIFY_DATE, true);
+      g_linArqTam  = FileGetInteger(LIN_ARQ, FILE_SIZE, true);
+      return;
+   }
+
+   int h = FileOpen(LIN_ARQ, FILE_READ | FILE_TXT | FILE_ANSI | FILE_COMMON | FILE_SHARE_READ | FILE_SHARE_WRITE);
+   if(h == INVALID_HANDLE)
+   {
+      // o editor pode estar gravando neste instante: tenta de novo no proximo segundo
+      if(avisar) Status("LINHAS: arquivo em uso, tentando de novo", clrOrange, true);
+      return;
+   }
+   g_linArqData = FileGetInteger(LIN_ARQ, FILE_MODIFY_DATE, true);
+   g_linArqTam  = FileGetInteger(LIN_ARQ, FILE_SIZE, true);
+
+   LinhasTiposPadrao();
+   string tipoLinha[];
+   double precoLinha[];
+   int    nInval = 0, nFora = 0, numLinha = 0;
+   string primeiroErro = "";
+   double ref = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   if(ref <= 0) ref = iClose(_Symbol, PERIOD_CURRENT, 0);
+
+   while(!FileIsEnding(h))
+   {
+      string lin = LinhasLimpar(FileReadString(h));
+      numLinha++;
+      if(StringLen(lin) == 0 || StringGetCharacter(lin, 0) == '#') continue;
+
+      string up = lin;
+      StringToUpper(up);
+
+      // TIPO NOME = cor, espessura, estilo
+      if(StringFind(up, "TIPO ") == 0)
+      {
+         int eq = StringFind(up, "=");
+         if(eq < 0) { nInval++; if(primeiroErro == "") primeiroErro = "linha " + IntegerToString(numLinha); continue; }
+         string nome = LinhasLimpar(StringSubstr(up, 5, eq - 5));
+         string partes[];
+         int np = StringSplit(StringSubstr(up, eq + 1), ',', partes);
+         bool okCor = false;
+         color cor = (np >= 1) ? LinhasCor(partes[0], okCor) : clrBlack;
+         int larg  = (np >= 2) ? (int)StringToInteger(LinhasLimpar(partes[1])) : 1;
+         int est   = (np >= 3) ? LinhasEstilo(partes[2]) : STYLE_SOLID;
+         if(StringLen(nome) == 0 || !okCor)
+         {
+            nInval++;
+            if(primeiroErro == "") primeiroErro = "linha " + IntegerToString(numLinha);
+            PrintFormat("SP LINHAS: linha %d ignorada (tipo/cor invalidos): %s", numLinha, lin);
+            continue;
+         }
+         LinhasDefinirTipo(nome, cor, larg, est);
+         continue;
+      }
+
+      // NOME: preco; preco; ...
+      int dp = StringFind(lin, ":");
+      if(dp < 0)
+      {
+         nInval++;
+         if(primeiroErro == "") primeiroErro = "linha " + IntegerToString(numLinha);
+         PrintFormat("SP LINHAS: linha %d ignorada (falta ':'): %s", numLinha, lin);
+         continue;
+      }
+      string tipo = LinhasLimpar(StringSubstr(up, 0, dp));
+      string lista = StringSubstr(lin, dp + 1);
+      StringReplace(lista, "|", ";");
+      string itens[];
+      int ni = StringSplit(lista, ';', itens);
+      for(int k = 0; k < ni; k++)
+      {
+         string it = LinhasLimpar(itens[k]);
+         if(StringLen(it) == 0) continue;
+         double p;
+         if(!LinhasPreco(it, p))
+         {
+            nInval++;
+            if(primeiroErro == "") primeiroErro = it;
+            PrintFormat("SP LINHAS: preco invalido '%s' (%s, linha %d)", it, tipo, numLinha);
+            continue;
+         }
+         if(InpLinhasFaixaPct > 0 && ref > 0 && MathAbs(p - ref) > ref * InpLinhasFaixaPct / 100.0)
+         {
+            nFora++;
+            if(primeiroErro == "") primeiroErro = it;
+            PrintFormat("SP LINHAS: preco %s ignorado: mais de %.0f%% longe do preco atual (%s)", it, InpLinhasFaixaPct,
+                        DoubleToString(ref, _Digits));
+            continue;
+         }
+         int n = ArraySize(precoLinha);
+         ArrayResize(precoLinha, n + 1);
+         ArrayResize(tipoLinha, n + 1);
+         precoLinha[n] = NormalizeDouble(p, _Digits);
+         tipoLinha[n]  = tipo;
+      }
+   }
+   FileClose(h);
+
+   // redesenha: apaga so as linhas do arquivo (as linhas manuais e as do SYNC ficam)
+   ObjectsDeleteAll(0, LIN_PREFIX);
+   int desenhadas = 0;
+   for(int i = 0; i < ArraySize(precoLinha); i++)
+   {
+      int t = LinhasIndiceTipo(tipoLinha[i]);
+      if(t < 0)
+      {
+         // tipo sem "TIPO ... =": usa a aparencia do NIVEL2
+         LinhasDefinirTipo(tipoLinha[i], clrBlack, 1, STYLE_SOLID);
+         t = LinhasIndiceTipo(tipoLinha[i]);
+      }
+      string nome = LIN_PREFIX + tipoLinha[i] + "_" + IntegerToString(i + 1);
+      if(!ObjectCreate(0, nome, OBJ_HLINE, 0, 0, precoLinha[i])) continue;
+      ObjectSetInteger(0, nome, OBJPROP_COLOR, g_linTipoCor[t]);
+      ObjectSetInteger(0, nome, OBJPROP_WIDTH, g_linTipoLarg[t]);
+      ObjectSetInteger(0, nome, OBJPROP_STYLE, g_linTipoEstilo[t]);
+      ObjectSetInteger(0, nome, OBJPROP_BACK, true);
+      ObjectSetInteger(0, nome, OBJPROP_SELECTABLE, false);
+      ObjectSetInteger(0, nome, OBJPROP_HIDDEN, true);
+      ObjectSetInteger(0, nome, OBJPROP_TIMEFRAMES, OBJ_ALL_PERIODS);
+      ObjectSetString(0, nome, OBJPROP_TOOLTIP, tipoLinha[i] + " " + DoubleToString(precoLinha[i], _Digits));
+      desenhadas++;
+   }
+   ChartRedraw(0);
+
+   string msg;
+   if(nInval + nFora == 0)
+      msg = StringFormat("LINHAS: %d carregadas", desenhadas);
+   else
+      msg = StringFormat("LINHAS: %d ok, %d ignorada(s) (%s)", desenhadas, nInval + nFora, primeiroErro);
+   PrintFormat("SP %s | arquivo %s", msg, LIN_ARQ);
+   if(avisar || nInval + nFora > 0)
+   {
+      if(nInval + nFora == 0) StatusComAutoReset(msg, C_STATUS_OK, true);
+      else                    Status(msg, clrOrange, true);
+   }
+}
+
