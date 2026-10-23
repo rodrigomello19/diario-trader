@@ -1,13 +1,13 @@
 //+------------------------------------------------------------------+
-//|                     SCALPER PRO v5.89 - MT5                       |
+//|                     SCALPER PRO v5.90 - MT5                       |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, Scalper Pro"
-#property version       "5.89"
+#property version       "5.90"
 #property strict
 
 #include <Trade/Trade.mqh>
 
-const string SP_EA_VERSAO = "5.89";
+const string SP_EA_VERSAO = "5.90";
 
 CTrade trade;
 
@@ -6949,10 +6949,11 @@ void OcultarSecoesPainelColapsadas(const bool ocultar)
    GarantirTextoBotaoSync();
 }
 
-// Faixa do copiador (abaixo da barra de status): so existe com o copiador ligado.
+// Faixa do copiador (abaixo da barra de status): sempre visivel. Com o copiador desligado
+// mostra "COPY: DESLIGADO", para um terminal desligado por engano nao passar despercebido.
 int AlturaExtraCopia()
 {
-   return (g_copyModoEf != COPY_DESLIGADO) ? STAT_ROW_H + STAT_STATUS_GAP : 0;
+   return STAT_ROW_H + STAT_STATUS_GAP;
 }
 
 int AlturaPainelNormal() { return PANEL_H + AlturaExtraCopia(); }
@@ -6962,12 +6963,6 @@ void CriarFaixaCopia(const int lx, const int y, const int divW)
 {
    g_copyStatusTxt = "";
    g_copyStatusCor = clrNONE;
-   if(g_copyModoEf == COPY_DESLIGADO)
-   {
-      ObjectDelete(0, OBJ_COPY_STRIP);
-      ObjectDelete(0, OBJ_COPY_STATUS);
-      return;
-   }
 
    CreateRect(OBJ_COPY_STRIP, lx, y, divW, STAT_ROW_H, CorFaixaStatusFundo(C_LABEL_COLOR), C_GLASS_BORDER);
    ObjectSetInteger(0, OBJ_COPY_STRIP, OBJPROP_ZORDER, 1);
@@ -6979,6 +6974,20 @@ void CriarFaixaCopia(const int lx, const int y, const int divW)
    ObjectSetInteger(0, OBJ_COPY_STATUS, OBJPROP_SELECTABLE, false);
    ObjectSetInteger(0, OBJ_COPY_STATUS, OBJPROP_BACK, false);
    ObjectSetInteger(0, OBJ_COPY_STATUS, OBJPROP_ZORDER, 50);
+
+   if(g_copyModoEf == COPY_DESLIGADO)
+   {
+      // texto fixo: o timer do copiador nao roda com ele desligado
+      bool invalido = (InpCopyModo != COPY_DESLIGADO && !MQLInfoInteger(MQL_TESTER));
+      string txt  = ShortToString(0x25CF) + (invalido ? " COPY: CONFIG INVALIDA (VER EXPERTS)" : " COPY: DESLIGADO");
+      string dica = invalido ? "O copiador nao iniciou: veja a mensagem na aba Experts"
+                             : "Copiador desligado: ajuste 'Modo do copiador' (Mae/Filha) nos parametros do EA";
+      ObjectSetString(0, OBJ_COPY_STATUS, OBJPROP_TEXT, txt);
+      ObjectSetInteger(0, OBJ_COPY_STATUS, OBJPROP_COLOR, C_STATUS_WARN);
+      ObjectSetString(0, OBJ_COPY_STATUS, OBJPROP_TOOLTIP, dica);
+      ObjectSetInteger(0, OBJ_COPY_STRIP, OBJPROP_BGCOLOR, CorFaixaStatusFundo(C_STATUS_WARN));
+      ObjectSetString(0, OBJ_COPY_STRIP, OBJPROP_TOOLTIP, dica);
+   }
 }
 
 void ReposicionarFaixaCopia(const int y, const int lx, const int divW)

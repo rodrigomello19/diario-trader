@@ -89,3 +89,12 @@ O antigo `Copiador NinjaTrader` (`InpCopyNT_Ativo`, arquivo de sinais `SP_NT_Cop
 - O copiador não funciona no Strategy Tester, onde ele é desligado automaticamente.
 - Contas **netting** funcionam, mas cada símbolo tem uma posição só. O suporte foi pensado para contas hedging.
 - Mesas proprietárias (ex.: FTMO) têm regras próprias sobre copy trade. Confirme com elas antes de usar.
+
+## Faixa do copiador sempre visível (v5.90)
+
+A faixa abaixo da barra de status aparece **mesmo com o copiador desligado**:
+- **COPY: DESLIGADO** (laranja): o "Modo do copiador" está em Desligado. Confira os parâmetros se esse terminal deveria copiar.
+- **COPY: CONFIG INVALIDA (VER EXPERTS)**: o modo está em Mãe ou Filha, mas o copiador não iniciou. O motivo aparece na aba Experts.
+
+Dica: depois de configurar a mãe e as filhas, salve os parâmetros em um arquivo `.set` (aba Parâmetros de entrada > Salvar). Ao atualizar o EA, basta clicar em Carregar.
+
