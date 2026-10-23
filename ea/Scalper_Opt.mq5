@@ -1,13 +1,13 @@
 //+------------------------------------------------------------------+
-//|                     SCALPER PRO v5.88 - MT5                       |
+//|                     SCALPER PRO v5.89 - MT5                       |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, Scalper Pro"
-#property version       "5.88"
+#property version       "5.89"
 #property strict
 
 #include <Trade/Trade.mqh>
 
-const string SP_EA_VERSAO = "5.88";
+const string SP_EA_VERSAO = "5.89";
 
 CTrade trade;
 
@@ -92,8 +92,8 @@ input double InpOffsetPendPts      = 0.0;     // Entrada acima corpo (pts)
 input string InpAtivoCopiarLinhas  = "";      // SYNC: ativo do grafico de estudo ("" = mesmo ativo deste grafico)
 
 input group "=== Linhas do dia (arquivo SP_Linhas.txt) ==="
-input bool   InpLinhasArquivo      = true;    // Desenhar as linhas do arquivo Common\Files\SP_Linhas.txt
-input bool   InpLinhasAutoRecarga  = true;    // Redesenhar sozinho quando o arquivo for salvo
+input bool   InpLinhasArquivo      = false;   // Carregar SP_Linhas.txt ao iniciar o EA (padrao: so pelo botao LINHAS)
+input bool   InpLinhasAutoRecarga  = false;   // Redesenhar sozinho quando o arquivo for salvo
 input double InpLinhasFaixaPct     = 10.0;    // Ignorar precos a mais de X% do preco atual (erro de digitacao)
 
 input group "=== Timer grafico ==="
@@ -8639,11 +8639,9 @@ int OnInit()
    g_ultimoPtsPainel = -999999.0;
    g_ultimoSpreadPainel = -1;
    AtualizarPainelEstatisticas(true);
+   LinhasCriarModelo();
    if(InpLinhasArquivo)
-   {
-      LinhasCriarModelo();
       LinhasCarregar(false);
-   }
    ChartRedraw(0);
 
    if(RestaurarBloqueioLimiteDia())
@@ -8671,7 +8669,7 @@ void OnDeinit(const int reason)
    if(reason != REASON_CHARTCHANGE && reason != REASON_PARAMETERS && reason != REASON_RECOMPILE)
    {
       ObjectsDeleteAll(0, "SP_");
-      ObjectsDeleteAll(0, LIN_PREFIX);
+      // as linhas do dia (LIN_PREFIX) ficam no grafico: podem ter sido ajustadas a mao
    }
    ObjectDelete(0, OBJ_CANDLE_TIMER);
    if(reason != REASON_INITFAILED)
@@ -8855,7 +8853,7 @@ void OnTimer()
 
    ProcessarResetStatusGeralAgendado();
    SincronizarStatusImpedimento();
-   if(InpLinhasArquivo && InpLinhasAutoRecarga)
+   if(InpLinhasAutoRecarga)
       LinhasVerificarArquivo();
    ProcessarResetPontosOperacaoAgendado();
    AtualizarPainelEstatisticas(false);
@@ -9129,7 +9127,7 @@ void LinhasCriarModelo()
    }
    FileWriteString(h, "# LINHAS DO DIA - Scalper Pro\r\n");
    FileWriteString(h, "# Cole os precos depois dos dois pontos, separados por ponto e virgula, e SALVE.\r\n");
-   FileWriteString(h, "# O Scalper Pro redesenha sozinho (ou clique no botao LINHAS do painel).\r\n");
+   FileWriteString(h, "# Depois clique no botao LINHAS do painel do Scalper Pro.\r\n");
    FileWriteString(h, "# Virgula ou ponto decimal: 29465,08 ou 29465.08. Linhas com # sao ignoradas.\r\n");
    FileWriteString(h, "#\r\n");
    FileWriteString(h, "# Aparencia de cada tipo: cor, espessura (1 a 5), estilo\r\n");
@@ -9266,7 +9264,7 @@ void LinhasCarregar(const bool avisar)
    }
    FileClose(h);
 
-   // redesenha: apaga so as linhas do arquivo (as linhas manuais e as do SYNC ficam)
+   // redesenha: apaga so as linhas do arquivo, inclusive ajustes feitos nelas (as linhas manuais e as do SYNC ficam)
    ObjectsDeleteAll(0, LIN_PREFIX);
    int desenhadas = 0;
    for(int i = 0; i < ArraySize(precoLinha); i++)
@@ -9284,8 +9282,9 @@ void LinhasCarregar(const bool avisar)
       ObjectSetInteger(0, nome, OBJPROP_WIDTH, g_linTipoLarg[t]);
       ObjectSetInteger(0, nome, OBJPROP_STYLE, g_linTipoEstilo[t]);
       ObjectSetInteger(0, nome, OBJPROP_BACK, true);
-      ObjectSetInteger(0, nome, OBJPROP_SELECTABLE, false);
-      ObjectSetInteger(0, nome, OBJPROP_HIDDEN, true);
+      ObjectSetInteger(0, nome, OBJPROP_SELECTABLE, true);    // permite ajustar com o mouse
+      ObjectSetInteger(0, nome, OBJPROP_SELECTED, false);
+      ObjectSetInteger(0, nome, OBJPROP_HIDDEN, false);
       ObjectSetInteger(0, nome, OBJPROP_TIMEFRAMES, OBJ_ALL_PERIODS);
       ObjectSetString(0, nome, OBJPROP_TOOLTIP, tipoLinha[i] + " " + DoubleToString(precoLinha[i], _Digits));
       desenhadas++;
