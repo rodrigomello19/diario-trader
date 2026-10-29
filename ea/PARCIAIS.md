@@ -1,4 +1,4 @@
-# Parciais no Scalper Pro (v5.92)
+# Parciais no Scalper Pro (v5.93)
 
 Sistema de parciais da v5.38, trazido para a versão atual.
 
@@ -8,7 +8,7 @@ Sistema de parciais da v5.38, trazido para a versão atual.
 |---|---|---|
 | **P1** | 500 pts / 50% | Com 500 pts de lucro, fecha 50% do lote **inicial** |
 | **P2** | 1.000 pts / 30% | Com 1.000 pts de lucro, fecha 30% do lote inicial |
-| **P3 (resíduo)** | automático: 20% | O que sobra (100% − P1 − P2) continua até o **T.P.**, o SL ou o trailing |
+| Resíduo | 20% | O que sobra (100% − P1 − P2) continua até o T.P., o SL ou o trailing. Não aparece no painel. |
 
 - **SL depois do P1** ("Após P1"): vai para **entrada + 100 pts**, ou entrada − 100 pts na venda.
 - **SL depois do P2** ("Após P2"): vai para o **nível do P1**, entrada + 500 pts.
@@ -24,18 +24,10 @@ Nova seção **PARCIAIS** abaixo de PARÂMETROS, seguida de uma linha separadora
 PARCIAIS ─────────────────────── [ON]
 P1 [ 500 ] pts  [ 50 ] %   [  ATIVO  ]
 P2 [1000 ] pts  [ 30 ] %   [  ATIVO  ]
-P3 [1500 ] pts  [ 20 ] %   [  ATIVO  ]
 ──────────────────────────────────────
 [  COMPRA  ] [  FECHA  ] [  VENDA  ]
 [NORMAL] [SYNC] [LINHAS] [LIMITES]
 ```
-
-- **P3 é automático e somente leitura:**
-  - o percentual é 100% − P1 − P2;
-  - os pontos são o **T.P.** do perfil;
-  - o status mostra ATIVO, depois **Correndo** (quando P1 e P2 já saíram) e **Encerrada** quando a posição fecha.
-  - Com P1 + P2 = 100%, o P3 mostra "--".
-- Para mudar o alvo do P3, mude o T.P.
 
 - **Pontos e %:** são editáveis como os outros campos (clique, digite, Enter). Ficam salvos.
 - **ON/OFF:** liga e desliga as parciais. A escolha também fica salva.
