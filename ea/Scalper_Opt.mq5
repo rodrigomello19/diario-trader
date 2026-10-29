@@ -1,13 +1,13 @@
 //+------------------------------------------------------------------+
-//|                     SCALPER PRO v5.97 - MT5                       |
+//|                     SCALPER PRO v5.98 - MT5                       |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, Scalper Pro"
-#property version       "5.97"
+#property version       "5.98"
 #property strict
 
 #include <Trade/Trade.mqh>
 
-const string SP_EA_VERSAO = "5.97";
+const string SP_EA_VERSAO = "5.98";
 
 CTrade trade;
 
@@ -269,7 +269,7 @@ const color C_MUTED          = 0x80726B;
 const color C_STEP_ROTULO    = 0xD84E1D;   // ciano Step
 const color C_TRAIL_FIXO_ACCENT = 0x0847B5;   // rotulo Trail quando modo fixo
 const color C_TP_LINHA       = 0x346516;
-const color C_TRAIL_LINHA    = clrRed;     // linha do trailing: vermelha pontilhada
+const color C_TRAIL_LINHA    = 0x0000A5;   // linha do trailing: vermelho escuro (#A50000), pontilhada
 const color C_PEND_LINE_COLOR = 0xDC78F0;  // lilas pendente J/L — RGB(240,120,220), compra e venda
 const int   C_PEND_LINE_LARGURA = 2;
 const int   C_TRAIL_LARGURA  = 1;
