@@ -1,13 +1,13 @@
 //+------------------------------------------------------------------+
-//|                     SCALPER PRO v5.96 - MT5                       |
+//|                     SCALPER PRO v5.97 - MT5                       |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, Scalper Pro"
-#property version       "5.96"
+#property version       "5.97"
 #property strict
 
 #include <Trade/Trade.mqh>
 
-const string SP_EA_VERSAO = "5.96";
+const string SP_EA_VERSAO = "5.97";
 
 CTrade trade;
 
@@ -269,7 +269,7 @@ const color C_MUTED          = 0x80726B;
 const color C_STEP_ROTULO    = 0xD84E1D;   // ciano Step
 const color C_TRAIL_FIXO_ACCENT = 0x0847B5;   // rotulo Trail quando modo fixo
 const color C_TP_LINHA       = 0x346516;
-const color C_TRAIL_LINHA    = 0x8C4600;   // azul escuro trail (RGB 0,70,140)
+const color C_TRAIL_LINHA    = clrRed;     // linha do trailing: vermelha pontilhada
 const color C_PEND_LINE_COLOR = 0xDC78F0;  // lilas pendente J/L — RGB(240,120,220), compra e venda
 const int   C_PEND_LINE_LARGURA = 2;
 const int   C_TRAIL_LARGURA  = 1;
@@ -312,6 +312,12 @@ string OBJ_BTN_PERF_N   = "SP_PERF_N";      // seletor de perfil (cartao PARAMET
 string OBJ_BTN_PERF_V   = "SP_PERF_V";
 string OBJ_BTN_LOTE_DN  = "SP_LOTE_DN";     // passo do lote
 string OBJ_BTN_LOTE_UP  = "SP_LOTE_UP";
+string OBJ_BTN_TP_DN    = "SP_TP_DN";       // passo de 100 pts no T.P. e no S.L.
+string OBJ_BTN_TP_UP    = "SP_TP_UP";
+string OBJ_BTN_SL_DN    = "SP_SL_DN";
+string OBJ_BTN_SL_UP    = "SP_SL_UP";
+const string PARC_LINHA_PREFIX = "SPPARC_";   // linhas P1/P2 no grafico (fora do prefixo do painel)
+const double PASSO_PONTOS_PAINEL = 100;
 
 // Linhas do dia: arquivo em Common\Files (vale para todos os terminais) e objetos com prefixo proprio
 // (fora do "SP_" do painel, para nao serem tratados como objetos do painel nem apagados pelo SYNC).
@@ -4171,6 +4177,10 @@ void AtualizarLinhaTrailing(ulong posTkt)
       ObjectSetInteger(chartId, nome, OBJPROP_TIMEFRAMES, OBJ_ALL_PERIODS);
    }
 
+   // cor e estilo sempre atualizados (linhas criadas por versoes anteriores)
+   ObjectSetInteger(chartId, nome, OBJPROP_COLOR, C_TRAIL_LINHA);
+   ObjectSetInteger(chartId, nome, OBJPROP_STYLE, STYLE_DOT);
+
    bool existe = (ObjectFind(chartId, nome) >= 0);
    if(existe)
    {
@@ -4183,7 +4193,7 @@ void AtualizarLinhaTrailing(ulong posTkt)
 
    ObjectSetDouble(chartId, nome, OBJPROP_PRICE, preco);
    ObjectSetInteger(chartId, nome, OBJPROP_COLOR, C_TRAIL_LINHA);
-   ObjectSetInteger(chartId, nome, OBJPROP_STYLE, linhaNoSL ? STYLE_SOLID : STYLE_DASH);
+   ObjectSetInteger(chartId, nome, OBJPROP_STYLE, STYLE_DOT);
    ObjectSetInteger(chartId, nome, OBJPROP_WIDTH, C_TRAIL_LARGURA);
    ObjectSetString(chartId, nome, OBJPROP_TEXT, legenda);
    ObjectSetString(chartId, nome, OBJPROP_TOOLTIP, legenda);
@@ -5391,6 +5401,7 @@ bool EhObjetoLinhaSLTPGrafico(const string nome)
 
 bool EhHlineProtegidaDoEA(const string nome)
 {
+   if(StringFind(nome, PARC_LINHA_PREFIX) == 0) return true;   // linhas P1/P2
    if(StringFind(nome, LIN_PREFIX) == 0) return true;   // linhas do dia (arquivo)
    if(StringFind(nome, "SP_TRAIL_") == 0) return true;
    if(EhObjetoLinhaSLTPGrafico(nome)) return true;
@@ -6748,6 +6759,10 @@ void ProcessarCliqueBotaoPainel(const string btn)
    else if(btn == OBJ_BTN_PERF_V) { if(!SetupVolatilAtivo()) AlternarPerfilSetup(); }
    else if(btn == OBJ_BTN_LOTE_DN) AjustarLotePasso(-1);
    else if(btn == OBJ_BTN_LOTE_UP) AjustarLotePasso(1);
+   else if(btn == OBJ_BTN_TP_DN) AjustarPontosPasso(OBJ_EDIT_TP, -1);
+   else if(btn == OBJ_BTN_TP_UP) AjustarPontosPasso(OBJ_EDIT_TP, 1);
+   else if(btn == OBJ_BTN_SL_DN) AjustarPontosPasso(OBJ_EDIT_SL, -1);
+   else if(btn == OBJ_BTN_SL_UP) AjustarPontosPasso(OBJ_EDIT_SL, 1);
    else if(btn == OBJ_BTN_LIMITS) AbrirPopupLimites();
    else if(btn == OBJ_BTN_SETUP)    AlternarPerfilSetup();
    else if(btn == OBJ_BTN_MINIMIZE) ToggleMinimizarPainel();
@@ -6769,6 +6784,7 @@ string ResolverCliqueBotaoPainel(const string sparam)
       || sparam == OBJ_BTN_SYNC_HL || sparam == OBJ_BTN_LIMITS || sparam == OBJ_BTN_LINHAS
       || sparam == OBJ_BTN_PARCIAIS || sparam == OBJ_BTN_PERF_N || sparam == OBJ_BTN_PERF_V
       || sparam == OBJ_BTN_LOTE_DN || sparam == OBJ_BTN_LOTE_UP
+      || sparam == OBJ_BTN_TP_DN || sparam == OBJ_BTN_TP_UP || sparam == OBJ_BTN_SL_DN || sparam == OBJ_BTN_SL_UP
       || sparam == OBJ_BTN_SETUP || sparam == OBJ_BTN_MINIMIZE || sparam == OBJ_BTN_CLOSE)
       return sparam;
 
@@ -8704,8 +8720,8 @@ int OnInit()
    ReanexarPlanosParciais();
    {
       ulong tParc = TicketPosicaoSimbolo();
-      if(tParc > 0) AtualizarStatusParciaisPosicao(tParc);
-      else          ResetStatusParciais();
+      if(tParc > 0) { AtualizarStatusParciaisPosicao(tParc); AtualizarLinhasParciais(tParc); }
+      else          { ResetStatusParciais(); RemoverLinhasParciais(); }
    }
    ReconciliarLinhasTrailing();
    AtualizarRotulosSLTP();
@@ -8744,6 +8760,7 @@ void OnDeinit(const int reason)
    if(reason != REASON_CHARTCHANGE && reason != REASON_PARAMETERS && reason != REASON_RECOMPILE)
    {
       ObjectsDeleteAll(0, "SP_");
+      ObjectsDeleteAll(0, PARC_LINHA_PREFIX);
       // as linhas do dia (LIN_PREFIX) ficam no grafico: podem ter sido ajustadas a mao
    }
    ObjectDelete(0, OBJ_CANDLE_TIMER);
@@ -9515,7 +9532,10 @@ void ToggleParciaisSistema()
       else      ResetStatusParciais();
    }
    else
+   {
       AtualizarStatusParciaisDesabilitadas();
+      RemoverLinhasParciais();
+   }
    Status(g_parciaisLigado ? "Parciais ligadas" : "Parciais desligadas",
           g_parciaisLigado ? C_STATUS_OK : C_STATUS_WARN, true);
    ChartRedraw(0);
@@ -10296,10 +10316,65 @@ void ProcessarParciaisPosicao(ulong posTkt)
 
 void ExecutarParciais(ulong posTkt)
 {
-   if(!ParciaisAtivas()) return;
+   if(!ParciaisAtivas()) { RemoverLinhasParciais(); return; }
    if(posTkt == 0) posTkt = TicketPosicaoSimbolo();
    if(posTkt > 0)
+   {
       ProcessarParciaisPosicao(posTkt);
+      AtualizarLinhasParciais(posTkt);
+   }
+}
+
+//--- linhas finas pontilhadas no preco de P1 e P2 (somem quando a parcial sai)
+string NomeLinhaParcial(const int p) { return PARC_LINHA_PREFIX + "P" + IntegerToString(p); }
+
+void RemoverLinhasParciais()
+{
+   ObjectsDeleteAll(0, PARC_LINHA_PREFIX);
+}
+
+void AtualizarLinhasParciais(const ulong posTkt)
+{
+   if(!ParciaisNaPosicao(posTkt) || !GlobalVariableCheck(GVInitVol(posTkt)) || !PositionSelectByTicket(posTkt))
+   {
+      RemoverLinhasParciais();
+      return;
+   }
+   long   tipo = PositionGetInteger(POSITION_TYPE);
+   double open = PositionGetDouble(POSITION_PRICE_OPEN);
+   double pt   = ObterPontoPreco();
+
+   for(int p = 1; p <= PARTIAL_COUNT; p++)
+   {
+      string nome = NomeLinhaParcial(p);
+      double pts, pct;
+      PartialConfig(p, pts, pct);
+      string gvSt = GVState(posTkt, p);
+      bool feita = !GlobalVariableCheck(gvSt) || (int)GlobalVariableGet(gvSt) == PARTIAL_DONE
+                   || pts <= 0 || GlobalVariableGet(GVTarget(posTkt, p)) <= 0;
+      if(feita)
+      {
+         if(ObjectFind(0, nome) >= 0) ObjectDelete(0, nome);
+         continue;
+      }
+      double preco = NormalizeDouble(tipo == POSITION_TYPE_BUY ? open + pts * pt : open - pts * pt, _Digits);
+      if(ObjectFind(0, nome) < 0)
+      {
+         if(!ObjectCreate(0, nome, OBJ_HLINE, 0, 0, preco)) continue;
+         ObjectSetInteger(0, nome, OBJPROP_COLOR, PartialStatusColor(p));
+         ObjectSetInteger(0, nome, OBJPROP_STYLE, STYLE_DOT);
+         ObjectSetInteger(0, nome, OBJPROP_WIDTH, 1);
+         ObjectSetInteger(0, nome, OBJPROP_BACK, true);
+         ObjectSetInteger(0, nome, OBJPROP_SELECTABLE, false);
+         ObjectSetInteger(0, nome, OBJPROP_HIDDEN, true);
+         ObjectSetInteger(0, nome, OBJPROP_TIMEFRAMES, OBJ_ALL_PERIODS);
+         ObjectSetString(0, nome, OBJPROP_TEXT, "P" + IntegerToString(p));
+      }
+      if(MathAbs(ObjectGetDouble(0, nome, OBJPROP_PRICE) - preco) > pt * 0.5)
+         ObjectSetDouble(0, nome, OBJPROP_PRICE, preco);
+      ObjectSetString(0, nome, OBJPROP_TOOLTIP,
+                      StringFormat("P%d: %.0f pts, %.0f%% do lote", p, pts, pct));
+   }
 }
 
 int ObterParcialAtiva(ulong posTkt)
@@ -10378,6 +10453,7 @@ void FinalizarParciaisPorFechamentoTotal(ulong posTkt)
       else
          SetParcialLabel(p, ok ? "Executada" : "Nao exec.", ok ? clrLime : clrGray);
    }
+   RemoverLinhasParciais();
    if(tinhaPlano)
       AgendarResetStatusParciais();
 }
@@ -10473,16 +10549,34 @@ string TextoLote()
    return DoubleToString(Lote, DigitosLote());
 }
 
+// -/+ do lote: uma unidade inteira por clique (0.20 -> 1.20 -> 2.20; 3.00 -> 2.00)
 void AjustarLotePasso(const int dir)
 {
    AtualizarCampos();
-   double novo = NormalizeVolPainel(Lote + dir * LotStep());
+   double novo = NormalizeVolPainel(Lote + dir * 1.0);
    if(novo <= 0)
       novo = NormalizeVolPainel(SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN));
    if(novo > 0)
       Lote = novo;
    EscreverValorCampoEdit(OBJ_EDIT_LOTE);
    SalvarConfigPainelPerfil(g_setupAtivo);
+   ChartRedraw(0);
+}
+
+// -/+ do T.P. e do S.L.: 100 pts por clique (1000 -> 1100 -> 1200)
+void AjustarPontosPasso(const string campo, const int dir)
+{
+   AtualizarCampos();
+   if(campo == OBJ_EDIT_TP)
+      TakeProfit = MathMax(0, TakeProfit + dir * PASSO_PONTOS_PAINEL);
+   else if(campo == OBJ_EDIT_SL)
+      StopLoss = MathMax(0, StopLoss + dir * PASSO_PONTOS_PAINEL);
+   else
+      return;
+   EscreverValorCampoEdit(campo);
+   SalvarConfigPainelPerfil(g_setupAtivo);
+   ReconciliarLinhasTrailing();
+   AtualizarRotulosSLTP();
    ChartRedraw(0);
 }
 
@@ -10566,11 +10660,15 @@ int DesenharSecoesPainel(const int lx, const int divW, const bool criar)
 
    RotuloCampo("SP_TP", c2, l1);
    RotuloDireita("SP_TPU", c2 + colW, l1, "pts", C_MUTED);
-   PosicionarCampo(OBJ_EDIT_TP, c2, f1, colW, PFLD_H, criar, DoubleToString(TakeProfit, 0));
+   CreateButton(OBJ_BTN_TP_DN, c2, f1, 26, PFLD_H, "-", 11);
+   PosicionarCampo(OBJ_EDIT_TP, c2 + 28, f1, colW - 56, PFLD_H, criar, DoubleToString(TakeProfit, 0));
+   CreateButton(OBJ_BTN_TP_UP, c2 + colW - 26, f1, 26, PFLD_H, "+", 11);
 
    RotuloCampo("SP_SL", c1, l2);
    RotuloDireita("SP_SLU", c1 + colW, l2, "pts", C_MUTED);
-   PosicionarCampo(OBJ_EDIT_SL, c1, f2, colW, PFLD_H, criar, DoubleToString(StopLoss, 0));
+   CreateButton(OBJ_BTN_SL_DN, c1, f2, 26, PFLD_H, "-", 11);
+   PosicionarCampo(OBJ_EDIT_SL, c1 + 28, f2, colW - 56, PFLD_H, criar, DoubleToString(StopLoss, 0));
+   CreateButton(OBJ_BTN_SL_UP, c1 + colW - 26, f2, 26, PFLD_H, "+", 11);
 
    RotuloCampo("SP_ST", c2, l2);
    CreateLabel("SP_TR", c2 + colW, l2, TextoRotuloParametro("SP_TR"), CorRotuloParametro("SP_TR"), 7, true);
