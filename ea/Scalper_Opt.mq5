@@ -1,13 +1,13 @@
 //+------------------------------------------------------------------+
-//|                     SCALPER PRO v5.93 - MT5                       |
+//|                     SCALPER PRO v5.94 - MT5                       |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, Scalper Pro"
-#property version       "5.93"
+#property version       "5.94"
 #property strict
 
 #include <Trade/Trade.mqh>
 
-const string SP_EA_VERSAO = "5.93";
+const string SP_EA_VERSAO = "5.94";
 
 CTrade trade;
 
@@ -174,7 +174,7 @@ const int    SP_STATE_MAGIC   = 0x53504332;
 const int    SP_STATE_VERSION = 1;
 datetime     g_ultimaReconStats = 0;
 
-const int PANEL_X = 5, PANEL_Y = 3, PANEL_W = 332, PANEL_H = 336, PANEL_H_MIN = 126;
+const int PANEL_X = 5, PANEL_Y = 3, PANEL_W = 332, PANEL_H = 336, PANEL_H_MIN = 130;
 const int PANEL_COLAPSE_Y_OFFSET = 1200;
 const int PANEL_Y_MAX_NORMAL     = 900;
 const int PANEL_HEADER_H = 34;
@@ -185,11 +185,11 @@ const int PARAM_LBL_W    = 38;   // coluna do rotulo (Trail = maior)
 const int PARAM_FLD_W    = 112;  // largura maxima do campo numerico
 const int PARAM_LBL_GAP  = 5;    // espaco rotulo → campo
 const int PARAM_LBL_FS_H = 11;   // altura visual do rotulo (fs 8)
-const int EXEC_BTN_H     = 40;
+const int EXEC_BTN_H     = 46;
 const int EXEC_BTN_GAP   = 4;
-const int SEC_AUX_BTN_H  = 28;
+const int SEC_AUX_BTN_H  = 30;
 const int SEC_AUX_ROW_GAP = 6;
-const int METRICS_H      = 42;
+const int METRICS_H      = 46;
 const int STAT_LBL_FS    = 6;
 const int STAT_VAL_FS    = 11;
 const int STAT_LBL_Y_OFFSET   = 8;
@@ -206,74 +206,78 @@ const int PANEL_EDIT_ZORDER = 100;
 const int SP_ROTULO_LARGURA = 80;
 const int SP_ROTULO_MARGEM  = 12;
 
-// Tactical Teal — inspirado DI GASPARE X (BGR 0xBBGGRR) | Paleta ativa
-const color C_BG_COLOR       = 0x17110D;   // #0D1117
-const color C_BORDER_COLOR   = 0x3D3630;   // #30363D
-const color C_HEADER_COLOR   = 0x1C1512;   // #12151C
-const color C_HEADER_ACCENT  = 0xBFD42D;   // #2DD4BF teal
-const color C_GLASS_BG       = 0x221B16;   // #161B22
-const color C_GLASS_BORDER   = 0x3D3630;   // #30363D
-const color C_NOME_COLOR     = 0xFCFAFA;   // titulo
-const color C_ACCENT_COLOR   = 0xBFD42D;   // teal interativo
-const color C_TP_ACCENT      = 0xBFD42D;   // T.P. teal
-const color C_LABEL_COLOR    = 0x9E948B;   // labels secundarios
-const color C_LABEL_BRIGHT   = 0xEBE7E5;   // labels principais
-const color C_DIVIDER_COLOR  = 0x3D3630;
-const color C_DIVIDER_LIGHT  = 0x584F48;   // linha secao
-const color C_SETUP_NORM_BG   = 0x80DE4A;   // perfil NORMAL (status)
-const color C_SETUP_VOL_BG    = 0x24BFFB;   // perfil VOLATIL (status)
+// Tema claro "Paper" (opcao A, v5.94) — BGR 0xBBGGRR
+const color C_BG_COLOR       = 0xF9F6F4;   // #0D1117
+const color C_BORDER_COLOR   = 0xE8E1DC;   // #30363D
+const color C_HEADER_COLOR   = 0xFFFFFF;   // #12151C
+const color C_HEADER_ACCENT  = 0xEFE9E5;   // #2DD4BF teal
+const color C_GLASS_BG       = 0xFFFFFF;   // #161B22
+const color C_GLASS_BORDER   = 0xEFE9E5;   // #30363D
+const color C_NOME_COLOR     = 0x271811;   // titulo
+const color C_ACCENT_COLOR   = 0xD84E1D;   // teal interativo
+const color C_TP_ACCENT      = 0x477606;   // T.P. teal
+const color C_LABEL_COLOR    = 0x72645B;   // labels secundarios
+const color C_LABEL_BRIGHT   = 0x544034;   // labels principais
+const color C_DIVIDER_COLOR  = 0xEFE9E5;
+const color C_DIVIDER_LIGHT  = 0xE8E1DC;   // linha secao
+const color C_SETUP_NORM_BG   = 0x477606;   // perfil NORMAL (status)
+const color C_SETUP_VOL_BG    = 0x0847B5;   // perfil VOLATIL (status)
 const color C_AUX_SETUP_NORM_BG    = 0x232E1A;
 const color C_AUX_SETUP_NORM_BRD   = 0x346516;
 const color C_AUX_SETUP_NORM_PRESS = 0x1A2418;
 const color C_AUX_SETUP_VOL_BG     = 0x10222A;
 const color C_AUX_SETUP_VOL_BRD    = 0x24BFFB;
 const color C_AUX_SETUP_VOL_PRESS  = 0x0C181E;
-const color C_AUX_SYNC_BG          = 0x2D2621;
-const color C_AUX_SYNC_BRD         = 0x3D3630;
-const color C_AUX_SYNC_PRESS       = 0x17110D;
-const color C_AUX_LIMITS_BG        = 0x2D2621;
-const color C_AUX_LIMITS_BRD       = 0x3D3630;
-const color C_AUX_LIMITS_PRESS     = 0x17110D;
-const color C_INPUT_BG       = 0x37291F;   // campos
-const color C_INPUT_BORDER   = 0x584F48;
-const color C_INPUT_TEXT     = 0xFCFAFA;
-const color C_SEC_PARAMS     = 0xBFD42D;   // teal secoes
-const color C_SEC_STATUS     = 0xBFD42D;
-const color C_SPREAD_VAL     = 0xBFD42D;   // teal spread
-const color C_CLOSE_BTN_BG   = 0x63554B;   // slate fechar painel
+const color C_AUX_SYNC_BG          = 0xFFFFFF;
+const color C_AUX_SYNC_BRD         = 0xE8E1DC;
+const color C_AUX_SYNC_PRESS       = 0xF5F1EE;
+const color C_AUX_LIMITS_BG        = 0xFFFFFF;
+const color C_AUX_LIMITS_BRD       = 0xE8E1DC;
+const color C_AUX_LIMITS_PRESS     = 0xF5F1EE;
+const color C_INPUT_BG       = 0xFFFFFF;   // campos
+const color C_INPUT_BORDER   = 0xDCD2CB;
+const color C_INPUT_TEXT     = 0x271811;
+const color C_SEC_PARAMS     = 0x544034;   // teal secoes
+const color C_SEC_STATUS     = 0x544034;
+const color C_SPREAD_VAL     = 0x271811;   // teal spread
+const color C_CLOSE_BTN_BG   = 0xF5F1EE;   // slate fechar painel
 const color C_BUY_COLOR        = 0x346516;   // verde compra (referencia)
-const color C_BUY_STATUS_TEXT  = 0x80DE4A;   // compra — legivel no fundo escuro
+const color C_BUY_STATUS_TEXT  = 0x477606;   // compra — legivel no fundo escuro
 const color C_SELL_COLOR       = 0x1D1D7F;   // vinho venda (referencia)
-const color C_SELL_STATUS_TEXT = 0x5A5AFF;   // venda — legivel no fundo escuro
-const color C_CLOSE_COLOR    = 0x9E948B;
-const color C_EXEC_BUY_BG    = 0x346516;   // COMPRA
-const color C_EXEC_BUY_PRESS = 0x3D8015;
-const color C_EXEC_CLOSE_BG  = 0x515137;   // FECHA cinza
-const color C_EXEC_CLOSE_PRESS = 0x63554B;
-const color C_EXEC_SELL_BG   = 0x1D1D7F;   // VENDA
-const color C_EXEC_SELL_PRESS = 0x1B1B99;
-const color C_EXEC_SYNC_BG   = 0x2D2621;
-const color C_EXEC_SYNC_PRESS = 0x17110D;
-const color C_EXEC_SYNC_TXT  = 0xBFD42D;
-const color C_EXEC_SYNC_BRD  = 0x3D3630;
-const color C_STATUS_OK      = 0x80DE4A;
-const color C_STATUS_WARN    = 0x24BFFB;
-const color C_STATUS_ERR     = 0x7171F8;   // S.L. vermelho suave
-const color C_STATUS_STRIP_BG = 0x2D2621;
-const double STATUS_TINT_ALPHA = 0.14;
-const color C_MUTED          = 0x81766E;
-const color C_STEP_ROTULO    = 0xF9E867;   // ciano Step
-const color C_TRAIL_FIXO_ACCENT = 0x24BFFB;   // rotulo Trail quando modo fixo
+const color C_SELL_STATUS_TEXT = 0x1823B4;   // venda — legivel no fundo escuro
+const color C_CLOSE_COLOR    = 0x72645B;
+const color C_EXEC_BUY_BG    = 0x559407;   // COMPRA
+const color C_EXEC_BUY_PRESS = 0x477606;
+const color C_EXEC_CLOSE_BG  = 0xFFFFFF;   // FECHA cinza
+const color C_EXEC_CLOSE_PRESS = 0xF5F1EE;
+const color C_EXEC_SELL_BG   = 0x202DD9;   // VENDA
+const color C_EXEC_SELL_PRESS = 0x1823B4;
+const color C_EXEC_SYNC_BG   = 0xFFFFFF;
+const color C_EXEC_SYNC_PRESS = 0xF5F1EE;
+const color C_EXEC_SYNC_TXT  = 0xD84E1D;
+const color C_EXEC_SYNC_BRD  = 0xE8E1DC;
+const color C_STATUS_OK      = 0x477606;
+const color C_STATUS_WARN    = 0x0847B5;
+const color C_STATUS_ERR     = 0x1823B4;   // S.L. vermelho suave
+const color C_STATUS_STRIP_BG = 0xFBFAF9;
+const double STATUS_TINT_ALPHA = 0.10;
+const color C_EXEC_TEXT_ON   = 0xFFFFFF;   // texto sobre COMPRA/VENDA
+const color C_SEG_BG         = 0xF5F1EE;   // #EEF1F5 fundo do seletor de perfil
+const color C_TINT_OK_BG     = 0xF3FDEC;   // #ECFDF3 bloco LIBERADO
+const color C_TINT_ERR_BG    = 0xF2F3FE;   // #FEF3F2 bloco BLOQUEADO
+const color C_MUTED          = 0x80726B;
+const color C_STEP_ROTULO    = 0xD84E1D;   // ciano Step
+const color C_TRAIL_FIXO_ACCENT = 0x0847B5;   // rotulo Trail quando modo fixo
 const color C_TP_LINHA       = 0x346516;
 const color C_TRAIL_LINHA    = 0x8C4600;   // azul escuro trail (RGB 0,70,140)
 const color C_PEND_LINE_COLOR = 0xDC78F0;  // lilas pendente J/L — RGB(240,120,220), compra e venda
 const int   C_PEND_LINE_LARGURA = 2;
 const int   C_TRAIL_LARGURA  = 1;
-const color C_BTN_TEXT           = 0xFFFFFF;
-const color C_BTN_BG             = 0x2D2621;
-const color C_BTN_BORDER         = 0x3D3630;
-const color C_BTN_BG_PRESS       = 0x584F48;
-const color C_BTN_BORDER_PRESS   = 0x6E7681;
+const color C_BTN_TEXT           = 0x271811;
+const color C_BTN_BG             = 0xFFFFFF;
+const color C_BTN_BORDER         = 0xDCD2CB;
+const color C_BTN_BG_PRESS       = 0xF5F1EE;
+const color C_BTN_BORDER_PRESS   = 0xB3A298;
 const int   BTN_PRESS_MIN_MS     = 150;        // tempo minimo do destaque ao clique (ms)
 const int   ROTULOS_LIMPEZA_ORFAOS_SEC = 5;    // intervalo minimo para varrer rotulos orfaos
 const int   BTN_EXEC_FONT_SIZE   = 9;
@@ -304,6 +308,10 @@ string OBJ_BTN_SYNC_HL  = "SP_SYNC_HL";
 string OBJ_BTN_LIMITS   = "SP_BTN_LIMITS";
 string OBJ_BTN_SETUP    = "SP_BTN_SETUP";
 string OBJ_BTN_LINHAS   = "SP_BTN_LINHAS";
+string OBJ_BTN_PERF_N   = "SP_PERF_N";      // seletor de perfil (cartao PARAMETROS)
+string OBJ_BTN_PERF_V   = "SP_PERF_V";
+string OBJ_BTN_LOTE_DN  = "SP_LOTE_DN";     // passo do lote
+string OBJ_BTN_LOTE_UP  = "SP_LOTE_UP";
 
 // Linhas do dia: arquivo em Common\Files (vale para todos os terminais) e objetos com prefixo proprio
 // (fora do "SP_" do painel, para nao serem tratados como objetos do painel nem apagados pelo SYNC).
@@ -338,16 +346,29 @@ const int   PARC_TITULO_H = 20;
 const int   PARC_SEC_H    = PARC_TITULO_H + (PARAM_FLD_H + PARAM_ROW_GAP) + PARAM_FLD_H + SEC_EXEC_GAP;
 const int   BTN_PARC_W    = 44;
 const int   BTN_PARC_H    = 18;
-const int   PARC_X_PTS    = 26;    // colunas da linha P1/P2 (relativas a lx)
-const int   PARC_W_PTS    = 58;
-const int   PARC_X_PCT    = 112;
-const int   PARC_W_PCT    = 40;
-const int   PARC_X_ST     = 170;
+const int   PARC_X_PTS    = 30;    // colunas da linha P1/P2 (relativas a borda interna do cartao)
+const int   PARC_W_PTS    = 96;
+const int   PARC_X_PCT    = 134;
+const int   PARC_W_PCT    = 54;
+const int   PARC_X_ST     = 196;
+const int   PARC_ROW_H    = 26;
 
-const color C_P1_ACCENT       = 0x80C8FF;
-const color C_P2_ACCENT       = 0x39FF14;
-const color C_PARCIAIS_ON_BG  = 0x187010;
-const color C_PARCIAIS_OFF_BG = 0x222222;
+// Layout da opcao A (v5.94): cartoes PARAMETROS e PARCIAIS, execucao, acoes, estado do dia
+const int   CARD_PAD      = 10;
+const int   CARD_PAR_H    = 136;
+const int   CARD_PARC_H   = 112;
+const int   PFLD_H        = 28;    // altura dos campos de PARAMETROS
+const int   GAP_CARD      = 10;
+const int   GAP_CARD_EXEC = 12;
+const int   GAP_EXEC_AUX  = 8;
+const int   GAP_AUX_MET   = 10;
+const int   GAP_MET_STAT  = 8;
+const int   MET_STATE_W   = 92;    // bloco LIBERADO/BLOQUEADO
+
+const color C_P1_ACCENT       = 0xD84E1D;
+const color C_P2_ACCENT       = 0x0847B5;
+const color C_PARCIAIS_ON_BG  = 0x6AB712;
+const color C_PARCIAIS_OFF_BG = 0xDCD2CB;
 
 string OBJ_BTN_PARCIAIS = "SP_BTN_PARCIAIS";
 string OBJ_P1_STATUS    = "SP_P1_STATUS";
@@ -3676,6 +3697,7 @@ void AplicarPerfilAoPainel()
 
 void AtualizarBotaoSetup()
 {
+   AtualizarSegmentoPerfil();
    if(ObjectFind(0, OBJ_BTN_SETUP) < 0) return;
 
    AplicarEstiloBotaoAux(OBJ_BTN_SETUP, false);
@@ -5803,12 +5825,23 @@ void AplicarEstiloFaixaStatus(const color cor)
       ObjectSetInteger(0, OBJ_STATUS_STRIP, OBJPROP_BGCOLOR, CorFaixaStatusFundo(cor));
 }
 
+// Cores vivas (clrLime, clrOrange...) somem no fundo claro: troca pelo tom escuro equivalente.
+color CorTemaClaro(const color c)
+{
+   if(c == clrLime || c == clrGreen || c == clrLimeGreen || c == clrSpringGreen) return C_STATUS_OK;
+   if(c == clrOrange || c == clrGold || c == clrYellow || c == clrDarkOrange)    return C_STATUS_WARN;
+   if(c == clrRed || c == clrTomato || c == clrOrangeRed)                        return C_STATUS_ERR;
+   if(c == clrGray || c == clrSilver || c == clrDarkGray)                        return C_MUTED;
+   if(c == clrWhite)                                                             return C_NOME_COLOR;
+   return c;
+}
+
 void AplicarTextoStatusUI(const string texto, const color cor)
 {
    if(ObjectFind(0, OBJ_TXT_STATUS) >= 0)
    {
       ObjectSetString(0, OBJ_TXT_STATUS, OBJPROP_TEXT, texto);
-      ObjectSetInteger(0, OBJ_TXT_STATUS, OBJPROP_COLOR, cor);
+      ObjectSetInteger(0, OBJ_TXT_STATUS, OBJPROP_COLOR, CorTemaClaro(cor));
    }
    AplicarEstiloFaixaStatus(cor);
 }
@@ -6162,6 +6195,7 @@ void FinalizarEdicaoCampoParaExecucao()
       ObjectSetString(0, campo, OBJPROP_TEXT, g_bufferEdicao);
 
    AtualizarCampos();
+   EscreverValorCampoEdit(campo);
 
    AplicarDestaqueCampoEdit(campo, false);
    g_campoEditAtivo = "";
@@ -6195,6 +6229,7 @@ void FinalizarEdicaoCampo(const bool salvar)
       else
          ObjectSetString(0, campo, OBJPROP_TEXT, g_bufferEdicao);
       AtualizarCampos();
+      EscreverValorCampoEdit(campo);   // ex.: lote "3" vira "3.00"
       SalvarConfigPainelPerfil(g_setupAtivo);
       ReconciliarLinhasTrailing();
       AtualizarRotulosSLTP();
@@ -6328,16 +6363,19 @@ void AplicarEstiloBotaoExec(const string name, const bool press)
    {
       bg  = press ? C_EXEC_BUY_PRESS : C_EXEC_BUY_BG;
       brd = bg;
+      txt = C_EXEC_TEXT_ON;
    }
    else if(name == OBJ_BTN_CLOSEALL)
    {
       bg  = press ? C_EXEC_CLOSE_PRESS : C_EXEC_CLOSE_BG;
-      brd = bg;
+      brd = C_BTN_BORDER;
+      txt = C_NOME_COLOR;
    }
    else if(name == OBJ_BTN_SELL)
    {
       bg  = press ? C_EXEC_SELL_PRESS : C_EXEC_SELL_BG;
       brd = bg;
+      txt = C_EXEC_TEXT_ON;
    }
    if(g_painelBloqueado)
    {
@@ -6353,6 +6391,9 @@ void AplicarEstiloBotaoExec(const string name, const bool press)
    ObjectSetInteger(0, name, OBJPROP_BORDER_TYPE, BORDER_FLAT);
    ObjectSetInteger(0, name, OBJPROP_COLOR, txt);
    ObjectSetInteger(0, name, OBJPROP_STATE, false);
+   // rotulos sobrepostos (nome + tecla de atalho)
+   if(ObjectFind(0, name + "_T1") >= 0) ObjectSetInteger(0, name + "_T1", OBJPROP_COLOR, txt);
+   if(ObjectFind(0, name + "_T2") >= 0) ObjectSetInteger(0, name + "_T2", OBJPROP_COLOR, txt);
 
 }
 
@@ -6402,6 +6443,7 @@ void AplicarEstiloBotao(const string name, bool press)
 {
    if(ObjectFind(0, name) < 0) return;
    if(name == OBJ_BTN_PARCIAIS) { AtualizarBotaoParciais(); return; }
+   if(name == OBJ_BTN_PERF_N || name == OBJ_BTN_PERF_V) { AtualizarSegmentoPerfil(); return; }
 
    RemoverDecorBotao(name);
 
@@ -6415,7 +6457,7 @@ void AplicarEstiloBotao(const string name, bool press)
 
    ObjectSetInteger(0, name, OBJPROP_BGCOLOR, bg);
    ObjectSetInteger(0, name, OBJPROP_BORDER_COLOR, brd);
-   ObjectSetInteger(0, name, OBJPROP_BORDER_TYPE, press ? BORDER_SUNKEN : BORDER_RAISED);
+   ObjectSetInteger(0, name, OBJPROP_BORDER_TYPE, BORDER_FLAT);
    ObjectSetInteger(0, name, OBJPROP_COLOR, txt);
    ObjectSetInteger(0, name, OBJPROP_STATE, false);
 
@@ -6446,6 +6488,12 @@ void AtualizarEstadoLimitesUI()
    {
       ObjectSetString(0, OBJ_LIM_STATE, OBJPROP_TEXT, bloq ? "BLOQUEADO" : "LIBERADO");
       ObjectSetInteger(0, OBJ_LIM_STATE, OBJPROP_COLOR, bloq ? C_STATUS_ERR : C_STATUS_OK);
+   }
+   if(ObjectFind(0, "SP_MET_STBG") >= 0)
+   {
+      ObjectSetInteger(0, "SP_MET_STBG", OBJPROP_BGCOLOR, bloq ? C_TINT_ERR_BG : C_TINT_OK_BG);
+      ObjectSetInteger(0, "SP_MET_STBG", OBJPROP_COLOR, bloq ? C_TINT_ERR_BG : C_TINT_OK_BG);
+      ObjectSetInteger(0, "SP_MET_STBG", OBJPROP_BORDER_COLOR, bloq ? C_TINT_ERR_BG : C_TINT_OK_BG);
    }
 
    if(ObjectFind(0, OBJ_BTN_LIMITS) >= 0)
@@ -6571,11 +6619,8 @@ void GarantirMetricasStatusNaFrente()
 
 color CorRotuloParametro(const string lblName)
 {
-   if(lblName == "SP_TP") return C_TP_ACCENT;
-   if(lblName == "SP_SL") return C_STATUS_ERR;
    if(lblName == "SP_TR") return TrailDinamicoAtivo() ? C_STEP_ROTULO : C_TRAIL_FIXO_ACCENT;
-   if(lblName == "SP_ST") return C_STEP_ROTULO;
-   return C_LABEL_BRIGHT;
+   return C_LABEL_COLOR;
 }
 
 color CorRotuloMetricaStatus(const string lblName)
@@ -6598,10 +6643,10 @@ void AplicarEstiloRotuloMetricaStatus(const string lblName)
 string TextoRotuloParametro(const string lblName)
 {
    if(lblName == "SP_LOTE") return "Lote";
-   if(lblName == "SP_TP")   return "T.P.";
-   if(lblName == "SP_SL")   return "S.L.";
-   if(lblName == "SP_TR")   return TrailDinamicoAtivo() ? "Tr.Din" : "Trail";
-   if(lblName == "SP_ST")   return "Step";
+   if(lblName == "SP_TP")   return "Take profit";
+   if(lblName == "SP_SL")   return "Stop loss";
+   if(lblName == "SP_TR")   return TrailDinamicoAtivo() ? "DINAMICO" : "FIXO";   // etiqueta clicavel do modo
+   if(lblName == "SP_ST")   return "Trail / Step";
    return "";
 }
 
@@ -6657,7 +6702,8 @@ void ProcessarCliqueBotaoPainel(const string btn)
       FinalizarEdicaoCampo(true);
 
    if(g_painelBloqueado && btn != OBJ_BTN_MINIMIZE && btn != OBJ_BTN_CLOSE
-      && btn != OBJ_BTN_LIMITS && btn != OBJ_BTN_SETUP && btn != OBJ_BTN_LINHAS)
+      && btn != OBJ_BTN_LIMITS && btn != OBJ_BTN_SETUP && btn != OBJ_BTN_LINHAS
+      && btn != OBJ_BTN_PERF_N && btn != OBJ_BTN_PERF_V)
       return;
 
    if(TimeCurrent() == ultimoClique) return;
@@ -6675,6 +6721,10 @@ void ProcessarCliqueBotaoPainel(const string btn)
    if(btn == OBJ_BTN_SYNC_HL) SincronizarLinhasHorizontais();
    else if(btn == OBJ_BTN_LINHAS) LinhasCarregar(true);
    else if(btn == OBJ_BTN_PARCIAIS) ToggleParciaisSistema();
+   else if(btn == OBJ_BTN_PERF_N) { if(SetupVolatilAtivo())  AlternarPerfilSetup(); }
+   else if(btn == OBJ_BTN_PERF_V) { if(!SetupVolatilAtivo()) AlternarPerfilSetup(); }
+   else if(btn == OBJ_BTN_LOTE_DN) AjustarLotePasso(-1);
+   else if(btn == OBJ_BTN_LOTE_UP) AjustarLotePasso(1);
    else if(btn == OBJ_BTN_LIMITS) AbrirPopupLimites();
    else if(btn == OBJ_BTN_SETUP)    AlternarPerfilSetup();
    else if(btn == OBJ_BTN_MINIMIZE) ToggleMinimizarPainel();
@@ -6694,7 +6744,8 @@ string ResolverCliqueBotaoPainel(const string sparam)
 {
    if(sparam == OBJ_BTN_BUY || sparam == OBJ_BTN_SELL || sparam == OBJ_BTN_CLOSEALL
       || sparam == OBJ_BTN_SYNC_HL || sparam == OBJ_BTN_LIMITS || sparam == OBJ_BTN_LINHAS
-      || sparam == OBJ_BTN_PARCIAIS
+      || sparam == OBJ_BTN_PARCIAIS || sparam == OBJ_BTN_PERF_N || sparam == OBJ_BTN_PERF_V
+      || sparam == OBJ_BTN_LOTE_DN || sparam == OBJ_BTN_LOTE_UP
       || sparam == OBJ_BTN_SETUP || sparam == OBJ_BTN_MINIMIZE || sparam == OBJ_BTN_CLOSE)
       return sparam;
 
@@ -6911,83 +6962,33 @@ void ReposicionarBotoesExec(const int lx, const int divW, const int yExec)
 
 void ReposicionarBotoesAux(const int lx, const int divW, const int yAux)
 {
-   int btnW = (divW - EXEC_BTN_GAP * 3) / 4;
-   int ex   = lx;
-
-   if(ObjectFind(0, OBJ_BTN_SETUP) >= 0)
+   string b[3];
+   b[0] = OBJ_BTN_SYNC_HL; b[1] = OBJ_BTN_LINHAS; b[2] = OBJ_BTN_LIMITS;
+   int w = (divW - 16) / 3;
+   for(int i = 0; i < 3; i++)
    {
-      ObjectSetInteger(0, OBJ_BTN_SETUP, OBJPROP_XDISTANCE, ex);
-      ObjectSetInteger(0, OBJ_BTN_SETUP, OBJPROP_YDISTANCE, yAux);
-      ObjectSetInteger(0, OBJ_BTN_SETUP, OBJPROP_XSIZE, btnW);
-      ObjectSetInteger(0, OBJ_BTN_SETUP, OBJPROP_YSIZE, SEC_AUX_BTN_H);
-      ExibirObjetoPainel(OBJ_BTN_SETUP);
-      AtualizarBotaoSetup();
+      if(ObjectFind(0, b[i]) < 0) continue;
+      int x  = lx + i * (w + 8);
+      int wi = (i == 2) ? divW - 2 * (w + 8) : w;
+      ObjectSetInteger(0, b[i], OBJPROP_XDISTANCE, x);
+      ObjectSetInteger(0, b[i], OBJPROP_YDISTANCE, yAux);
+      ObjectSetInteger(0, b[i], OBJPROP_XSIZE, wi);
+      ObjectSetInteger(0, b[i], OBJPROP_YSIZE, SEC_AUX_BTN_H);
+      ExibirObjetoPainel(b[i]);
+      AplicarEstiloBotaoAux(b[i], false);
    }
-   ex += btnW + EXEC_BTN_GAP;
-
-   if(ObjectFind(0, OBJ_BTN_SYNC_HL) >= 0)
-   {
-      ObjectSetInteger(0, OBJ_BTN_SYNC_HL, OBJPROP_XDISTANCE, ex);
-      ObjectSetInteger(0, OBJ_BTN_SYNC_HL, OBJPROP_YDISTANCE, yAux);
-      ObjectSetInteger(0, OBJ_BTN_SYNC_HL, OBJPROP_XSIZE, btnW);
-      ObjectSetInteger(0, OBJ_BTN_SYNC_HL, OBJPROP_YSIZE, SEC_AUX_BTN_H);
-      ExibirObjetoPainel(OBJ_BTN_SYNC_HL);
-      AplicarEstiloBotaoAux(OBJ_BTN_SYNC_HL, false);
-   }
-   ex += btnW + EXEC_BTN_GAP;
-
    if(ObjectFind(0, OBJ_BTN_LINHAS) >= 0)
-   {
-      ObjectSetInteger(0, OBJ_BTN_LINHAS, OBJPROP_XDISTANCE, ex);
-      ObjectSetInteger(0, OBJ_BTN_LINHAS, OBJPROP_YDISTANCE, yAux);
-      ObjectSetInteger(0, OBJ_BTN_LINHAS, OBJPROP_XSIZE, btnW);
-      ObjectSetInteger(0, OBJ_BTN_LINHAS, OBJPROP_YSIZE, SEC_AUX_BTN_H);
-      ExibirObjetoPainel(OBJ_BTN_LINHAS);
-      AplicarEstiloBotaoAux(OBJ_BTN_LINHAS, false);
       ObjectSetString(0, OBJ_BTN_LINHAS, OBJPROP_TOOLTIP, "Carregar as linhas do arquivo Common\\Files\\SP_Linhas.txt");
-   }
-   ex += btnW + EXEC_BTN_GAP;
-
-   if(ObjectFind(0, OBJ_BTN_LIMITS) >= 0)
-   {
-      ObjectSetInteger(0, OBJ_BTN_LIMITS, OBJPROP_XDISTANCE, ex);
-      ObjectSetInteger(0, OBJ_BTN_LIMITS, OBJPROP_YDISTANCE, yAux);
-      ObjectSetInteger(0, OBJ_BTN_LIMITS, OBJPROP_XSIZE, btnW);
-      ObjectSetInteger(0, OBJ_BTN_LIMITS, OBJPROP_YSIZE, SEC_AUX_BTN_H);
-      ExibirObjetoPainel(OBJ_BTN_LIMITS);
-      GarantirBotaoLimites();
-   }
-
-   GarantirTextoBotaoSync();
+   if(ObjectFind(0, OBJ_BTN_SYNC_HL) >= 0)
+      ObjectSetString(0, OBJ_BTN_SYNC_HL, OBJPROP_TOOLTIP, "Copiar as linhas do grafico de estudo");
+   GarantirBotaoLimites();
 }
 
 void RestaurarLayoutSecoesColapsaveis()
 {
-   int lx     = PANEL_X + PANEL_PAD;
-   int divW   = PANEL_W - PANEL_PAD * 2;
-   int secY   = PANEL_Y + PANEL_HEADER_H + PANEL_ACCENT_H + 10;
-   int rowH   = PARAM_FLD_H + PARAM_ROW_GAP;
-   int colW   = (divW - BOX_GAP) / 2;
-   int col2X  = lx + colW + BOX_GAP;
-   int fldW   = colW - PARAM_LBL_W - PARAM_LBL_GAP;
-
-   ReposicionarTituloSecaoLayout("SP_D1", "SP_SEC_PARAMS", lx, secY, divW, "PARAMETROS");
-
-   int fieldsY = secY + 22;
-   ReposicionarParamRowLayout("SP_LOTE", OBJ_EDIT_LOTE, lx, fieldsY, fldW);
-   ReposicionarParamRowLayout("SP_TP", OBJ_EDIT_TP, col2X, fieldsY, fldW);
-   ReposicionarParamRowLayout("SP_SL", OBJ_EDIT_SL, lx, fieldsY + rowH, fldW);
-   ReposicionarParamRowLayout("SP_TR", OBJ_EDIT_TRAIL_START, col2X, fieldsY + rowH, fldW);
-   ReposicionarParamRowLayout("SP_ST", OBJ_EDIT_TRAIL_STEP, lx, fieldsY + rowH * 2, fldW);
-
-   int parcY = fieldsY + rowH * 2 + PARAM_FLD_H + SEC_EXEC_GAP;
-   ReposicionarSecaoParciais(lx, parcY, divW);
-
-   int yExec = parcY + PARC_SEC_H;
-   ReposicionarBotoesExec(lx, divW, yExec);
-
-   int auxY  = yExec + EXEC_BTN_H + SEC_EXEC_GAP;
-   ReposicionarBotoesAux(lx, divW, auxY);
+   int lx   = PANEL_X + PANEL_PAD;
+   int divW = PANEL_W - PANEL_PAD * 2;
+   DesenharSecoesPainel(lx, divW, false);   // reposiciona sem mexer no texto dos campos
 
    for(int i = ObjectsTotal(0, -1, -1) - 1; i >= 0; i--)
    {
@@ -7009,7 +7010,7 @@ bool ObjetoPainelSempreVisivel(const string name)
       return true;
    if(name == OBJ_TXT_STATUS || name == OBJ_STATUS_STRIP)
       return true;
-   if(name == OBJ_METRICS_BG || name == OBJ_LIM_STATE)
+   if(name == OBJ_METRICS_BG || name == OBJ_LIM_STATE || name == "SP_MET_STBG")
       return true;
    if(name == OBJ_TXT_OPS || name == OBJ_TXT_PTS || name == OBJ_TXT_SPREAD)
       return true;
@@ -7048,7 +7049,14 @@ int AlturaExtraCopia()
    return STAT_ROW_H + STAT_STATUS_GAP;
 }
 
-int AlturaPainelNormal() { return PANEL_H + PARC_SEC_H + AlturaExtraCopia(); }
+int AlturaPainelNormal()
+{
+   int h = PANEL_HEADER_H + PANEL_ACCENT_H + 10
+         + CARD_PAR_H + GAP_CARD + CARD_PARC_H + GAP_CARD_EXEC
+         + EXEC_BTN_H + GAP_EXEC_AUX + SEC_AUX_BTN_H + GAP_AUX_MET
+         + METRICS_H + GAP_MET_STAT + STAT_ROW_H + 10;
+   return h + AlturaExtraCopia();
+}
 int AlturaPainelMin()    { return PANEL_H_MIN + AlturaExtraCopia(); }
 
 void CriarFaixaCopia(const int lx, const int y, const int divW)
@@ -7160,70 +7168,44 @@ void CriarFaixaStatus(const int lx, const int y, const int divW)
    AplicarEstiloFaixaStatus(C_STATUS_OK);
 }
 
+void PosicionarRotuloMetrica(const string name, const int x, const int y, const ENUM_ANCHOR_POINT anc)
+{
+   if(ObjectFind(0, name) < 0) return;
+   ObjectSetInteger(0, name, OBJPROP_XDISTANCE, x);
+   ObjectSetInteger(0, name, OBJPROP_YDISTANCE, y);
+   ObjectSetInteger(0, name, OBJPROP_ANCHOR, anc);
+}
+
 void ReposicionarSecaoStatus(const bool minimizado)
 {
    int lx    = PANEL_X + PANEL_PAD;
    int divW  = PANEL_W - PANEL_PAD * 2;
-   int colW  = divW / 4;
    int yMet  = minimizado ? (PANEL_Y + PANEL_HEADER_H + PANEL_ACCENT_H + 8) : g_statY_metrics;
-   int yStat = minimizado ? (yMet + METRICS_H + STAT_STATUS_GAP) : g_statY_status;
+   int yStat = yMet + METRICS_H + GAP_MET_STAT;
 
    ReposicionarFaixaStatus(yStat, lx, divW);
    AplicarLayoutTextoStatus(yStat, lx, divW);
    ReposicionarFaixaCopia(yStat + STAT_ROW_H + STAT_STATUS_GAP, lx, divW);
-   ReposicionarObjetoY(OBJ_METRICS_BG, yMet);
-   int lblY = yMet + STAT_LBL_Y_OFFSET;
-   int valY = yMet + METRICS_H - STAT_VAL_BOTTOM_PAD;
-   int opsCX = lx + colW / 2;
-   int ptsCX = lx + colW + colW / 2;
-   int sprCX = lx + colW * 2 + colW / 2;
-   ReposicionarObjetoY("SP_OPS_LBL", lblY);
-   if(ObjectFind(0, "SP_OPS_LBL") >= 0)
-   {
-      ObjectSetInteger(0, "SP_OPS_LBL", OBJPROP_XDISTANCE, opsCX);
-      ObjectSetInteger(0, "SP_OPS_LBL", OBJPROP_ANCHOR, ANCHOR_CENTER);
-   }
-   ReposicionarObjetoY(OBJ_TXT_OPS, valY);
-   if(ObjectFind(0, OBJ_TXT_OPS) >= 0)
-      ObjectSetInteger(0, OBJ_TXT_OPS, OBJPROP_ANCHOR, ANCHOR_LOWER);
-   ReposicionarObjetoY("SP_PTS_LBL", lblY);
+
+   ReposicionarObjetoXY(OBJ_METRICS_BG, lx, yMet);
+   ReposicionarObjetoXY("SP_MET_STBG", lx + 1, yMet + 1);
+
+   int x0   = lx + MET_STATE_W;
+   int colW = (divW - MET_STATE_W) / 3;
+   for(int d = 1; d <= 3; d++)
+      ReposicionarObjetoXY("SP_MET_DIV" + IntegerToString(d), x0 + colW * (d - 1), yMet + 6);
+
+   int lblY = yMet + 13;
+   int valY = yMet + METRICS_H - 5;
+   PosicionarRotuloMetrica("SP_OPS_LBL", x0 + colW / 2, lblY, ANCHOR_CENTER);
+   PosicionarRotuloMetrica(OBJ_TXT_OPS,  x0 + colW / 2, valY, ANCHOR_LOWER);
+   PosicionarRotuloMetrica("SP_PTS_LBL", x0 + colW + colW / 2, lblY, ANCHOR_CENTER);
+   PosicionarRotuloMetrica(OBJ_TXT_PTS,  x0 + colW + colW / 2, valY, ANCHOR_LOWER);
+   PosicionarRotuloMetrica("SP_SPR_LBL", x0 + colW * 2 + colW / 2, lblY, ANCHOR_CENTER);
+   PosicionarRotuloMetrica(OBJ_TXT_SPREAD, x0 + colW * 2 + colW / 2, valY, ANCHOR_LOWER);
    if(ObjectFind(0, "SP_PTS_LBL") >= 0)
-   {
-      ObjectSetInteger(0, "SP_PTS_LBL", OBJPROP_XDISTANCE, ptsCX);
-      ObjectSetInteger(0, "SP_PTS_LBL", OBJPROP_ANCHOR, ANCHOR_CENTER);
       ObjectSetInteger(0, "SP_PTS_LBL", OBJPROP_COLOR, C_LABEL_COLOR);
-   }
-   ReposicionarObjetoY(OBJ_TXT_PTS, valY);
-   if(ObjectFind(0, OBJ_TXT_PTS) >= 0)
-   {
-      ObjectSetInteger(0, OBJ_TXT_PTS, OBJPROP_XDISTANCE, ptsCX);
-      ObjectSetInteger(0, OBJ_TXT_PTS, OBJPROP_ANCHOR, ANCHOR_LOWER);
-   }
-   ReposicionarObjetoY("SP_SPR_LBL", lblY);
-   if(ObjectFind(0, "SP_SPR_LBL") >= 0)
-   {
-      ObjectSetInteger(0, "SP_SPR_LBL", OBJPROP_XDISTANCE, sprCX);
-      ObjectSetInteger(0, "SP_SPR_LBL", OBJPROP_ANCHOR, ANCHOR_CENTER);
-   }
-   ReposicionarObjetoY(OBJ_TXT_SPREAD, valY);
-   if(ObjectFind(0, OBJ_TXT_SPREAD) >= 0)
-      ObjectSetInteger(0, OBJ_TXT_SPREAD, OBJPROP_ANCHOR, ANCHOR_LOWER);
-   int limCX = lx + colW * 3 + colW / 2;
-   int limCY = yMet + METRICS_H / 2;
-   ReposicionarObjetoY(OBJ_LIM_STATE, limCY);
-   if(ObjectFind(0, OBJ_LIM_STATE) >= 0)
-   {
-      ObjectSetInteger(0, OBJ_LIM_STATE, OBJPROP_XDISTANCE, limCX);
-      ObjectSetInteger(0, OBJ_LIM_STATE, OBJPROP_ANCHOR, ANCHOR_CENTER);
-   }
-
-   for(int i = 1; i <= 3; i++)
-   {
-      string d = "SP_MET_DIV" + IntegerToString(i);
-      if(ObjectFind(0, d) >= 0)
-         ObjectSetInteger(0, d, OBJPROP_YDISTANCE, yMet + 4);
-   }
-
+   PosicionarRotuloMetrica(OBJ_LIM_STATE, lx + MET_STATE_W / 2, yMet + METRICS_H / 2, ANCHOR_CENTER);
 }
 
 void AtualizarBotaoMinimizarPainel()
@@ -7285,7 +7267,7 @@ void CriarPainel()
               PANEL_W - 2, PANEL_ACCENT_H, C_HEADER_ACCENT);
 
    CreateLabel(OBJ_SUBTITLE, PANEL_X + 12, PANEL_Y + 11, "Scalper Pro", C_NOME_COLOR, 10, true);
-   CreateLabel("SP_VER", PANEL_X + 118, PANEL_Y + 14, "v" + SP_EA_VERSAO, C_LABEL_COLOR, 7);
+   CreateLabel("SP_VER", PANEL_X + 104, PANEL_Y + 14, "v" + SP_EA_VERSAO + "  |  " + _Symbol, C_LABEL_COLOR, 7);
    CreateButton(OBJ_BTN_MINIMIZE, PANEL_X + PANEL_W - 58, PANEL_Y + 8, 22, 20, "-", 9);
    AtualizarBotaoMinimizarPainel();
    CreateButton(OBJ_BTN_CLOSE, PANEL_X + PANEL_W - 30, PANEL_Y + 8, 22, 20, "X", 8);
@@ -7295,80 +7277,35 @@ void CriarPainel()
 
    int lx     = PANEL_X + PANEL_PAD;
    int divW   = PANEL_W - PANEL_PAD * 2;
-   int secY   = PANEL_Y + PANEL_HEADER_H + PANEL_ACCENT_H + 10;
-   int rowH   = PARAM_FLD_H + PARAM_ROW_GAP;
-   int fieldColW = (divW - BOX_GAP) / 2;
-   int col2X = lx + fieldColW + BOX_GAP;
-   int fldW  = fieldColW - PARAM_LBL_W - PARAM_LBL_GAP;
 
-   // --- PARAMETROS: coluna unica, 2 campos por linha ---
-   CreateSectionTitle("SP_D1", "", "SP_SEC_PARAMS", lx, secY, divW, 0, "PARAMETROS",
-                      C_SEC_PARAMS, 0, C_DIVIDER_LIGHT);
+   // --- Cartoes PARAMETROS e PARCIAIS, execucao e acoes (opcao A) ---
+   int metY = DesenharSecoesPainel(lx, divW, true);
 
-   int fieldsY = secY + 22;
-   CreateParamRowHoriz("SP_LOTE", OBJ_EDIT_LOTE, lx, fieldsY, fldW, "Lote", DoubleToString(Lote, 2));
-   CreateParamRowHoriz("SP_TP", OBJ_EDIT_TP, col2X, fieldsY, fldW, "T.P.", DoubleToString(TakeProfit, 0));
-   CreateParamRowHoriz("SP_SL", OBJ_EDIT_SL, lx, fieldsY + rowH, fldW, "S.L.", DoubleToString(StopLoss, 0));
-   CreateParamRowHoriz("SP_TR", OBJ_EDIT_TRAIL_START, col2X, fieldsY + rowH, fldW, "Trail", DoubleToString(TrailingStart, 0));
-   CreateParamRowHoriz("SP_ST", OBJ_EDIT_TRAIL_STEP, lx, fieldsY + rowH * 2, fldW, "Step", DoubleToString(TrailingStep, 0));
-
-   // --- PARCIAIS: P1 / P2 (pontos, % do lote, status) + ON/OFF ---
-   int parcY = fieldsY + rowH * 2 + PARAM_FLD_H + SEC_EXEC_GAP;
-   CriarSecaoParciais(lx, parcY, divW);
-
-   // --- Execucao: compra / fecha / venda ---
-   int yExec = parcY + PARC_SEC_H;
-   CreateButton(OBJ_BTN_BUY, lx, yExec, 10, EXEC_BTN_H, "COMPRA", BTN_EXEC_FONT_SIZE);
-   AplicarEstiloBotaoExec(OBJ_BTN_BUY, false);
-   CreateButton(OBJ_BTN_CLOSEALL, lx, yExec, 10, EXEC_BTN_H, "FECHA", BTN_EXEC_FONT_SIZE);
-   AplicarEstiloBotaoExec(OBJ_BTN_CLOSEALL, false);
-   CreateButton(OBJ_BTN_SELL, lx, yExec, 10, EXEC_BTN_H, "VENDA", BTN_EXEC_FONT_SIZE);
-   AplicarEstiloBotaoExec(OBJ_BTN_SELL, false);
-   ReposicionarBotoesExec(lx, divW, yExec);
-
-   // --- Acoes rapidas (abaixo da execucao): perfil / sync / linhas / limites ---
-   int auxY = yExec + EXEC_BTN_H + SEC_EXEC_GAP;
-   CreateButton(OBJ_BTN_SETUP, lx, auxY, 10, SEC_AUX_BTN_H, NomeSetupAtivo(), 7);
-   CreateButton(OBJ_BTN_SYNC_HL, lx, auxY, 10, SEC_AUX_BTN_H, "SYNC", 7);
-   CreateButton(OBJ_BTN_LINHAS, lx, auxY, 10, SEC_AUX_BTN_H, "LINHAS", 7);
-   CreateButton(OBJ_BTN_LIMITS, lx, auxY, 10, SEC_AUX_BTN_H, "LIMITES", 7);
-   ReposicionarBotoesAux(lx, divW, auxY);
-
-   int yAfterExec = auxY + SEC_AUX_BTN_H + SEC_EXEC_METRICS_GAP;
-
-   // --- METRICAS: Oper / Pts / Spread / Liberado (logo abaixo dos botoes de execucao) ---
-   int metY = yAfterExec;
+   // --- ESTADO DO DIA + METRICAS (abaixo das acoes): LIBERADO | Oper | Pontos | Spread ---
    g_statY_metrics = metY;
-   int colW = divW / 4;
    CreateGlassRect(OBJ_METRICS_BG, lx, metY, divW, METRICS_H);
+   CreateRect("SP_MET_STBG", lx + 1, metY + 1, MET_STATE_W - 1, METRICS_H - 2, C_TINT_OK_BG);
    for(int d = 1; d <= 3; d++)
-   {
-      string dn = "SP_MET_DIV" + IntegerToString(d);
-      CreateRect(dn, lx + colW * d, metY + 3, 1, METRICS_H - 6, C_GLASS_BORDER);
-   }
+      CreateRect("SP_MET_DIV" + IntegerToString(d), lx, metY + 6, 1, METRICS_H - 12, C_GLASS_BORDER);
 
-   int lblY = metY + STAT_LBL_Y_OFFSET;
-   int valY = metY + METRICS_H - STAT_VAL_BOTTOM_PAD;
-   CreateLabelCentered("SP_OPS_LBL", lx + colW / 2, lblY, "Oper", C_LABEL_COLOR, STAT_LBL_FS);
+   CreateLabelCentered("SP_OPS_LBL", lx, metY, "Oper", C_LABEL_COLOR, 7);
    AplicarLabelMetrica("SP_OPS_LBL");
-   CreateLabelMetricaValor(OBJ_TXT_OPS, lx + colW / 2, valY, "0", C_NOME_COLOR, STAT_VAL_FS, true);
+   CreateLabelMetricaValor(OBJ_TXT_OPS, lx, metY, "0", C_NOME_COLOR, 13, true);
    AplicarLabelMetrica(OBJ_TXT_OPS);
-   CreateLabelCentered("SP_PTS_LBL", lx + colW + colW / 2, lblY, "Pts", C_LABEL_COLOR, STAT_LBL_FS);
+   CreateLabelCentered("SP_PTS_LBL", lx, metY, "Pontos", C_LABEL_COLOR, 7);
    AplicarLabelMetrica("SP_PTS_LBL");
    if(ObjectFind(0, OBJ_TXT_PTS) >= 0) ObjectDelete(0, OBJ_TXT_PTS);
-   CreateLabelMetricaValor(OBJ_TXT_PTS, lx + colW + colW / 2, valY, "0", C_NOME_COLOR, STAT_VAL_FS, true);
+   CreateLabelMetricaValor(OBJ_TXT_PTS, lx, metY, "0", C_NOME_COLOR, 13, true);
    AplicarLabelMetrica(OBJ_TXT_PTS);
-   CreateLabelCentered("SP_SPR_LBL", lx + colW * 2 + colW / 2, lblY, "Spread", C_LABEL_COLOR, STAT_LBL_FS);
+   CreateLabelCentered("SP_SPR_LBL", lx, metY, "Spread", C_LABEL_COLOR, 7);
    AplicarLabelMetrica("SP_SPR_LBL");
-   CreateLabelMetricaValor(OBJ_TXT_SPREAD, lx + colW * 2 + colW / 2, valY, "0", C_SPREAD_VAL, STAT_VAL_FS, true);
+   CreateLabelMetricaValor(OBJ_TXT_SPREAD, lx, metY, "0", C_SPREAD_VAL, 13, true);
    AplicarLabelMetrica(OBJ_TXT_SPREAD);
-   int limCX = lx + colW * 3 + colW / 2;
-   int limCY = metY + METRICS_H / 2;
-   CreateLabelCentered(OBJ_LIM_STATE, limCX, limCY, "LIBERADO", C_STATUS_OK, STAT_LBL_FS, true);
+   CreateLabelCentered(OBJ_LIM_STATE, lx, metY, "LIBERADO", C_STATUS_OK, 8, true);
    AplicarLabelMetrica(OBJ_LIM_STATE);
 
    // --- BARRA DE STATUS (abaixo das metricas) ---
-   int statY = metY + METRICS_H + STAT_STATUS_GAP;
+   int statY = metY + METRICS_H + GAP_MET_STAT;
    g_statY_status = statY;
    CriarFaixaStatus(lx, statY, divW);
    CriarFaixaCopia(lx, statY + STAT_ROW_H + STAT_STATUS_GAP, divW);
@@ -7389,7 +7326,7 @@ void EscreverValorCampoEdit(const string editName)
    if(ObjectFind(0, editName) < 0) return;
 
    if(editName == OBJ_EDIT_LOTE)
-      ObjectSetString(0, editName, OBJPROP_TEXT, DoubleToString(Lote, 2));
+      ObjectSetString(0, editName, OBJPROP_TEXT, TextoLote());
    else if(editName == OBJ_EDIT_TP)
       ObjectSetString(0, editName, OBJPROP_TEXT, DoubleToString(TakeProfit, 0));
    else if(editName == OBJ_EDIT_SL)
@@ -8741,7 +8678,7 @@ int OnInit()
    CancelarEdicaoCampoAtiva();
    CriarPainel();
    if(ObjectFind(0, "SP_VER") >= 0)
-      ObjectSetString(0, "SP_VER", OBJPROP_TEXT, "v" + SP_EA_VERSAO);
+      ObjectSetString(0, "SP_VER", OBJPROP_TEXT, "v" + SP_EA_VERSAO + "  |  " + _Symbol);
    AplicarPerfilAoPainel();
    CriarObjetoTimer();
    CarregarContadorOperacoes();
@@ -9013,6 +8950,19 @@ void OnChartEvent(const int id, const long &lparam,
 
    if(g_fechamentoAgendado) return;
 
+   // clique no grafico fora do painel com um campo em edicao: confirma o valor
+   if(id == CHARTEVENT_CLICK)
+   {
+      if(g_campoEditAtivo != "")
+      {
+         int cx = (int)lparam, cy = (int)dparam;
+         int alt = g_painelMinimizado ? AlturaPainelMin() : AlturaPainelNormal();
+         bool dentro = (cx >= PANEL_X && cx <= PANEL_X + PANEL_W && cy >= PANEL_Y && cy <= PANEL_Y + alt);
+         if(!dentro) FinalizarEdicaoCampo(true);
+      }
+      return;
+   }
+
    if(id == CHARTEVENT_OBJECT_CLICK)
    {
       if(EhCliqueAgendaPopup(sparam))
@@ -9061,7 +9011,7 @@ void OnChartEvent(const int id, const long &lparam,
       }
 
       if(g_campoEditAtivo != "")
-         CancelarEdicaoCampoAtiva();
+         FinalizarEdicaoCampo(true);   // clicar fora do campo confirma o valor
 
       if(StringFind(sparam, "SP_") == 0)
          return;
@@ -9073,6 +9023,7 @@ void OnChartEvent(const int id, const long &lparam,
          if(g_campoEditAtivo == "")
          {
             AtualizarCampos();
+            EscreverValorCampoEdit(sparam);
             ReconciliarLinhasTrailing();
             AtualizarRotulosSLTP();
          }
@@ -9597,6 +9548,7 @@ color PartialStatusColor(int partialId)
 
 void SetParcialLabel(int partialId, string txt, color c)
 {
+   c = CorTemaClaro(c);
    string obj = PartialStatusObject(partialId);
    if(obj == "" || ObjectFind(0, obj) < 0) return;
 
@@ -10414,16 +10366,23 @@ void FinalizarParciaisPorFechamentoTotal(ulong posTkt)
 }
 
 //--- painel: secao PARCIAIS (titulo + botao ON/OFF + linhas P1 e P2)
+// Cria/reposiciona a caixa de status; numa reposicao mantem o texto e a cor atuais.
 void CriarCaixaStatusParcial(const string boxName, const string lblName, const int x, const int y,
                              const int w, const string txt, const color c)
 {
-   CreateRect(boxName, x, y, w, PARAM_FLD_H, C_GLASS_BG, c);
+   string t  = txt;
+   color  cc = c;
+   if(ObjectFind(0, lblName) >= 0)
+   {
+      t  = ObjectGetString(0, lblName, OBJPROP_TEXT);
+      cc = (color)ObjectGetInteger(0, lblName, OBJPROP_COLOR);
+   }
+   CreateRect(boxName, x, y, w, PARC_ROW_H, C_GLASS_BG, cc);
    ObjectSetInteger(0, boxName, OBJPROP_BORDER_TYPE, BORDER_FLAT);
-   ObjectSetInteger(0, boxName, OBJPROP_COLOR, c);
    ObjectSetInteger(0, boxName, OBJPROP_BACK, false);
    ObjectSetInteger(0, boxName, OBJPROP_SELECTABLE, false);
    ObjectSetInteger(0, boxName, OBJPROP_ZORDER, 5);
-   CreateLabelCentered(lblName, x + w / 2, y + PARAM_FLD_H / 2, txt, c, 8, true);
+   CreateLabelCentered(lblName, x + w / 2, y + PARC_ROW_H / 2, t, cc, 8, true);
    ObjectSetInteger(0, lblName, OBJPROP_ZORDER, 6);
    ObjectSetInteger(0, lblName, OBJPROP_SELECTABLE, false);
 }
@@ -10431,67 +10390,200 @@ void CriarCaixaStatusParcial(const string boxName, const string lblName, const i
 string EditPontosParcial(const int p) { return (p == 1) ? OBJ_EDIT_P1_PTS : OBJ_EDIT_P2_PTS; }
 string EditPctParcial(const int p)    { return (p == 1) ? OBJ_EDIT_P1_PCT : OBJ_EDIT_P2_PCT; }
 
-void CriarSecaoParciais(const int lx, const int y, const int divW)
+// Campo editavel: criar = cria e escreve o valor; reposicionar = so posicao e tamanho
+// (nao apaga o que esta sendo digitado).
+void PosicionarCampo(const string name, const int x, const int y, const int w, const int h,
+                     const bool criar, const string texto)
 {
-   int btnX = lx + divW - BTN_PARC_W;
-   CreateSectionTitle("SP_D2", "", "SP_SEC_PARTIAL", lx, y, divW, 0, "PARCIAIS",
-                      C_SEC_PARAMS, 0, C_DIVIDER_LIGHT, btnX - 6);
-   CreateButton(OBJ_BTN_PARCIAIS, btnX, y - 3, BTN_PARC_W, BTN_PARC_H, ParciaisAtivas() ? "ON" : "OFF", 7);
+   if(criar || ObjectFind(0, name) < 0)
+   {
+      CreateEditCampoParam(name, x, y, texto, w, h);
+      return;
+   }
+   ReposicionarObjetoXY(name, x, y);
+   ObjectSetInteger(0, name, OBJPROP_XSIZE, w);
+   ObjectSetInteger(0, name, OBJPROP_YSIZE, h);
+}
+
+void CriarSecaoParciais(const int lx, const int y, const int divW, const bool criar)
+{
+   int x0  = lx + CARD_PAD;
+   int inW = divW - CARD_PAD * 2;
+   CreateGlassRect("SP_CARD_PARC", lx, y, divW, CARD_PARC_H);
+   CreateLabel("SP_SEC_PARTIAL", x0, y + 10, "PARCIAIS", C_SEC_PARAMS, 8, true);
+   CreateButton(OBJ_BTN_PARCIAIS, x0 + inW - BTN_PARC_W, y + 7, BTN_PARC_W, BTN_PARC_H + 2,
+                ParciaisAtivas() ? "ON" : "OFF", 7);
    AtualizarBotaoParciais();
+
+   int hy = y + 31;
+   CreateLabel("SP_PH1", x0 + PARC_X_PTS, hy, "Gatilho (pts)", C_LABEL_COLOR, 7);
+   CreateLabel("SP_PH2", x0 + PARC_X_PCT, hy, "% do lote", C_LABEL_COLOR, 7);
+   CreateLabel("SP_PH3", x0 + PARC_X_ST, hy, "Status", C_LABEL_COLOR, 7);
 
    string st = ParciaisAtivas() ? "ATIVO" : "OFF";
    color  cs = ParciaisAtivas() ? C_STATUS_OK : C_MUTED;
-   int rowH  = PARAM_FLD_H + PARAM_ROW_GAP;
    for(int p = 1; p <= PARTIAL_COUNT; p++)
    {
       string sp   = IntegerToString(p);
-      int    rowY = y + PARC_TITULO_H + (p - 1) * rowH;
-      int    lblY = rowY + (PARAM_FLD_H - PARAM_LBL_FS_H) / 2 + 1;
+      int    rowY = y + 46 + (p - 1) * (PARC_ROW_H + 6);
       double pts  = (p == 1) ? Partial1_Points : Partial2_Points;
       double pct  = (p == 1) ? Partial1_Close : Partial2_Close;
-      CreateLabel("SP_PRL" + sp, lx, lblY, "P" + sp, PartialStatusColor(p), 9, true);
-      CreateEditCampoParam(EditPontosParcial(p), lx + PARC_X_PTS, rowY, DoubleToString(pts, 0), PARC_W_PTS, PARAM_FLD_H);
-      CreateLabel("SP_PRU" + sp, lx + PARC_X_PTS + PARC_W_PTS + 4, lblY, "pts", C_LABEL_COLOR, 7);
-      CreateEditCampoParam(EditPctParcial(p), lx + PARC_X_PCT, rowY, DoubleToString(pct, 0), PARC_W_PCT, PARAM_FLD_H);
-      CreateLabel("SP_PRC" + sp, lx + PARC_X_PCT + PARC_W_PCT + 4, lblY, "%", C_LABEL_COLOR, 7);
+      CreateLabel("SP_PRL" + sp, x0, rowY + 5, "P" + sp, PartialStatusColor(p), 10, true);
+      PosicionarCampo(EditPontosParcial(p), x0 + PARC_X_PTS, rowY, PARC_W_PTS, PARC_ROW_H, criar, DoubleToString(pts, 0));
+      PosicionarCampo(EditPctParcial(p), x0 + PARC_X_PCT, rowY, PARC_W_PCT, PARC_ROW_H, criar, DoubleToString(pct, 0));
       CriarCaixaStatusParcial(PartialStatusBox(p), PartialStatusObject(p),
-                              lx + PARC_X_ST, rowY, divW - PARC_X_ST, st, cs);
+                              x0 + PARC_X_ST, rowY, inW - PARC_X_ST, st, cs);
    }
-
-   // linha separando as parciais dos botoes
-   CreateDivider(OBJ_PARC_SEP, lx, YSeparadorParciais(y), divW, C_DIVIDER_LIGHT);
-}
-
-int YSeparadorParciais(const int y)
-{
-   return y + PARC_TITULO_H + (PARAM_FLD_H + PARAM_ROW_GAP) + PARAM_FLD_H + SEC_EXEC_GAP / 2;
 }
 
 void ReposicionarSecaoParciais(const int lx, const int y, const int divW)
 {
-   int btnX = lx + divW - BTN_PARC_W;
-   ReposicionarTituloSecaoLayout("SP_D2", "SP_SEC_PARTIAL", lx, y, divW, "PARCIAIS", btnX - 6);
-   ReposicionarObjetoXY(OBJ_BTN_PARCIAIS, btnX, y - 3);
-   ExibirObjetoPainel(OBJ_BTN_PARCIAIS);
-   AtualizarBotaoParciais();
+   CriarSecaoParciais(lx, y, divW, false);
+}
 
-   int rowH = PARAM_FLD_H + PARAM_ROW_GAP;
-   for(int p = 1; p <= PARTIAL_COUNT; p++)
+//--- Painel (opcao A): PARAMETROS (com o perfil) -> PARCIAIS -> COMPRA/FECHA/VENDA -> SYNC/LINHAS/LIMITES.
+//    Devolve o Y do bloco de estado do dia (metricas).
+int DigitosLote()
+{
+   double st = LotStep();
+   int d = 0;
+   while(st < 0.9999 && d < 8) { st *= 10; d++; }
+   return MathMax(2, d);
+}
+
+string TextoLote()
+{
+   return DoubleToString(Lote, DigitosLote());
+}
+
+void AjustarLotePasso(const int dir)
+{
+   AtualizarCampos();
+   double novo = NormalizeVolPainel(Lote + dir * LotStep());
+   if(novo <= 0)
+      novo = NormalizeVolPainel(SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN));
+   if(novo > 0)
+      Lote = novo;
+   EscreverValorCampoEdit(OBJ_EDIT_LOTE);
+   SalvarConfigPainelPerfil(g_setupAtivo);
+   ChartRedraw(0);
+}
+
+void EstiloSegmentoPerfil(const string name, const bool ativo, const color corAtivo)
+{
+   if(ObjectFind(0, name) < 0) return;
+   RemoverDecorBotao(name);
+   ObjectSetString(0, name, OBJPROP_FONT, UI_FONT_BOLD);
+   ObjectSetInteger(0, name, OBJPROP_FONTSIZE, 8);
+   ObjectSetInteger(0, name, OBJPROP_BGCOLOR, ativo ? C_INPUT_BG : C_SEG_BG);
+   ObjectSetInteger(0, name, OBJPROP_BORDER_COLOR, ativo ? C_BTN_BORDER : C_SEG_BG);
+   ObjectSetInteger(0, name, OBJPROP_BORDER_TYPE, BORDER_FLAT);
+   ObjectSetInteger(0, name, OBJPROP_COLOR, ativo ? corAtivo : C_LABEL_COLOR);
+   ObjectSetInteger(0, name, OBJPROP_STATE, false);
+}
+
+void AtualizarSegmentoPerfil()
+{
+   bool vol = SetupVolatilAtivo();
+   EstiloSegmentoPerfil(OBJ_BTN_PERF_N, !vol, C_NOME_COLOR);
+   EstiloSegmentoPerfil(OBJ_BTN_PERF_V, vol, C_STATUS_WARN);
+   if(ObjectFind(0, OBJ_BTN_PERF_N) >= 0)
+      ObjectSetString(0, OBJ_BTN_PERF_N, OBJPROP_TOOLTIP, vol ? "Mudar para o perfil NORMAL" : "Perfil NORMAL ativo");
+   if(ObjectFind(0, OBJ_BTN_PERF_V) >= 0)
+      ObjectSetString(0, OBJ_BTN_PERF_V, OBJPROP_TOOLTIP, vol ? "Perfil VOLATIL ativo" : "Mudar para o perfil VOLATIL");
+}
+
+void RotuloCampo(const string name, const int x, const int y)
+{
+   CreateLabel(name, x, y, TextoRotuloParametro(name), CorRotuloParametro(name), 8);
+   AplicarEstiloRotuloParametro(name);
+}
+
+void RotuloDireita(const string name, const int xDireita, const int y, const string texto, const color c)
+{
+   CreateLabel(name, xDireita, y, texto, c, 8);
+   ObjectSetInteger(0, name, OBJPROP_ANCHOR, ANCHOR_RIGHT_UPPER);
+   ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
+}
+
+void BotaoExecucao(const string name, const int x, const int y, const int w, const string titulo, const int tecla)
+{
+   CreateButton(name, x, y, w, EXEC_BTN_H, "", BTN_EXEC_FONT_SIZE);
+   CreateLabelCentered(name + "_T1", x + w / 2, y + EXEC_BTN_H / 2 - 6, titulo, C_EXEC_TEXT_ON, 10, true);
+   CreateLabelCentered(name + "_T2", x + w / 2, y + EXEC_BTN_H / 2 + 10, "tecla " + CharToString((uchar)tecla), C_EXEC_TEXT_ON, 7);
+   string t[2];
+   t[0] = name + "_T1"; t[1] = name + "_T2";
+   for(int i = 0; i < 2; i++)
    {
-      string sp   = IntegerToString(p);
-      int    rowY = y + PARC_TITULO_H + (p - 1) * rowH;
-      int    lblY = rowY + (PARAM_FLD_H - PARAM_LBL_FS_H) / 2 + 1;
-      int    stW  = divW - PARC_X_ST;
-      ReposicionarObjetoXY("SP_PRL" + sp, lx, lblY);
-      ReposicionarObjetoXY(EditPontosParcial(p), lx + PARC_X_PTS, rowY);
-      ReposicionarObjetoXY("SP_PRU" + sp, lx + PARC_X_PTS + PARC_W_PTS + 4, lblY);
-      ReposicionarObjetoXY(EditPctParcial(p), lx + PARC_X_PCT, rowY);
-      ReposicionarObjetoXY("SP_PRC" + sp, lx + PARC_X_PCT + PARC_W_PCT + 4, lblY);
-      ReposicionarObjetoXY(PartialStatusBox(p), lx + PARC_X_ST, rowY);
-      ReposicionarObjetoXY(PartialStatusObject(p), lx + PARC_X_ST + stW / 2, rowY + PARAM_FLD_H / 2);
+      ObjectSetInteger(0, t[i], OBJPROP_SELECTABLE, false);
+      ObjectSetInteger(0, t[i], OBJPROP_BACK, false);
+      ObjectSetInteger(0, t[i], OBJPROP_ZORDER, 6);   // clique no rotulo = clique no botao
    }
+   AplicarEstiloBotaoExec(name, false);
+}
 
-   ReposicionarObjetoXY(OBJ_PARC_SEP, lx, YSeparadorParciais(y));
+int DesenharSecoesPainel(const int lx, const int divW, const bool criar)
+{
+   int x0   = lx + CARD_PAD;
+   int inW  = divW - CARD_PAD * 2;
+   int colW = (inW - 10) / 2;
+   int c1   = x0;
+   int c2   = x0 + colW + 10;
+
+   // PARAMETROS (o perfil fica no cartao: e ele que define os valores abaixo)
+   int cy = PANEL_Y + PANEL_HEADER_H + PANEL_ACCENT_H + 10;
+   CreateGlassRect("SP_CARD_PAR", lx, cy, divW, CARD_PAR_H);
+   CreateLabel("SP_SEC_PARAMS", x0, cy + 10, "PARAMETROS", C_SEC_PARAMS, 8, true);
+   int segW = 58;
+   int segX = x0 + inW - (segW * 2 + 6);
+   CreateRect("SP_PERF_BG", segX, cy + 6, segW * 2 + 6, 24, C_SEG_BG);
+   CreateButton(OBJ_BTN_PERF_N, segX + 2, cy + 8, segW, 20, "Normal", 8);
+   CreateButton(OBJ_BTN_PERF_V, segX + 4 + segW, cy + 8, segW, 20, "Volatil", 8);
+   AtualizarSegmentoPerfil();
+
+   int l1 = cy + 34, f1 = cy + 49, l2 = cy + 85, f2 = cy + 100;
+   RotuloCampo("SP_LOTE", c1, l1);
+   CreateButton(OBJ_BTN_LOTE_DN, c1, f1, 26, PFLD_H, "-", 11);
+   PosicionarCampo(OBJ_EDIT_LOTE, c1 + 28, f1, colW - 56, PFLD_H, criar, TextoLote());
+   CreateButton(OBJ_BTN_LOTE_UP, c1 + colW - 26, f1, 26, PFLD_H, "+", 11);
+
+   RotuloCampo("SP_TP", c2, l1);
+   RotuloDireita("SP_TPU", c2 + colW, l1, "pts", C_MUTED);
+   PosicionarCampo(OBJ_EDIT_TP, c2, f1, colW, PFLD_H, criar, DoubleToString(TakeProfit, 0));
+
+   RotuloCampo("SP_SL", c1, l2);
+   RotuloDireita("SP_SLU", c1 + colW, l2, "pts", C_MUTED);
+   PosicionarCampo(OBJ_EDIT_SL, c1, f2, colW, PFLD_H, criar, DoubleToString(StopLoss, 0));
+
+   RotuloCampo("SP_ST", c2, l2);
+   CreateLabel("SP_TR", c2 + colW, l2, TextoRotuloParametro("SP_TR"), CorRotuloParametro("SP_TR"), 7, true);
+   ObjectSetInteger(0, "SP_TR", OBJPROP_ANCHOR, ANCHOR_RIGHT_UPPER);
+   AplicarEstiloRotuloParametro("SP_TR");
+   ObjectSetString(0, "SP_TR", OBJPROP_FONT, UI_FONT_BOLD);
+   ObjectSetInteger(0, "SP_TR", OBJPROP_FONTSIZE, 7);
+   int hw = (colW - 6) / 2;
+   PosicionarCampo(OBJ_EDIT_TRAIL_START, c2, f2, hw, PFLD_H, criar, DoubleToString(TrailingStart, 0));
+   PosicionarCampo(OBJ_EDIT_TRAIL_STEP, c2 + colW - hw, f2, hw, PFLD_H, criar, DoubleToString(TrailingStep, 0));
+
+   // PARCIAIS
+   int py = cy + CARD_PAR_H + GAP_CARD;
+   CriarSecaoParciais(lx, py, divW, criar);
+
+   // EXECUCAO: botoes grandes com a tecla de atalho
+   int ye = py + CARD_PARC_H + GAP_CARD_EXEC;
+   int bw = (divW - 16) / 3;
+   BotaoExecucao(OBJ_BTN_BUY,      lx,                ye, bw,                    "COMPRA", InpTeclaBuy);
+   BotaoExecucao(OBJ_BTN_CLOSEALL, lx + bw + 8,       ye, bw,                    "FECHA",  InpTeclaFechar);
+   BotaoExecucao(OBJ_BTN_SELL,     lx + (bw + 8) * 2, ye, divW - (bw + 8) * 2,   "VENDA",  InpTeclaSell);
+
+   // ACOES SECUNDARIAS
+   int ya = ye + EXEC_BTN_H + GAP_EXEC_AUX;
+   CreateButton(OBJ_BTN_SYNC_HL, lx, ya, 10, SEC_AUX_BTN_H, "SYNC", 7);
+   CreateButton(OBJ_BTN_LINHAS, lx, ya, 10, SEC_AUX_BTN_H, "LINHAS", 7);
+   CreateButton(OBJ_BTN_LIMITS, lx, ya, 10, SEC_AUX_BTN_H, "LIMITES", 7);
+   ReposicionarBotoesAux(lx, divW, ya);
+
+   return ya + SEC_AUX_BTN_H + GAP_AUX_MET;
 }
 
 // Le os campos P1/P2 do painel (chamado por AtualizarCampos).
