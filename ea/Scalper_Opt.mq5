@@ -1,13 +1,13 @@
 //+------------------------------------------------------------------+
-//|                     SCALPER PRO v5.98 - MT5                       |
+//|                     SCALPER PRO v5.99 - MT5                       |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, Scalper Pro"
-#property version       "5.98"
+#property version       "5.99"
 #property strict
 
 #include <Trade/Trade.mqh>
 
-const string SP_EA_VERSAO = "5.98";
+const string SP_EA_VERSAO = "5.99";
 
 CTrade trade;
 
@@ -269,7 +269,8 @@ const color C_MUTED          = 0x80726B;
 const color C_STEP_ROTULO    = 0xD84E1D;   // ciano Step
 const color C_TRAIL_FIXO_ACCENT = 0x0847B5;   // rotulo Trail quando modo fixo
 const color C_TP_LINHA       = 0x346516;
-const color C_TRAIL_LINHA    = 0x0000A5;   // linha do trailing: vermelho escuro (#A50000), pontilhada
+const color C_TRAIL_LINHA    = 0xD84E1D;   // linha do trailing: azul (#1D4ED8), continua
+const color C_PARC_LINHA     = 0x202DD9;   // linhas P1/P2: vermelho (#D92D20), pontilhadas
 const color C_PEND_LINE_COLOR = 0xDC78F0;  // lilas pendente J/L — RGB(240,120,220), compra e venda
 const int   C_PEND_LINE_LARGURA = 2;
 const int   C_TRAIL_LARGURA  = 1;
@@ -4179,7 +4180,7 @@ void AtualizarLinhaTrailing(ulong posTkt)
 
    // cor e estilo sempre atualizados (linhas criadas por versoes anteriores)
    ObjectSetInteger(chartId, nome, OBJPROP_COLOR, C_TRAIL_LINHA);
-   ObjectSetInteger(chartId, nome, OBJPROP_STYLE, STYLE_DOT);
+   ObjectSetInteger(chartId, nome, OBJPROP_STYLE, STYLE_SOLID);
 
    bool existe = (ObjectFind(chartId, nome) >= 0);
    if(existe)
@@ -4193,7 +4194,7 @@ void AtualizarLinhaTrailing(ulong posTkt)
 
    ObjectSetDouble(chartId, nome, OBJPROP_PRICE, preco);
    ObjectSetInteger(chartId, nome, OBJPROP_COLOR, C_TRAIL_LINHA);
-   ObjectSetInteger(chartId, nome, OBJPROP_STYLE, STYLE_DOT);
+   ObjectSetInteger(chartId, nome, OBJPROP_STYLE, STYLE_SOLID);
    ObjectSetInteger(chartId, nome, OBJPROP_WIDTH, C_TRAIL_LARGURA);
    ObjectSetString(chartId, nome, OBJPROP_TEXT, legenda);
    ObjectSetString(chartId, nome, OBJPROP_TOOLTIP, legenda);
@@ -10361,8 +10362,6 @@ void AtualizarLinhasParciais(const ulong posTkt)
       if(ObjectFind(0, nome) < 0)
       {
          if(!ObjectCreate(0, nome, OBJ_HLINE, 0, 0, preco)) continue;
-         ObjectSetInteger(0, nome, OBJPROP_COLOR, PartialStatusColor(p));
-         ObjectSetInteger(0, nome, OBJPROP_STYLE, STYLE_DOT);
          ObjectSetInteger(0, nome, OBJPROP_WIDTH, 1);
          ObjectSetInteger(0, nome, OBJPROP_BACK, true);
          ObjectSetInteger(0, nome, OBJPROP_SELECTABLE, false);
@@ -10370,6 +10369,8 @@ void AtualizarLinhasParciais(const ulong posTkt)
          ObjectSetInteger(0, nome, OBJPROP_TIMEFRAMES, OBJ_ALL_PERIODS);
          ObjectSetString(0, nome, OBJPROP_TEXT, "P" + IntegerToString(p));
       }
+      ObjectSetInteger(0, nome, OBJPROP_COLOR, C_PARC_LINHA);
+      ObjectSetInteger(0, nome, OBJPROP_STYLE, STYLE_DOT);
       if(MathAbs(ObjectGetDouble(0, nome, OBJPROP_PRICE) - preco) > pt * 0.5)
          ObjectSetDouble(0, nome, OBJPROP_PRICE, preco);
       ObjectSetString(0, nome, OBJPROP_TOOLTIP,

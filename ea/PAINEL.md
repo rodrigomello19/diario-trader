@@ -38,5 +38,5 @@ Copiador
 
 ## Linhas no gráfico
 
-- **Trailing:** linha **vermelho-escura pontilhada** (#A50000), para se diferenciar das linhas das parciais.
-- **P1 e P2:** linhas **finas pontilhadas** no preço de cada parcial (entrada ± pontos), em azul (P1) e laranja (P2). Cada linha some quando a sua parcial é executada, e as duas somem quando a posição fecha ou quando as parciais são desligadas.
+- **Trailing:** linha **azul contínua**.
+- **P1 e P2:** linhas **finas, vermelhas e pontilhadas** no preço de cada parcial (entrada ± pontos). Cada linha some quando a sua parcial é executada, e as duas somem quando a posição fecha ou quando as parciais são desligadas.
