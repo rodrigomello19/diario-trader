@@ -1,13 +1,13 @@
 //+------------------------------------------------------------------+
-//|                     SCALPER PRO v5.90 - MT5                       |
+//|                     SCALPER PRO v5.91 - MT5                       |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, Scalper Pro"
-#property version       "5.90"
+#property version       "5.91"
 #property strict
 
 #include <Trade/Trade.mqh>
 
-const string SP_EA_VERSAO = "5.90";
+const string SP_EA_VERSAO = "5.91";
 
 CTrade trade;
 
@@ -66,6 +66,18 @@ input double InpVol_TrailingStep    = 200;    // Step (pts)
 
 input group "=== Execucao ==="
 input bool   InpTPVirtual        = false;    // TP virtual
+
+input group "=== Parciais ==="
+input bool   InpUsarParciais       = true;   // Usar parciais (botao ON/OFF no painel)
+input double InpP1_Pontos          = 500;    // P1: pontos de lucro
+input double InpP1_Pct             = 50;     // P1: % do lote inicial
+input double InpP2_Pontos          = 1000;   // P2: pontos de lucro
+input double InpP2_Pct             = 30;     // P2: % do lote inicial
+input bool   InpTrailAvancaAposP1  = true;   // Apos P1: SL vai para entrada + X pts
+input int    InpTrailAvancaPtsP1   = 100;    // Apos P1: X (pts)
+input bool   InpSlAvancaAposP2     = true;   // Apos P2: SL vai para o nivel do P1
+input int    InpTentativasEnvio    = 3;      // Tentativas de envio por parcial
+input int    InpCooldownMs         = 100;    // Espera entre tentativas (ms)
 
 input group "=== Copiador NinjaTrader ==="
 input bool   InpCopyNT_Ativo = false;   // Ativar copiador p/ NinjaTrader
@@ -299,6 +311,51 @@ const string LIN_ARQ    = "SP_Linhas.txt";
 const string LIN_PREFIX = "SPDIA_";
 long   g_linArqData = -1;
 long   g_linArqTam  = -1;
+
+// --- Parciais (valores do painel; os inputs valem na 1a vez e quando forem alterados)
+double   Partial1_Points  = 500;
+double   Partial1_Close   = 50.0;
+double   Partial2_Points  = 1000;
+double   Partial2_Close   = 30.0;
+bool     g_parciaisLigado = true;
+datetime g_parciaisResetEm = 0;
+
+enum ENUM_PARTIAL_STATE
+{
+   PARTIAL_WAITING   = 0,
+   PARTIAL_TRIGGERED = 1,
+   PARTIAL_INFLIGHT  = 2,
+   PARTIAL_DONE      = 3
+};
+
+const int   PARTIAL_COUNT        = 2;
+const int   PARTIAL_LOCK_SEC     = 15;
+const int   PARTIAL_UI_RESET_SEC = 15;
+
+const int   PARC_TITULO_H = 20;
+const int   PARC_SEC_H    = PARC_TITULO_H + (PARAM_FLD_H + PARAM_ROW_GAP) + PARAM_FLD_H + SEC_EXEC_GAP;
+const int   BTN_PARC_W    = 44;
+const int   BTN_PARC_H    = 18;
+const int   PARC_X_PTS    = 26;    // colunas da linha P1/P2 (relativas a lx)
+const int   PARC_W_PTS    = 58;
+const int   PARC_X_PCT    = 112;
+const int   PARC_W_PCT    = 40;
+const int   PARC_X_ST     = 170;
+
+const color C_P1_ACCENT       = 0x80C8FF;
+const color C_P2_ACCENT       = 0x39FF14;
+const color C_PARCIAIS_ON_BG  = 0x187010;
+const color C_PARCIAIS_OFF_BG = 0x222222;
+
+string OBJ_BTN_PARCIAIS = "SP_BTN_PARCIAIS";
+string OBJ_P1_STATUS    = "SP_P1_STATUS";
+string OBJ_P2_STATUS    = "SP_P2_STATUS";
+string OBJ_P1_STATUS_BG = "SP_P1_STATUS_BG";
+string OBJ_P2_STATUS_BG = "SP_P2_STATUS_BG";
+string OBJ_EDIT_P1_PTS  = "SP_EDIT_P1_PTS";
+string OBJ_EDIT_P1_PCT  = "SP_EDIT_P1_CLOSE";
+string OBJ_EDIT_P2_PTS  = "SP_EDIT_P2_PTS";
+string OBJ_EDIT_P2_PCT  = "SP_EDIT_P2_CLOSE";
 string OBJ_BTN_MINIMIZE = "SP_BTN_MINIMIZE";
 int      g_setupAtivo = PERFIL_NORMAL;
 ENUM_MODO_TRAIL g_modoTrail = TRAIL_FIXO;
@@ -1397,6 +1454,8 @@ bool ObterPrecosOperacao(ulong positionId, double &precoEntrada, double &precoSa
 
    datetime tEntrada = D'2099.12.31';
    datetime tSaida = 0;
+   double   somaPV = 0, somaV = 0;   // saidas ponderadas pelo volume (parciais)
+   int      nSaidas = 0;
 
    int total = HistoryDealsTotal();
    for(int i = 0; i < total; i++)
@@ -1433,6 +1492,8 @@ bool ObterPrecosOperacao(ulong positionId, double &precoEntrada, double &precoSa
       if(ehSaida)
       {
          if(saidaAPartirDe > 0 && t < saidaAPartirDe) continue;
+         double v = HistoryDealGetDouble(d, DEAL_VOLUME);
+         if(v > 0) { somaPV += price * v; somaV += v; nSaidas++; }
          if(t >= tSaida)
          {
             tSaida = t;
@@ -1441,7 +1502,9 @@ bool ObterPrecosOperacao(ulong positionId, double &precoEntrada, double &precoSa
       }
    }
 
-   if(dealSaidaPreferido > 0 && HistoryDealSelect(dealSaidaPreferido))
+   if(nSaidas > 1 && somaV > 0)
+      precoSaida = somaPV / somaV;   // varias saidas (parciais): preco medio ponderado pelo volume
+   else if(dealSaidaPreferido > 0 && HistoryDealSelect(dealSaidaPreferido))
       precoSaida = HistoryDealGetDouble(dealSaidaPreferido, DEAL_PRICE);
 
    return (precoEntrada > 0 && precoSaida > 0 && direcao >= 0);
@@ -3568,6 +3631,7 @@ void SalvarConfigPainelPerfil(const int perfil)
    GlobalVariableSet(GvCfgKey(p + "_ST"), TrailingStep);
    GlobalVariableSet(GvCfgKey("SETUP"), (double)g_setupAtivo);
    GlobalVariableSet(GvCfgKey("TRAIL_MODO"), (double)g_modoTrail);
+   SalvarConfigParciais();
 }
 
 void CarregarConfigPainelPerfil(const int perfil)
@@ -3879,6 +3943,12 @@ void RegistrarVolumeInicial(ulong posTkt)
    {
       GravarTicketPosicao(posTkt);
       SalvarPrecoEntradaPosicao(posTkt);
+      if(ParciaisNaPosicao(posTkt) && PositionSelectByTicket(posTkt))
+      {
+         double volIni = PositionGetDouble(POSITION_VOLUME);
+         ResetStatusParciais();
+         InicializarPlanoParciais(posTkt, volIni);
+      }
    }
 }
 
@@ -3895,6 +3965,7 @@ void LimparGVs(ulong posTkt)
    if(GlobalVariableCheck(GVSlManualRef(posTkt))) GlobalVariableDel(GVSlManualRef(posTkt));
    if(GlobalVariableCheck(GVTPManualRef(posTkt))) GlobalVariableDel(GVTPManualRef(posTkt));
    RemoverRotulosSLTP(posTkt);
+   LimparGVsParciais(posTkt);
 }
 
 void GerenciarTPVirtual(ulong posTkt)
@@ -3905,6 +3976,7 @@ void GerenciarTPVirtual(ulong posTkt)
 
    double lucroPts = LucroPontosPosicao(posTkt);
    if(lucroPts < TakeProfit) return;
+   if(ParcialPendenteNoNivelTP(posTkt, lucroPts)) return;   // a parcial do mesmo nivel sai primeiro
 
    trade.PositionClose(posTkt);
 }
@@ -3964,6 +4036,7 @@ ulong TicketPosicaoPorId(ulong posId)
 
 bool TrailLinhaDeveSerExibida(ulong posTkt)
 {
+   if(GlobalVariableCheck(GVSlP2(posTkt))) return false;   // apos P2 o SL ja esta no nivel do P1
    if(!TrailDinamicoAtivo() && GlobalVariableCheck(GVTrailFixo(posTkt))) return false;
    return true;
 }
@@ -5655,7 +5728,11 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
    if(posId == 0) return;
 
    bool posFechada = PosicaoFechadaPorId(posId);
-   if(!posFechada) return;
+   if(!posFechada)
+   {
+      ConfirmarParcialPorDeal(posId, dealTkt);
+      return;
+   }
 
    CopyNT_EnviarFechamento(posId);
 
@@ -5665,6 +5742,9 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
    if(posTkt == 0) posTkt = posId;
 
    LimparGraficoPosicaoFechada(posId, posTkt, posTktTrans);
+   ulong posTktParc = ResolverTicketParciais(posId);
+   FinalizarParciaisPorFechamentoTotal(posTktParc);
+   if(posTktParc != posTkt) LimparGVsParciais(posTktParc);
    LimparGVs(posTkt);
 
    ulong idStats = posId;
@@ -5914,7 +5994,9 @@ void CreateLabelMetricaValor(string name, int xCenter, int yBottom, string text,
 bool EhCampoParametroPainel(const string name)
 {
    return (name == OBJ_EDIT_LOTE || name == OBJ_EDIT_TP || name == OBJ_EDIT_SL
-           || name == OBJ_EDIT_TRAIL_START || name == OBJ_EDIT_TRAIL_STEP);
+           || name == OBJ_EDIT_TRAIL_START || name == OBJ_EDIT_TRAIL_STEP
+           || name == OBJ_EDIT_P1_PTS || name == OBJ_EDIT_P1_PCT
+           || name == OBJ_EDIT_P2_PTS || name == OBJ_EDIT_P2_PCT);
 }
 
 void CreateEditCampoParam(const string name, const int x, const int y, const string text,
@@ -6009,7 +6091,8 @@ void ConfigurarCampoEditavel(const string name)
 
 void GarantirCamposEditaveisPainel()
 {
-   string edits[] = {OBJ_EDIT_LOTE, OBJ_EDIT_TP, OBJ_EDIT_SL, OBJ_EDIT_TRAIL_START, OBJ_EDIT_TRAIL_STEP};
+   string edits[] = {OBJ_EDIT_LOTE, OBJ_EDIT_TP, OBJ_EDIT_SL, OBJ_EDIT_TRAIL_START, OBJ_EDIT_TRAIL_STEP,
+                     OBJ_EDIT_P1_PTS, OBJ_EDIT_P1_PCT, OBJ_EDIT_P2_PTS, OBJ_EDIT_P2_PCT};
    for(int i = 0; i < ArraySize(edits); i++)
       ConfigurarCampoEditavel(edits[i]);
 }
@@ -6315,6 +6398,7 @@ bool EhBotaoExecPainel(const string name)
 void AplicarEstiloBotao(const string name, bool press)
 {
    if(ObjectFind(0, name) < 0) return;
+   if(name == OBJ_BTN_PARCIAIS) { AtualizarBotaoParciais(); return; }
 
    RemoverDecorBotao(name);
 
@@ -6587,6 +6671,7 @@ void ProcessarCliqueBotaoPainel(const string btn)
 
    if(btn == OBJ_BTN_SYNC_HL) SincronizarLinhasHorizontais();
    else if(btn == OBJ_BTN_LINHAS) LinhasCarregar(true);
+   else if(btn == OBJ_BTN_PARCIAIS) ToggleParciaisSistema();
    else if(btn == OBJ_BTN_LIMITS) AbrirPopupLimites();
    else if(btn == OBJ_BTN_SETUP)    AlternarPerfilSetup();
    else if(btn == OBJ_BTN_MINIMIZE) ToggleMinimizarPainel();
@@ -6606,6 +6691,7 @@ string ResolverCliqueBotaoPainel(const string sparam)
 {
    if(sparam == OBJ_BTN_BUY || sparam == OBJ_BTN_SELL || sparam == OBJ_BTN_CLOSEALL
       || sparam == OBJ_BTN_SYNC_HL || sparam == OBJ_BTN_LIMITS || sparam == OBJ_BTN_LINHAS
+      || sparam == OBJ_BTN_PARCIAIS
       || sparam == OBJ_BTN_SETUP || sparam == OBJ_BTN_MINIMIZE || sparam == OBJ_BTN_CLOSE)
       return sparam;
 
@@ -6891,7 +6977,10 @@ void RestaurarLayoutSecoesColapsaveis()
    ReposicionarParamRowLayout("SP_TR", OBJ_EDIT_TRAIL_START, col2X, fieldsY + rowH, fldW);
    ReposicionarParamRowLayout("SP_ST", OBJ_EDIT_TRAIL_STEP, lx, fieldsY + rowH * 2, fldW);
 
-   int auxY  = fieldsY + rowH * 2 + PARAM_FLD_H + SEC_EXEC_GAP;
+   int parcY = fieldsY + rowH * 2 + PARAM_FLD_H + SEC_EXEC_GAP;
+   ReposicionarSecaoParciais(lx, parcY, divW);
+
+   int auxY  = parcY + PARC_SEC_H;
    ReposicionarBotoesAux(lx, divW, auxY);
 
    int yExec = auxY + SEC_AUX_BTN_H + SEC_EXEC_GAP;
@@ -6956,7 +7045,7 @@ int AlturaExtraCopia()
    return STAT_ROW_H + STAT_STATUS_GAP;
 }
 
-int AlturaPainelNormal() { return PANEL_H + AlturaExtraCopia(); }
+int AlturaPainelNormal() { return PANEL_H + PARC_SEC_H + AlturaExtraCopia(); }
 int AlturaPainelMin()    { return PANEL_H_MIN + AlturaExtraCopia(); }
 
 void CriarFaixaCopia(const int lx, const int y, const int divW)
@@ -7220,8 +7309,12 @@ void CriarPainel()
    CreateParamRowHoriz("SP_TR", OBJ_EDIT_TRAIL_START, col2X, fieldsY + rowH, fldW, "Trail", DoubleToString(TrailingStart, 0));
    CreateParamRowHoriz("SP_ST", OBJ_EDIT_TRAIL_STEP, lx, fieldsY + rowH * 2, fldW, "Step", DoubleToString(TrailingStep, 0));
 
+   // --- PARCIAIS: P1 / P2 (pontos, % do lote, status) + ON/OFF ---
+   int parcY = fieldsY + rowH * 2 + PARAM_FLD_H + SEC_EXEC_GAP;
+   CriarSecaoParciais(lx, parcY, divW);
+
    // --- Acoes rapidas: perfil / sync / linhas / limites (pilulas em linha) ---
-   int auxY = fieldsY + rowH * 2 + PARAM_FLD_H + SEC_EXEC_GAP;
+   int auxY = parcY + PARC_SEC_H;
    CreateButton(OBJ_BTN_SETUP, lx, auxY, 10, SEC_AUX_BTN_H, NomeSetupAtivo(), 7);
    CreateButton(OBJ_BTN_SYNC_HL, lx, auxY, 10, SEC_AUX_BTN_H, "SYNC", 7);
    CreateButton(OBJ_BTN_LINHAS, lx, auxY, 10, SEC_AUX_BTN_H, "LINHAS", 7);
@@ -7302,6 +7395,14 @@ void EscreverValorCampoEdit(const string editName)
       ObjectSetString(0, editName, OBJPROP_TEXT, DoubleToString(TrailingStart, 0));
    else if(editName == OBJ_EDIT_TRAIL_STEP)
       ObjectSetString(0, editName, OBJPROP_TEXT, DoubleToString(TrailingStep, 0));
+   else if(editName == OBJ_EDIT_P1_PTS)
+      ObjectSetString(0, editName, OBJPROP_TEXT, DoubleToString(Partial1_Points, 0));
+   else if(editName == OBJ_EDIT_P1_PCT)
+      ObjectSetString(0, editName, OBJPROP_TEXT, DoubleToString(Partial1_Close, 0));
+   else if(editName == OBJ_EDIT_P2_PTS)
+      ObjectSetString(0, editName, OBJPROP_TEXT, DoubleToString(Partial2_Points, 0));
+   else if(editName == OBJ_EDIT_P2_PCT)
+      ObjectSetString(0, editName, OBJPROP_TEXT, DoubleToString(Partial2_Close, 0));
 }
 
 void AtualizarCampos()
@@ -7320,6 +7421,7 @@ void AtualizarCampos()
       TrailingStart = StringToDouble(ObjectGetString(0, OBJ_EDIT_TRAIL_START, OBJPROP_TEXT));
    if(ObjectFind(0, OBJ_EDIT_TRAIL_STEP) >= 0)
       TrailingStep = StringToDouble(ObjectGetString(0, OBJ_EDIT_TRAIL_STEP, OBJPROP_TEXT));
+   LerCamposParciais();
 }
 
 double SpreadEmPips()
@@ -8618,6 +8720,7 @@ int OnInit()
 {
    ConfigurarTrade();
    CarregarParametrosEntrada();
+   CarregarConfigParciais();
    if(!CopyInit())
       return INIT_PARAMETERS_INCORRECT;
 
@@ -8641,6 +8744,12 @@ int OnInit()
    CarregarContadorOperacoes();
    ReconstruirEstatisticasDia(!EstatisticasDiaPersistidas());
    ReconciliarOperacoesAbertas();
+   ReanexarPlanosParciais();
+   {
+      ulong tParc = TicketPosicaoSimbolo();
+      if(tParc > 0) AtualizarStatusParciaisPosicao(tParc);
+      else          ResetStatusParciais();
+   }
    ReconciliarLinhasTrailing();
    AtualizarRotulosSLTP();
    g_ultimaBarraJL = iTime(_Symbol, PERIOD_CURRENT, 0);
@@ -8725,6 +8834,7 @@ void OnTick()
 
    if(temPos && !CopyFilha_GerenciaTicket(posTkt))
    {
+      ExecutarParciais(posTkt);
       TrailingStop(posTkt);
       if(perfAtivo)
       {
@@ -8861,6 +8971,7 @@ void OnTimer()
    }
 
    ProcessarResetStatusGeralAgendado();
+   ProcessarResetStatusParciaisAgendado();
    SincronizarStatusImpedimento();
    if(InpLinhasAutoRecarga)
       LinhasVerificarArquivo();
@@ -9313,3 +9424,1074 @@ void LinhasCarregar(const bool avisar)
    }
 }
 
+//+------------------------------------------------------------------+
+//| PARCIAIS (portado do Scalper Pro v5.38)                          |
+//| P1/P2: fecham % do lote inicial ao atingir X pontos de lucro.    |
+//| Estado por posicao em GlobalVariables (sobrevive a reinicios).   |
+//+------------------------------------------------------------------+
+string GVInitVol(ulong posTkt)       { return GV_PREFIX + "IV_" + IntegerToString(posTkt); }
+string GVTarget(ulong posTkt, int p) { return GV_PREFIX + "TG" + IntegerToString(p) + "_" + IntegerToString(posTkt); }
+string GVClosed(ulong posTkt, int p) { return GV_PREFIX + "CL" + IntegerToString(p) + "_" + IntegerToString(posTkt); }
+string GVState(ulong posTkt, int p)  { return GV_PREFIX + "ST" + IntegerToString(p) + "_" + IntegerToString(posTkt); }
+string GVLock(ulong posTkt)          { return GV_PREFIX + "LK_" + IntegerToString(posTkt); }
+string GVLockPartial(ulong posTkt)   { return GV_PREFIX + "LP_" + IntegerToString(posTkt); }
+string GVLockTime(ulong posTkt)      { return GV_PREFIX + "LT_" + IntegerToString(posTkt); }
+string GVLastDeal(ulong posTkt)      { return GV_PREFIX + "LD_" + IntegerToString(posTkt); }
+string GVSlP1(ulong posTkt)          { return GV_PREFIX + "S1_" + IntegerToString(posTkt); }
+string GVSlP2(ulong posTkt)          { return GV_PREFIX + "S2_" + IntegerToString(posTkt); }
+string GVUltimaTentativa(ulong t, int p) { return GV_PREFIX + "UT" + IntegerToString(p) + "_" + IntegerToString(t); }
+
+bool ParciaisAtivas()
+{
+   return g_parciaisLigado;
+}
+
+// Copias da filha nao fazem parcial propria: a parcial da mae ja reduz a copia na mesma proporcao.
+bool ParciaisNaPosicao(const ulong posTkt)
+{
+   if(!ParciaisAtivas()) return false;
+   if(g_copyModoEf == COPY_FILHA && posTkt > 0 && PositionSelectByTicket(posTkt)
+      && PositionGetInteger(POSITION_MAGIC) == InpCopyMagic)
+      return false;
+   return true;
+}
+
+//--- configuracao (inputs na 1a vez ou quando os inputs mudam; depois, o que foi editado no painel)
+void SanitizarConfigParciais()
+{
+   Partial1_Points = MathMax(0, Partial1_Points);
+   Partial2_Points = MathMax(0, Partial2_Points);
+   Partial1_Close  = MathMax(0, MathMin(100, Partial1_Close));
+   Partial2_Close  = MathMax(0, MathMin(100, Partial2_Close));
+   if(Partial1_Close + Partial2_Close > 100.0)
+      Partial2_Close = MathMax(0.0, 100.0 - Partial1_Close);
+}
+
+void SalvarConfigParciais()
+{
+   GlobalVariableSet(GvCfgKey("P1_PTS"), Partial1_Points);
+   GlobalVariableSet(GvCfgKey("P1_PCT"), Partial1_Close);
+   GlobalVariableSet(GvCfgKey("P2_PTS"), Partial2_Points);
+   GlobalVariableSet(GvCfgKey("P2_PCT"), Partial2_Close);
+   GlobalVariableSet(GvCfgKey("PARC_ON"), g_parciaisLigado ? 1.0 : 0.0);
+}
+
+bool InputsParciaisAlterados()
+{
+   if(!GlobalVariableCheck(GvCfgKey("PIN_P1P"))) return true;
+   return (GlobalVariableGet(GvCfgKey("PIN_P1P")) != InpP1_Pontos
+        || GlobalVariableGet(GvCfgKey("PIN_P1C")) != InpP1_Pct
+        || GlobalVariableGet(GvCfgKey("PIN_P2P")) != InpP2_Pontos
+        || GlobalVariableGet(GvCfgKey("PIN_P2C")) != InpP2_Pct
+        || GlobalVariableGet(GvCfgKey("PIN_ON"))  != (InpUsarParciais ? 1.0 : 0.0));
+}
+
+void CarregarConfigParciais()
+{
+   if(InputsParciaisAlterados() || !GlobalVariableCheck(GvCfgKey("P1_PTS")))
+   {
+      Partial1_Points  = InpP1_Pontos;
+      Partial1_Close   = InpP1_Pct;
+      Partial2_Points  = InpP2_Pontos;
+      Partial2_Close   = InpP2_Pct;
+      g_parciaisLigado = InpUsarParciais;
+      SanitizarConfigParciais();
+      SalvarConfigParciais();
+      GlobalVariableSet(GvCfgKey("PIN_P1P"), InpP1_Pontos);
+      GlobalVariableSet(GvCfgKey("PIN_P1C"), InpP1_Pct);
+      GlobalVariableSet(GvCfgKey("PIN_P2P"), InpP2_Pontos);
+      GlobalVariableSet(GvCfgKey("PIN_P2C"), InpP2_Pct);
+      GlobalVariableSet(GvCfgKey("PIN_ON"),  InpUsarParciais ? 1.0 : 0.0);
+      return;
+   }
+   Partial1_Points  = GlobalVariableGet(GvCfgKey("P1_PTS"));
+   Partial1_Close   = GlobalVariableGet(GvCfgKey("P1_PCT"));
+   Partial2_Points  = GlobalVariableGet(GvCfgKey("P2_PTS"));
+   Partial2_Close   = GlobalVariableGet(GvCfgKey("P2_PCT"));
+   g_parciaisLigado = !GlobalVariableCheck(GvCfgKey("PARC_ON")) || GlobalVariableGet(GvCfgKey("PARC_ON")) > 0.5;
+   SanitizarConfigParciais();
+}
+
+//--- botao ON/OFF e caixas de status
+void AtualizarBotaoParciais()
+{
+   if(ObjectFind(0, OBJ_BTN_PARCIAIS) < 0) return;
+
+   bool on = ParciaisAtivas();
+   RemoverDecorBotao(OBJ_BTN_PARCIAIS);
+   ObjectSetString(0, OBJ_BTN_PARCIAIS, OBJPROP_TEXT, on ? "ON" : "OFF");
+   ObjectSetString(0, OBJ_BTN_PARCIAIS, OBJPROP_FONT, UI_FONT_BOLD);
+   ObjectSetInteger(0, OBJ_BTN_PARCIAIS, OBJPROP_FONTSIZE, 7);
+   ObjectSetInteger(0, OBJ_BTN_PARCIAIS, OBJPROP_COLOR, C_BTN_TEXT);
+   ObjectSetInteger(0, OBJ_BTN_PARCIAIS, OBJPROP_BGCOLOR, on ? C_PARCIAIS_ON_BG : C_PARCIAIS_OFF_BG);
+   ObjectSetInteger(0, OBJ_BTN_PARCIAIS, OBJPROP_BORDER_COLOR, on ? C_PARCIAIS_ON_BG : C_BTN_BORDER);
+   ObjectSetInteger(0, OBJ_BTN_PARCIAIS, OBJPROP_BORDER_TYPE, BORDER_FLAT);
+   ObjectSetInteger(0, OBJ_BTN_PARCIAIS, OBJPROP_STATE, false);
+   ObjectSetString(0, OBJ_BTN_PARCIAIS, OBJPROP_TOOLTIP,
+                   on ? "Parciais ligadas (clique p/ desligar)" : "Parciais desligadas (clique p/ ligar)");
+}
+
+void ToggleParciaisSistema()
+{
+   g_parciaisLigado = !g_parciaisLigado;
+   SalvarConfigParciais();
+   AtualizarBotaoParciais();
+   if(g_parciaisLigado)
+   {
+      ReanexarPlanosParciais();
+      ulong t = TicketPosicaoSimbolo();
+      if(t > 0) AtualizarStatusParciaisPosicao(t);
+      else      ResetStatusParciais();
+   }
+   else
+      AtualizarStatusParciaisDesabilitadas();
+   Status(g_parciaisLigado ? "Parciais ligadas" : "Parciais desligadas",
+          g_parciaisLigado ? C_STATUS_OK : C_STATUS_WARN, true);
+   ChartRedraw(0);
+}
+
+void AtualizarStatusParciaisDesabilitadas()
+{
+   if(!ParciaisAtivas())
+   {
+      SetParcialLabel(1, "OFF", C_MUTED);
+      SetParcialLabel(2, "OFF", C_MUTED);
+   }
+}
+
+void ResetStatusParciais()
+{
+   g_parciaisResetEm = 0;
+   if(!ParciaisAtivas())
+   {
+      AtualizarStatusParciaisDesabilitadas();
+      return;
+   }
+   SetParcialLabel(1, "ATIVO", C_STATUS_OK);
+   SetParcialLabel(2, "ATIVO", C_STATUS_OK);
+}
+
+string PartialStatusObject(int partialId)
+{
+   if(partialId == 1) return OBJ_P1_STATUS;
+   if(partialId == 2) return OBJ_P2_STATUS;
+   return "";
+}
+
+color PartialStatusColor(int partialId)
+{
+   if(partialId == 1) return C_P1_ACCENT;
+   if(partialId == 2) return C_P2_ACCENT;
+   return C_LABEL_BRIGHT;
+}
+
+void SetParcialLabel(int partialId, string txt, color c)
+{
+   string obj = PartialStatusObject(partialId);
+   if(obj == "" || ObjectFind(0, obj) < 0) return;
+
+   string box = (partialId == 1) ? OBJ_P1_STATUS_BG : OBJ_P2_STATUS_BG;
+   if(ObjectFind(0, box) >= 0)
+   {
+      ObjectSetInteger(0, box, OBJPROP_BORDER_COLOR, c);
+      ObjectSetInteger(0, box, OBJPROP_COLOR, c);
+   }
+
+   if(ObjectGetString(0, obj, OBJPROP_TEXT) == txt
+      && (color)ObjectGetInteger(0, obj, OBJPROP_COLOR) == c)
+      return;
+   ObjectSetString(0, obj, OBJPROP_TEXT, txt);
+   ObjectSetInteger(0, obj, OBJPROP_COLOR, c);
+}
+
+void AtualizarStatusParcialUI(ulong posTkt, int partialId)
+{
+   if(!ParciaisAtivas())
+   {
+      AtualizarStatusParciaisDesabilitadas();
+      return;
+   }
+
+   string gvSt = GVState(posTkt, partialId);
+   if(!GlobalVariableCheck(gvSt)) return;
+
+   int    st      = (int)GlobalVariableGet(gvSt);
+   double alvo    = GlobalVariableGet(GVTarget(posTkt, partialId));
+   double fechado = GlobalVariableGet(GVClosed(posTkt, partialId));
+   double tol     = VolTolerance();
+
+   if(st == PARTIAL_DONE || (alvo > 0 && fechado >= alvo - tol))
+      SetParcialLabel(partialId, "Executada", clrLime);
+   else if(st == PARTIAL_INFLIGHT)
+      SetParcialLabel(partialId, "Enviando...", clrOrange);
+   else if(st == PARTIAL_TRIGGERED)
+   {
+      double pct = (alvo > 0) ? (fechado / alvo) * 100.0 : 0;
+      SetParcialLabel(partialId, DoubleToString(pct, 0) + "%", PartialStatusColor(partialId));
+   }
+   else
+      SetParcialLabel(partialId, "ATIVO", C_STATUS_OK);
+}
+
+void AtualizarStatusParciaisPosicao(ulong posTkt)
+{
+   if(!ParciaisAtivas()) { AtualizarStatusParciaisDesabilitadas(); return; }
+   for(int p = 1; p <= PARTIAL_COUNT; p++)
+      AtualizarStatusParcialUI(posTkt, p);
+}
+
+//--- volumes
+double VolTolerance()
+{
+   return MathMax(LotStep() * 0.5, VOL_EPSILON);
+}
+
+bool AjustarVolumeParcial(double volAtual, double &volClose)
+{
+   double minLot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
+   double tol    = VolTolerance();
+
+   volClose = NormalizeVol(volClose);
+   if(volClose <= 0) return false;
+
+   if(volClose >= volAtual - tol)
+   {
+      volClose = NormalizeVol(volAtual);
+      return (volClose >= minLot - tol);
+   }
+
+   double resto = NormalizeVol(volAtual - volClose);
+   if(resto > tol && resto < minLot - tol)
+   {
+      volClose = NormalizeVol(volAtual - minLot);
+      if(volClose < minLot - tol) return false;
+   }
+
+   volClose = NormalizeVol(volClose);
+   if(volClose < minLot - tol) return false;
+
+   resto = NormalizeVol(volAtual - volClose);
+   if(resto > tol && resto < minLot - tol) return false;
+
+   return true;
+}
+
+bool GatilhoParcialAtingidoPts(double lucroPts, double pontosAlvo)
+{
+   if(pontosAlvo <= 0) return false;
+   return (lucroPts >= pontosAlvo - 0.5);
+}
+
+bool PartialConfig(int partialId, double &pontos, double &pct)
+{
+   switch(partialId)
+   {
+      case 1: pontos = Partial1_Points; pct = Partial1_Close; return true;
+      case 2: pontos = Partial2_Points; pct = Partial2_Close; return true;
+      default: return false;
+   }
+}
+
+void CalcularAlvosParciais(double volInicial, double &t1, double &t2)
+{
+   t1 = NormalizeVol(volInicial * (Partial1_Close / 100.0));
+   t2 = NormalizeVol(volInicial * (Partial2_Close / 100.0));
+
+   double soma = NormalizeVol(t1 + t2);
+   double tol  = VolTolerance();
+   if(soma > volInicial - tol)
+      t2 = NormalizeVol(MathMax(0, volInicial - t1));
+}
+
+//--- trava durante o envio
+void DestravarPosicao(ulong posTkt)
+{
+   if(GlobalVariableCheck(GVLock(posTkt)))        GlobalVariableDel(GVLock(posTkt));
+   if(GlobalVariableCheck(GVLockPartial(posTkt))) GlobalVariableDel(GVLockPartial(posTkt));
+   if(GlobalVariableCheck(GVLockTime(posTkt)))    GlobalVariableDel(GVLockTime(posTkt));
+}
+
+void TravarPosicao(ulong posTkt, int partialId)
+{
+   GlobalVariableSet(GVLock(posTkt), 1.0);
+   GlobalVariableSet(GVLockPartial(posTkt), (double)partialId);
+   GlobalVariableSet(GVLockTime(posTkt), (double)TimeCurrent());
+}
+
+bool DealJaProcessado(ulong posTkt, ulong dealTkt)
+{
+   if(!GlobalVariableCheck(GVLastDeal(posTkt))) return false;
+   return ((ulong)GlobalVariableGet(GVLastDeal(posTkt)) == dealTkt);
+}
+
+void MarcarDealProcessado(ulong posTkt, ulong dealTkt)
+{
+   GlobalVariableSet(GVLastDeal(posTkt), (double)dealTkt);
+}
+
+bool PosicaoComLock(ulong posTkt)
+{
+   if(!GlobalVariableCheck(GVLock(posTkt))) return false;
+   if(!GlobalVariableCheck(GVLockTime(posTkt))) return true;
+
+   datetime t0 = (datetime)GlobalVariableGet(GVLockTime(posTkt));
+   if(TimeCurrent() - t0 <= PARTIAL_LOCK_SEC) return true;
+
+   int lp = 0;
+   if(GlobalVariableCheck(GVLockPartial(posTkt)))
+      lp = (int)GlobalVariableGet(GVLockPartial(posTkt));
+
+   if(lp >= 1 && lp <= PARTIAL_COUNT)
+   {
+      string gvSt = GVState(posTkt, lp);
+      if(GlobalVariableCheck(gvSt) && (int)GlobalVariableGet(gvSt) == PARTIAL_INFLIGHT)
+         GlobalVariableSet(gvSt, (double)PARTIAL_WAITING);
+   }
+
+   DestravarPosicao(posTkt);
+   return false;
+}
+
+//--- plano da posicao
+void InicializarPlanoParciais(ulong posTkt, double volInicial)
+{
+   if(!ParciaisNaPosicao(posTkt)) return;
+   if(posTkt == 0 || volInicial <= 0) return;
+   volInicial = NormalizeVol(volInicial);
+   if(volInicial <= 0 || GlobalVariableCheck(GVInitVol(posTkt))) return;
+
+   GlobalVariableSet(GVInitVol(posTkt), volInicial);
+
+   double t1, t2;
+   CalcularAlvosParciais(volInicial, t1, t2);
+   double alvos[2];
+   alvos[0] = t1; alvos[1] = t2;
+
+   for(int p = 1; p <= PARTIAL_COUNT; p++)
+   {
+      GlobalVariableSet(GVTarget(posTkt, p), alvos[p - 1]);
+      GlobalVariableSet(GVClosed(posTkt, p), 0.0);
+      GlobalVariableSet(GVState(posTkt, p),
+         (double)((alvos[p - 1] <= 0) ? PARTIAL_DONE : PARTIAL_WAITING));
+   }
+
+   DestravarPosicao(posTkt);
+   if(GlobalVariableCheck(GVLastDeal(posTkt))) GlobalVariableDel(GVLastDeal(posTkt));
+   if(InpLogDetalhado)
+      PrintFormat("Scalper Pro: plano de parciais #%I64u vol=%.2f P1=%.2f@%.0fpts P2=%.2f@%.0fpts",
+                  posTkt, volInicial, t1, Partial1_Points, t2, Partial2_Points);
+}
+
+void ReanexarPlanosParciais()
+{
+   if(!ParciaisAtivas()) return;
+   for(int i = 0; i < PositionsTotal(); i++)
+   {
+      ulong t = PositionGetTicket(i);
+      if(t == 0 || !PositionSelectByTicket(t)) continue;
+      if(PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+      if(!GlobalVariableCheck(GVInitVol(t)))
+      {
+         double v = PositionGetDouble(POSITION_VOLUME);
+         if(v > 0) InicializarPlanoParciais(t, v);
+      }
+   }
+}
+
+void LimparGVsParciais(ulong posTkt)
+{
+   if(posTkt == 0) return;
+   if(GlobalVariableCheck(GVInitVol(posTkt)))  GlobalVariableDel(GVInitVol(posTkt));
+   if(GlobalVariableCheck(GVLastDeal(posTkt))) GlobalVariableDel(GVLastDeal(posTkt));
+   if(GlobalVariableCheck(GVSlP1(posTkt)))     GlobalVariableDel(GVSlP1(posTkt));
+   if(GlobalVariableCheck(GVSlP2(posTkt)))     GlobalVariableDel(GVSlP2(posTkt));
+   DestravarPosicao(posTkt);
+   for(int p = 1; p <= PARTIAL_COUNT; p++)
+   {
+      if(GlobalVariableCheck(GVTarget(posTkt, p))) GlobalVariableDel(GVTarget(posTkt, p));
+      if(GlobalVariableCheck(GVClosed(posTkt, p))) GlobalVariableDel(GVClosed(posTkt, p));
+      if(GlobalVariableCheck(GVState(posTkt, p)))  GlobalVariableDel(GVState(posTkt, p));
+      if(GlobalVariableCheck(GVUltimaTentativa(posTkt, p))) GlobalVariableDel(GVUltimaTentativa(posTkt, p));
+   }
+}
+
+ulong ResolverTicketParciais(ulong posId)
+{
+   if(posId == 0) return 0;
+
+   if(GlobalVariableCheck(GVPosTicket(posId)))
+   {
+      ulong tk = (ulong)GlobalVariableGet(GVPosTicket(posId));
+      if(tk > 0 && GlobalVariableCheck(GVInitVol(tk)))
+         return tk;
+   }
+
+   if(GlobalVariableCheck(GVInitVol(posId)))
+      return posId;
+
+   for(int i = 0; i < PositionsTotal(); i++)
+   {
+      ulong t = PositionGetTicket(i);
+      if(t == 0 || !PositionSelectByTicket(t)) continue;
+      if(PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+      ulong ident = (ulong)PositionGetInteger(POSITION_IDENTIFIER);
+      if(ident == posId && GlobalVariableCheck(GVInitVol(t)))
+         return t;
+   }
+   return posId;
+}
+
+//--- confirmacao do fechamento parcial
+bool BuscarDealSaidaRecente(ulong posTkt, double volAntes, double &dealVol, ulong &dealTkt)
+{
+   dealVol = 0;
+   dealTkt = 0;
+   if(!HistorySelect(TimeCurrent() - 120, TimeCurrent() + 60)) return false;
+
+   ulong posId = ResolverPositionId(posTkt);
+   if(posId == 0) posId = posTkt;
+
+   for(int i = HistoryDealsTotal() - 1; i >= 0; i--)
+   {
+      ulong d = HistoryDealGetTicket(i);
+      if((ulong)HistoryDealGetInteger(d, DEAL_POSITION_ID) != posId) continue;
+      if(HistoryDealGetString(d, DEAL_SYMBOL) != _Symbol) continue;
+      long entry = HistoryDealGetInteger(d, DEAL_ENTRY);
+      if(entry != DEAL_ENTRY_OUT && entry != DEAL_ENTRY_INOUT) continue;
+      if(DealJaProcessado(posTkt, d)) continue;
+      dealVol = HistoryDealGetDouble(d, DEAL_VOLUME);
+      dealTkt = d;
+      return (dealVol > 0 && dealVol <= volAntes + VolTolerance());
+   }
+   return false;
+}
+
+void ConfirmarFechamentoParcial(ulong posTkt, int partialId, double dealVol, ulong dealTkt)
+{
+   if(!ParciaisAtivas()) return;
+   if(partialId < 1 || partialId > PARTIAL_COUNT || dealVol <= 0) return;
+   if(!GlobalVariableCheck(GVInitVol(posTkt))) return;
+   if(dealTkt > 0 && DealJaProcessado(posTkt, dealTkt)) return;
+
+   dealVol = NormalizeVol(dealVol);
+   if(dealVol <= 0) return;
+
+   string gvSt = GVState(posTkt, partialId);
+   if(GlobalVariableCheck(gvSt) && (int)GlobalVariableGet(gvSt) == PARTIAL_DONE)
+      return;
+
+   double alvo    = GlobalVariableGet(GVTarget(posTkt, partialId));
+   double fechado = GlobalVariableGet(GVClosed(posTkt, partialId));
+   double tol     = VolTolerance();
+   if(alvo > 0 && fechado >= alvo - tol)
+      return;
+
+   fechado = NormalizeVol(fechado + dealVol);
+   if(alvo > 0 && fechado > alvo) fechado = alvo;
+   GlobalVariableSet(GVClosed(posTkt, partialId), fechado);
+
+   if(alvo <= 0 || fechado >= alvo - tol)
+   {
+      GlobalVariableSet(gvSt, (double)PARTIAL_DONE);
+      if(alvo > 0) GlobalVariableSet(GVClosed(posTkt, partialId), alvo);
+      SetParcialLabel(partialId, "Executada", clrLime);
+      Status(StringFormat("Parcial P%d executada (%.2f)", partialId, alvo), C_STATUS_OK, true);
+      if(partialId == 1)
+         AvancarSLTrailAposP1(posTkt);
+      else if(partialId == 2)
+         AvancarSLParaPontosP1(posTkt);
+   }
+   else
+   {
+      GlobalVariableSet(gvSt, (double)PARTIAL_TRIGGERED);
+      double pct = (alvo > 0) ? (fechado / alvo) * 100.0 : 0;
+      SetParcialLabel(partialId, DoubleToString(pct, 0) + "%", PartialStatusColor(partialId));
+   }
+
+   if(dealTkt > 0)
+      MarcarDealProcessado(posTkt, dealTkt);
+   DestravarPosicao(posTkt);
+}
+
+// Chamado pelo OnTradeTransaction para deals de saida que NAO fecharam a posicao.
+void ConfirmarParcialPorDeal(ulong posId, ulong dealTkt)
+{
+   if(!ParciaisAtivas() || posId == 0 || dealTkt == 0) return;
+
+   ulong posTkt = 0;
+   for(int pi = 0; pi < PositionsTotal(); pi++)
+   {
+      ulong t = PositionGetTicket(pi);
+      if(t == 0 || !PositionSelectByTicket(t)) continue;
+      if(PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+      if((ulong)PositionGetInteger(POSITION_IDENTIFIER) == posId) { posTkt = t; break; }
+   }
+   if(posTkt == 0 || !GlobalVariableCheck(GVInitVol(posTkt)))
+      posTkt = ResolverTicketParciais(posId);
+   if(!GlobalVariableCheck(GVInitVol(posTkt)) || DealJaProcessado(posTkt, dealTkt)) return;
+   if(!HistoryDealSelect(dealTkt)) return;
+
+   double dealVol = HistoryDealGetDouble(dealTkt, DEAL_VOLUME);
+   if(dealVol <= 0) return;
+
+   int partialId = ObterParcialAtiva(posTkt);
+   if(partialId < 1) return;
+   string gvSt = GVState(posTkt, partialId);
+   if(GlobalVariableCheck(gvSt) && (int)GlobalVariableGet(gvSt) == PARTIAL_INFLIGHT)
+      ConfirmarFechamentoParcial(posTkt, partialId, dealVol, dealTkt);
+}
+
+//--- SL apos as parciais
+void AvancarSLTrailAposP1(ulong posTkt)
+{
+   if(!InpTrailAvancaAposP1 || InpTrailAvancaPtsP1 <= 0) return;
+   if(GlobalVariableCheck(GVSlP1(posTkt))) return;
+   if(!PositionSelectByTicket(posTkt)) return;
+   if(PositionGetString(POSITION_SYMBOL) != _Symbol) return;
+
+   double minDist = DistanciaMinimaStops();
+   double pt      = ObterPontoPreco();
+   double pts     = (double)InpTrailAvancaPtsP1;
+
+   long   tipo    = PositionGetInteger(POSITION_TYPE);
+   double open    = PositionGetDouble(POSITION_PRICE_OPEN);
+   double slAtual = PositionGetDouble(POSITION_SL);
+   double tp      = PositionGetDouble(POSITION_TP);
+   double novoSL;
+   double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+
+   if(tipo == POSITION_TYPE_BUY)
+   {
+      novoSL = NormalizeDouble(open + pts * pt, _Digits);
+      double slMax = NormalizeDouble(bid - minDist, _Digits);
+      if(novoSL > slMax) novoSL = slMax;
+      if(slAtual > 0 && novoSL <= slAtual + pt * 0.5)
+      {
+         GlobalVariableSet(GVSlP1(posTkt), 1.0);
+         return;
+      }
+   }
+   else
+   {
+      novoSL = NormalizeDouble(open - pts * pt, _Digits);
+      double slMin = NormalizeDouble(ask + minDist, _Digits);
+      if(novoSL < slMin) novoSL = slMin;
+      if(slAtual > 0 && novoSL >= slAtual - pt * 0.5)
+      {
+         GlobalVariableSet(GVSlP1(posTkt), 1.0);
+         return;
+      }
+   }
+
+   if(MathAbs(novoSL - slAtual) <= pt * 0.5)
+   {
+      GlobalVariableSet(GVSlP1(posTkt), 1.0);
+      return;
+   }
+
+   if(ModificarNiveisPosicaoEA(posTkt, novoSL, tp))
+   {
+      GlobalVariableSet(GVSlP1(posTkt), 1.0);
+      double lucroPts = LucroPontosPosicao(posTkt);
+      if(TrailingStart > 0 && TrailingStep > 0 && lucroPts >= TrailingStart)
+      {
+         double slTrailBuy  = NormalizeDouble(open + TrailingStep * pt, _Digits);
+         double slTrailSell = NormalizeDouble(open - TrailingStep * pt, _Digits);
+         if(tipo == POSITION_TYPE_BUY && novoSL >= slTrailBuy - pt * 0.5)
+            GlobalVariableSet(GVTrailFixo(posTkt), 1.0);
+         else if(tipo == POSITION_TYPE_SELL && novoSL <= slTrailSell + pt * 0.5)
+            GlobalVariableSet(GVTrailFixo(posTkt), 1.0);
+      }
+      if(GlobalVariableCheck(GVTrailFixo(posTkt)))
+         RemoverLinhaTrailing(posTkt);
+      else
+         AtualizarLinhaTrailing(posTkt);
+      AgendarRotulosSLTPPosicao(posTkt);
+      if(InpLogDetalhado)
+         PrintFormat("Scalper Pro: SL apos P1 ticket=%I64u novoSL=%.5f pts=%d",
+                     posTkt, novoSL, InpTrailAvancaPtsP1);
+   }
+}
+
+void AvancarSLParaPontosP1(ulong posTkt)
+{
+   if(!InpSlAvancaAposP2 || GlobalVariableCheck(GVSlP2(posTkt))) return;
+   if(!PositionSelectByTicket(posTkt)) return;
+   if(PositionGetString(POSITION_SYMBOL) != _Symbol) return;
+
+   if(Partial1_Points <= 0) return;
+
+   double minDist = DistanciaMinimaStops();
+
+   long   tipo    = PositionGetInteger(POSITION_TYPE);
+   double open    = PositionGetDouble(POSITION_PRICE_OPEN);
+   double slAtual = PositionGetDouble(POSITION_SL);
+   double tp      = PositionGetDouble(POSITION_TP);
+   double pt      = ObterPontoPreco();
+   double pts     = Partial1_Points;
+   double novoSL;
+   double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+
+   if(tipo == POSITION_TYPE_BUY)
+   {
+      novoSL = NormalizeDouble(open + pts * pt, _Digits);
+      double slMax = NormalizeDouble(bid - minDist, _Digits);
+      if(novoSL > slMax) novoSL = slMax;
+      if(slAtual > 0 && novoSL <= slAtual + pt * 0.5) return;
+   }
+   else
+   {
+      novoSL = NormalizeDouble(open - pts * pt, _Digits);
+      double slMin = NormalizeDouble(ask + minDist, _Digits);
+      if(novoSL < slMin) novoSL = slMin;
+      if(slAtual > 0 && novoSL >= slAtual - pt * 0.5) return;
+   }
+
+   if(MathAbs(novoSL - slAtual) <= pt) return;
+
+   if(ModificarNiveisPosicaoEA(posTkt, novoSL, tp))
+   {
+      GlobalVariableSet(GVSlP2(posTkt), 1.0);
+      if(TrailingStart > 0 && TrailingStep > 0 && LucroPontosPosicao(posTkt) >= TrailingStart)
+         GlobalVariableSet(GVTrailFixo(posTkt), 1.0);
+      RemoverLinhaTrailing(posTkt);
+      AgendarRotulosSLTPPosicao(posTkt);
+   }
+}
+
+//--- envio
+bool FecharVolumePorDeal(ulong posTkt, double volume, bool &fechouTotal, string &erro)
+{
+   fechouTotal = false;
+   erro = "";
+   if(!PositionSelectByTicket(posTkt)) { erro = "Posicao nao encontrada"; return false; }
+
+   string sym    = PositionGetString(POSITION_SYMBOL);
+   long   tipo   = PositionGetInteger(POSITION_TYPE);
+   double volPos = PositionGetDouble(POSITION_VOLUME);
+
+   volume = NormalizeVol(volume);
+   if(volume <= 0) { erro = "Volume zero"; return false; }
+
+   if(volume >= volPos - VolTolerance())
+   {
+      volume = NormalizeVol(volPos);
+      fechouTotal = true;
+   }
+
+   if(!AjustarVolumeParcial(volPos, volume))
+   {
+      erro = "Volume invalido";
+      return false;
+   }
+
+   MqlTradeRequest req;
+   MqlTradeResult  res;
+   ZeroMemory(req);
+   ZeroMemory(res);
+
+   req.action       = TRADE_ACTION_DEAL;
+   req.position     = posTkt;
+   req.symbol       = sym;
+   req.volume       = volume;
+   req.deviation    = 50;
+   req.magic        = 0;
+   req.type_filling = ObterFilling(sym);
+   req.comment      = "SP_Partial";
+
+   MqlTick tick;
+   if(SymbolInfoTick(sym, tick))
+   {
+      if(tipo == POSITION_TYPE_BUY) { req.type = ORDER_TYPE_SELL; req.price = tick.bid; }
+      else                          { req.type = ORDER_TYPE_BUY;  req.price = tick.ask; }
+   }
+   else
+   {
+      if(tipo == POSITION_TYPE_BUY) { req.type = ORDER_TYPE_SELL; req.price = SymbolInfoDouble(sym, SYMBOL_BID); }
+      else                          { req.type = ORDER_TYPE_BUY;  req.price = SymbolInfoDouble(sym, SYMBOL_ASK); }
+   }
+
+   if(!OrderSend(req, res))
+   {
+      erro = StringFormat("OrderSend err=%d ret=%u", GetLastError(), res.retcode);
+      return false;
+   }
+
+   if(res.retcode != TRADE_RETCODE_DONE &&
+      res.retcode != TRADE_RETCODE_PLACED &&
+      res.retcode != TRADE_RETCODE_DONE_PARTIAL)
+   {
+      erro = StringFormat("ret=%u %s", res.retcode, res.comment);
+      return false;
+   }
+
+   // Copiador: as filhas reduzem na mesma proporcao assim que a mae publica o novo volume
+   if(g_copyModoEf == COPY_MAE)
+      CopyMae_Publicar(false);
+   return true;
+}
+
+bool ConfirmarVolumeReduzido(ulong posTkt, double volAntes, int partialId)
+{
+   for(int i = 0; i < 16; i++)
+   {
+      double dv = 0;
+      ulong  dt = 0;
+      if(BuscarDealSaidaRecente(posTkt, volAntes, dv, dt))
+      {
+         ConfirmarFechamentoParcial(posTkt, partialId, dv, dt);
+         return true;
+      }
+
+      if(!PositionSelectByTicket(posTkt))
+      {
+         ConfirmarFechamentoParcial(posTkt, partialId, volAntes, 0);
+         return true;
+      }
+
+      double volAgora = PositionGetDouble(POSITION_VOLUME);
+      if(volAgora < volAntes - VolTolerance())
+      {
+         ConfirmarFechamentoParcial(posTkt, partialId, NormalizeVol(volAntes - volAgora), 0);
+         return true;
+      }
+
+      if(i < 15)
+         Sleep(50);
+   }
+   return false;
+}
+
+bool ExecutarFechamentoVolume(ulong posTkt, double volEnvia, double volAntes, int partialId, bool &aguardandoConfirm)
+{
+   aguardandoConfirm = false;
+   string erro = "";
+   bool fechouTotal = false;
+
+   if(!FecharVolumePorDeal(posTkt, volEnvia, fechouTotal, erro))
+   {
+      Status("Erro parcial P" + IntegerToString(partialId) + ": " + erro, clrRed, true);
+      SetParcialLabel(partialId, "Erro", clrRed);
+      PrintFormat("Scalper Pro: erro na parcial P%d #%I64u vol=%.2f: %s", partialId, posTkt, volEnvia, erro);
+      return false;
+   }
+
+   if(ConfirmarVolumeReduzido(posTkt, volAntes, partialId))
+      return true;
+
+   aguardandoConfirm = true;
+   return true;
+}
+
+bool EnviarParcial(ulong posTkt, int partialId)
+{
+   if(!ParciaisAtivas()) return false;
+   if(!PositionSelectByTicket(posTkt)) return false;
+
+   string gvUT = GVUltimaTentativa(posTkt, partialId);
+   if(InpCooldownMs > 0 && GlobalVariableCheck(gvUT))
+   {
+      ulong elapsed = GetTickCount64() - (ulong)GlobalVariableGet(gvUT);
+      if(elapsed < (ulong)InpCooldownMs)
+         return false;
+   }
+   GlobalVariableSet(gvUT, (double)GetTickCount64());
+
+   double alvo     = GlobalVariableGet(GVTarget(posTkt, partialId));
+   double fechado  = GlobalVariableGet(GVClosed(posTkt, partialId));
+   double volAtual = PositionGetDouble(POSITION_VOLUME);
+   double volAntes = volAtual;
+   double tol      = VolTolerance();
+   string gvSt     = GVState(posTkt, partialId);
+
+   if(alvo <= 0)
+   {
+      GlobalVariableSet(gvSt, (double)PARTIAL_DONE);
+      SetParcialLabel(partialId, "Executada", clrLime);
+      return true;
+   }
+
+   double falta = NormalizeVol(alvo - fechado);
+   if(falta <= tol)
+   {
+      GlobalVariableSet(gvSt, (double)PARTIAL_DONE);
+      GlobalVariableSet(GVClosed(posTkt, partialId), alvo);
+      SetParcialLabel(partialId, "Executada", clrLime);
+      return true;
+   }
+
+   double volEnvia = NormalizeVol(MathMin(falta, volAtual));
+   if(volEnvia <= 0) return false;
+
+   SetParcialLabel(partialId, "Enviando...", clrOrange);
+
+   TravarPosicao(posTkt, partialId);
+   GlobalVariableSet(gvSt, (double)PARTIAL_INFLIGHT);
+
+   bool aguardando = false;
+   bool ok = ExecutarFechamentoVolume(posTkt, volEnvia, volAntes, partialId, aguardando);
+   DestravarPosicao(posTkt);
+
+   if(!ok)
+   {
+      GlobalVariableSet(gvSt, (double)PARTIAL_WAITING);
+      if(ObjectGetString(0, PartialStatusObject(partialId), OBJPROP_TEXT) == "Enviando...")
+         SetParcialLabel(partialId, "Falhou", clrRed);
+      return false;
+   }
+
+   if(aguardando)
+      SetParcialLabel(partialId, "Aguardando...", clrOrange);
+
+   return true;
+}
+
+void ProcessarParciaisPosicao(ulong posTkt)
+{
+   if(!ParciaisNaPosicao(posTkt)) return;
+
+   if(!GlobalVariableCheck(GVInitVol(posTkt)))
+   {
+      if(!PositionSelectByTicket(posTkt)) return;
+      double vol = PositionGetDouble(POSITION_VOLUME);
+      if(vol > 0) InicializarPlanoParciais(posTkt, vol);
+      else return;
+   }
+
+   if(PosicaoComLock(posTkt))
+   {
+      AtualizarStatusParciaisPosicao(posTkt);
+      return;
+   }
+
+   if(!PositionSelectByTicket(posTkt)) return;
+
+   double lucroPts = LucroPontosPosicao(posTkt);
+   double tol      = VolTolerance();
+   for(int p = 1; p <= PARTIAL_COUNT; p++)
+   {
+      string gvSt = GVState(posTkt, p);
+      if(!GlobalVariableCheck(gvSt)) continue;
+
+      int st = (int)GlobalVariableGet(gvSt);
+      if(st == PARTIAL_DONE) continue;
+
+      double pontos, pct;
+      if(!PartialConfig(p, pontos, pct)) continue;
+
+      if(!GatilhoParcialAtingidoPts(lucroPts, pontos))
+      {
+         AtualizarStatusParcialUI(posTkt, p);
+         continue;
+      }
+
+      double alvo    = GlobalVariableGet(GVTarget(posTkt, p));
+      double fechado = GlobalVariableGet(GVClosed(posTkt, p));
+      if(alvo > 0 && fechado >= alvo - tol)
+      {
+         GlobalVariableSet(gvSt, (double)PARTIAL_DONE);
+         SetParcialLabel(p, "Executada", clrLime);
+         if(p == 1)
+            AvancarSLTrailAposP1(posTkt);
+         else if(p == 2)
+            AvancarSLParaPontosP1(posTkt);
+         continue;
+      }
+
+      if(st == PARTIAL_WAITING || st == PARTIAL_TRIGGERED)
+      {
+         for(int t = 0; t < InpTentativasEnvio; t++)
+         {
+            if(EnviarParcial(posTkt, p)) break;
+            Sleep(100);
+            if(!PositionSelectByTicket(posTkt)) return;
+         }
+         return;
+      }
+      if(st == PARTIAL_INFLIGHT)
+         AtualizarStatusParcialUI(posTkt, p);
+   }
+}
+
+void ExecutarParciais(ulong posTkt)
+{
+   if(!ParciaisAtivas()) return;
+   if(posTkt == 0) posTkt = TicketPosicaoSimbolo();
+   if(posTkt > 0)
+      ProcessarParciaisPosicao(posTkt);
+}
+
+int ObterParcialAtiva(ulong posTkt)
+{
+   if(GlobalVariableCheck(GVLockPartial(posTkt)))
+   {
+      int lp = (int)GlobalVariableGet(GVLockPartial(posTkt));
+      if(lp >= 1 && lp <= PARTIAL_COUNT) return lp;
+   }
+   for(int p = 1; p <= PARTIAL_COUNT; p++)
+   {
+      string gvSt = GVState(posTkt, p);
+      if(!GlobalVariableCheck(gvSt)) continue;
+      int st = (int)GlobalVariableGet(gvSt);
+      if(st == PARTIAL_INFLIGHT || st == PARTIAL_TRIGGERED) return p;
+   }
+   return 0;
+}
+
+// TP virtual: nao fecha tudo se uma parcial ainda pendente esta no mesmo nivel (ela sai primeiro).
+bool ParcialPendenteNoNivelTP(ulong posTkt, double lucroPts)
+{
+   if(!ParciaisAtivas() || !GlobalVariableCheck(GVInitVol(posTkt))) return false;
+   for(int p = 1; p <= PARTIAL_COUNT; p++)
+   {
+      string gvSt = GVState(posTkt, p);
+      if(!GlobalVariableCheck(gvSt)) continue;
+      if((int)GlobalVariableGet(gvSt) == PARTIAL_DONE) continue;
+      if(GlobalVariableGet(GVTarget(posTkt, p)) <= 0) continue;
+      double pts, pct;
+      if(!PartialConfig(p, pts, pct)) continue;
+      if(pts > 0 && TakeProfit >= pts - 0.5 && GatilhoParcialAtingidoPts(lucroPts, pts))
+         return true;
+   }
+   return false;
+}
+
+void AgendarResetStatusParciais()
+{
+   g_parciaisResetEm = TimeCurrent() + PARTIAL_UI_RESET_SEC;
+}
+
+void ProcessarResetStatusParciaisAgendado()
+{
+   if(g_parciaisResetEm <= 0) return;
+
+   if(TemPosicaoNoSimbolo())
+   {
+      g_parciaisResetEm = 0;
+      return;
+   }
+
+   if(TimeCurrent() < g_parciaisResetEm) return;
+
+   g_parciaisResetEm = 0;
+   ResetStatusParciais();
+   ChartRedraw(0);
+}
+
+// Posicao fechada por completo: mostra o resultado de cada parcial por alguns segundos.
+void FinalizarParciaisPorFechamentoTotal(ulong posTkt)
+{
+   if(posTkt == 0) return;
+   bool tinhaPlano = false;
+   for(int p = 1; p <= PARTIAL_COUNT; p++)
+   {
+      string gvSt = GVState(posTkt, p);
+      if(!GlobalVariableCheck(gvSt)) continue;
+      tinhaPlano = true;
+      double alvo = GlobalVariableGet(GVTarget(posTkt, p));
+      double fech = GlobalVariableGet(GVClosed(posTkt, p));
+      bool ok = (alvo > 0 && fech >= alvo - VolTolerance());
+      GlobalVariableSet(gvSt, (double)PARTIAL_DONE);
+      if(!ParciaisAtivas())
+         SetParcialLabel(p, "OFF", C_MUTED);
+      else
+         SetParcialLabel(p, ok ? "Executada" : "Nao exec.", ok ? clrLime : clrGray);
+   }
+   if(tinhaPlano)
+      AgendarResetStatusParciais();
+}
+
+//--- painel: secao PARCIAIS (titulo + botao ON/OFF + linhas P1 e P2)
+void CriarCaixaStatusParcial(const string boxName, const string lblName, const int x, const int y,
+                             const int w, const string txt, const color c)
+{
+   CreateRect(boxName, x, y, w, PARAM_FLD_H, C_GLASS_BG, c);
+   ObjectSetInteger(0, boxName, OBJPROP_BORDER_TYPE, BORDER_FLAT);
+   ObjectSetInteger(0, boxName, OBJPROP_COLOR, c);
+   ObjectSetInteger(0, boxName, OBJPROP_BACK, false);
+   ObjectSetInteger(0, boxName, OBJPROP_SELECTABLE, false);
+   ObjectSetInteger(0, boxName, OBJPROP_ZORDER, 5);
+   CreateLabelCentered(lblName, x + w / 2, y + PARAM_FLD_H / 2, txt, c, 8, true);
+   ObjectSetInteger(0, lblName, OBJPROP_ZORDER, 6);
+   ObjectSetInteger(0, lblName, OBJPROP_SELECTABLE, false);
+}
+
+string EditPontosParcial(const int p) { return (p == 1) ? OBJ_EDIT_P1_PTS : OBJ_EDIT_P2_PTS; }
+string EditPctParcial(const int p)    { return (p == 1) ? OBJ_EDIT_P1_PCT : OBJ_EDIT_P2_PCT; }
+
+void CriarSecaoParciais(const int lx, const int y, const int divW)
+{
+   int btnX = lx + divW - BTN_PARC_W;
+   CreateSectionTitle("SP_D2", "", "SP_SEC_PARTIAL", lx, y, divW, 0, "PARCIAIS",
+                      C_SEC_PARAMS, 0, C_DIVIDER_LIGHT, btnX - 6);
+   CreateButton(OBJ_BTN_PARCIAIS, btnX, y - 3, BTN_PARC_W, BTN_PARC_H, ParciaisAtivas() ? "ON" : "OFF", 7);
+   AtualizarBotaoParciais();
+
+   string st = ParciaisAtivas() ? "ATIVO" : "OFF";
+   color  cs = ParciaisAtivas() ? C_STATUS_OK : C_MUTED;
+   int rowH  = PARAM_FLD_H + PARAM_ROW_GAP;
+   for(int p = 1; p <= PARTIAL_COUNT; p++)
+   {
+      string sp   = IntegerToString(p);
+      int    rowY = y + PARC_TITULO_H + (p - 1) * rowH;
+      int    lblY = rowY + (PARAM_FLD_H - PARAM_LBL_FS_H) / 2 + 1;
+      double pts  = (p == 1) ? Partial1_Points : Partial2_Points;
+      double pct  = (p == 1) ? Partial1_Close : Partial2_Close;
+      CreateLabel("SP_PRL" + sp, lx, lblY, "P" + sp, PartialStatusColor(p), 9, true);
+      CreateEditCampoParam(EditPontosParcial(p), lx + PARC_X_PTS, rowY, DoubleToString(pts, 0), PARC_W_PTS, PARAM_FLD_H);
+      CreateLabel("SP_PRU" + sp, lx + PARC_X_PTS + PARC_W_PTS + 4, lblY, "pts", C_LABEL_COLOR, 7);
+      CreateEditCampoParam(EditPctParcial(p), lx + PARC_X_PCT, rowY, DoubleToString(pct, 0), PARC_W_PCT, PARAM_FLD_H);
+      CreateLabel("SP_PRC" + sp, lx + PARC_X_PCT + PARC_W_PCT + 4, lblY, "%", C_LABEL_COLOR, 7);
+      CriarCaixaStatusParcial(p == 1 ? OBJ_P1_STATUS_BG : OBJ_P2_STATUS_BG, PartialStatusObject(p),
+                              lx + PARC_X_ST, rowY, divW - PARC_X_ST, st, cs);
+   }
+}
+
+void ReposicionarSecaoParciais(const int lx, const int y, const int divW)
+{
+   int btnX = lx + divW - BTN_PARC_W;
+   ReposicionarTituloSecaoLayout("SP_D2", "SP_SEC_PARTIAL", lx, y, divW, "PARCIAIS", btnX - 6);
+   ReposicionarObjetoXY(OBJ_BTN_PARCIAIS, btnX, y - 3);
+   ExibirObjetoPainel(OBJ_BTN_PARCIAIS);
+   AtualizarBotaoParciais();
+
+   int rowH = PARAM_FLD_H + PARAM_ROW_GAP;
+   for(int p = 1; p <= PARTIAL_COUNT; p++)
+   {
+      string sp   = IntegerToString(p);
+      int    rowY = y + PARC_TITULO_H + (p - 1) * rowH;
+      int    lblY = rowY + (PARAM_FLD_H - PARAM_LBL_FS_H) / 2 + 1;
+      int    stW  = divW - PARC_X_ST;
+      ReposicionarObjetoXY("SP_PRL" + sp, lx, lblY);
+      ReposicionarObjetoXY(EditPontosParcial(p), lx + PARC_X_PTS, rowY);
+      ReposicionarObjetoXY("SP_PRU" + sp, lx + PARC_X_PTS + PARC_W_PTS + 4, lblY);
+      ReposicionarObjetoXY(EditPctParcial(p), lx + PARC_X_PCT, rowY);
+      ReposicionarObjetoXY("SP_PRC" + sp, lx + PARC_X_PCT + PARC_W_PCT + 4, lblY);
+      ReposicionarObjetoXY(p == 1 ? OBJ_P1_STATUS_BG : OBJ_P2_STATUS_BG, lx + PARC_X_ST, rowY);
+      ReposicionarObjetoXY(PartialStatusObject(p), lx + PARC_X_ST + stW / 2, rowY + PARAM_FLD_H / 2);
+   }
+}
+
+// Le os campos P1/P2 do painel (chamado por AtualizarCampos).
+void LerCamposParciais()
+{
+   if(ObjectFind(0, OBJ_EDIT_P1_PTS) >= 0)
+      Partial1_Points = StringToDouble(ObjectGetString(0, OBJ_EDIT_P1_PTS, OBJPROP_TEXT));
+   if(ObjectFind(0, OBJ_EDIT_P1_PCT) >= 0)
+      Partial1_Close = StringToDouble(ObjectGetString(0, OBJ_EDIT_P1_PCT, OBJPROP_TEXT));
+   if(ObjectFind(0, OBJ_EDIT_P2_PTS) >= 0)
+      Partial2_Points = StringToDouble(ObjectGetString(0, OBJ_EDIT_P2_PTS, OBJPROP_TEXT));
+   if(ObjectFind(0, OBJ_EDIT_P2_PCT) >= 0)
+      Partial2_Close = StringToDouble(ObjectGetString(0, OBJ_EDIT_P2_PCT, OBJPROP_TEXT));
+
+   double p1c = Partial1_Close, p2c = Partial2_Close;
+   SanitizarConfigParciais();
+   // corrige o que foi digitado (ex.: P1 60% + P2 50% vira P2 40%), fora de uma edicao em andamento
+   if(g_campoEditAtivo == "" && (p1c != Partial1_Close || p2c != Partial2_Close))
+   {
+      EscreverValorCampoEdit(OBJ_EDIT_P1_PCT);
+      EscreverValorCampoEdit(OBJ_EDIT_P2_PCT);
+   }
+}
