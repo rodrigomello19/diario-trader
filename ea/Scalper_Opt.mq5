@@ -1,13 +1,13 @@
 //+------------------------------------------------------------------+
-//|                     SCALPER PRO v5.94 - MT5                       |
+//|                     SCALPER PRO v5.95 - MT5                       |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, Scalper Pro"
-#property version       "5.94"
+#property version       "5.95"
 #property strict
 
 #include <Trade/Trade.mqh>
 
-const string SP_EA_VERSAO = "5.94";
+const string SP_EA_VERSAO = "5.95";
 
 CTrade trade;
 
@@ -466,7 +466,7 @@ string OBJ_LIM_STATE    = "SP_LIM_STATE";
 string OBJ_STATUS_STRIP  = "SP_STATUS_STRIP";
 string OBJ_CANDLE_TIMER = "SP_TIMER";
 
-datetime ultimoClique  = 0;
+ulong    ultimoCliqueMs = 0;   // anti-duplo-clique (GetTickCount64: anda mesmo sem ticks)
 datetime lastOrderBar  = 0;
 
 ulong g_pendBuyJ       = 0;
@@ -6706,8 +6706,9 @@ void ProcessarCliqueBotaoPainel(const string btn)
       && btn != OBJ_BTN_PERF_N && btn != OBJ_BTN_PERF_V)
       return;
 
-   if(TimeCurrent() == ultimoClique) return;
-   ultimoClique = TimeCurrent();
+   ulong agoraClique = GetTickCount64();
+   if(agoraClique - ultimoCliqueMs < 250) return;
+   ultimoCliqueMs = agoraClique;
 
    ObjectSetInteger(0, btn, OBJPROP_STATE, false);
 
@@ -7290,16 +7291,16 @@ void CriarPainel()
 
    CreateLabelCentered("SP_OPS_LBL", lx, metY, "Oper", C_LABEL_COLOR, 7);
    AplicarLabelMetrica("SP_OPS_LBL");
-   CreateLabelMetricaValor(OBJ_TXT_OPS, lx, metY, "0", C_NOME_COLOR, 13, true);
+   CreateLabelMetricaValor(OBJ_TXT_OPS, lx, metY, "0", C_NOME_COLOR, 11, true);
    AplicarLabelMetrica(OBJ_TXT_OPS);
    CreateLabelCentered("SP_PTS_LBL", lx, metY, "Pontos", C_LABEL_COLOR, 7);
    AplicarLabelMetrica("SP_PTS_LBL");
    if(ObjectFind(0, OBJ_TXT_PTS) >= 0) ObjectDelete(0, OBJ_TXT_PTS);
-   CreateLabelMetricaValor(OBJ_TXT_PTS, lx, metY, "0", C_NOME_COLOR, 13, true);
+   CreateLabelMetricaValor(OBJ_TXT_PTS, lx, metY, "0", C_NOME_COLOR, 11, true);
    AplicarLabelMetrica(OBJ_TXT_PTS);
    CreateLabelCentered("SP_SPR_LBL", lx, metY, "Spread", C_LABEL_COLOR, 7);
    AplicarLabelMetrica("SP_SPR_LBL");
-   CreateLabelMetricaValor(OBJ_TXT_SPREAD, lx, metY, "0", C_SPREAD_VAL, 13, true);
+   CreateLabelMetricaValor(OBJ_TXT_SPREAD, lx, metY, "0", C_SPREAD_VAL, 11, true);
    AplicarLabelMetrica(OBJ_TXT_SPREAD);
    CreateLabelCentered(OBJ_LIM_STATE, lx, metY, "LIBERADO", C_STATUS_OK, 8, true);
    AplicarLabelMetrica(OBJ_LIM_STATE);
@@ -9476,7 +9477,7 @@ void AtualizarBotaoParciais()
    ObjectSetString(0, OBJ_BTN_PARCIAIS, OBJPROP_TEXT, on ? "ON" : "OFF");
    ObjectSetString(0, OBJ_BTN_PARCIAIS, OBJPROP_FONT, UI_FONT_BOLD);
    ObjectSetInteger(0, OBJ_BTN_PARCIAIS, OBJPROP_FONTSIZE, 7);
-   ObjectSetInteger(0, OBJ_BTN_PARCIAIS, OBJPROP_COLOR, C_BTN_TEXT);
+   ObjectSetInteger(0, OBJ_BTN_PARCIAIS, OBJPROP_COLOR, on ? C_EXEC_TEXT_ON : C_NOME_COLOR);
    ObjectSetInteger(0, OBJ_BTN_PARCIAIS, OBJPROP_BGCOLOR, on ? C_PARCIAIS_ON_BG : C_PARCIAIS_OFF_BG);
    ObjectSetInteger(0, OBJ_BTN_PARCIAIS, OBJPROP_BORDER_COLOR, on ? C_PARCIAIS_ON_BG : C_BTN_BORDER);
    ObjectSetInteger(0, OBJ_BTN_PARCIAIS, OBJPROP_BORDER_TYPE, BORDER_FLAT);
