@@ -13,6 +13,7 @@ Sistema de parciais da v5.38, trazido para a versão atual.
 - **SL depois do P1** ("Após P1"): vai para **entrada + 100 pts**, ou entrada − 100 pts na venda.
 - **SL depois do P2** ("Após P2"): vai para o **nível do P1**, entrada + 500 pts.
 - Se P1% + P2% passar de 100%, o P2 é reduzido automaticamente.
+- **P1 + P2 = 100%:** não há resíduo. O P2 fecha tudo o que sobrou depois do P1, e a operação termina no P2 (v6.00). Exemplo com lote 0,25 e 50/50: o P1 fecha 0,12 e o P2 fecha 0,13.
 - Os volumes respeitam o lote mínimo e o passo de lote do ativo. Exemplo com lote 0,20: P1 fecha 0,10, P2 fecha 0,06 e sobram 0,04. Se a parcial deixasse um resto menor que o lote mínimo, ela é ajustada.
 - **TP virtual:** se uma parcial ainda não executada estiver no mesmo nível do TP, ela sai primeiro.
 

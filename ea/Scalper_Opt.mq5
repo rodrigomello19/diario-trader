@@ -1,13 +1,13 @@
 //+------------------------------------------------------------------+
-//|                     SCALPER PRO v5.99 - MT5                       |
+//|                     SCALPER PRO v6.00 - MT5                       |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, Scalper Pro"
-#property version       "5.99"
+#property version       "6.00"
 #property strict
 
 #include <Trade/Trade.mqh>
 
-const string SP_EA_VERSAO = "5.99";
+const string SP_EA_VERSAO = "6.00";
 
 CTrade trade;
 
@@ -9699,7 +9699,10 @@ void CalcularAlvosParciais(double volInicial, double &t1, double &t2)
 
    double soma = NormalizeVol(t1 + t2);
    double tol  = VolTolerance();
-   if(soma > volInicial - tol)
+   // P1 + P2 = 100%: nao existe residuo, o P2 fecha TUDO o que sobrou depois do P1.
+   // (Cada % arredondado para baixo separadamente deixaria sobra, ex.: lote 0.25 com 50/50
+   //  daria 0.12 + 0.12 e 0.01 ficaria aberto.)
+   if(soma > volInicial - tol || Partial1_Close + Partial2_Close >= 100.0 - 1e-6)
       t2 = NormalizeVol(MathMax(0, volInicial - t1));
 }
 
