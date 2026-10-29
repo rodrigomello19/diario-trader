@@ -1,13 +1,13 @@
 //+------------------------------------------------------------------+
-//|                     SCALPER PRO v5.95 - MT5                       |
+//|                     SCALPER PRO v5.96 - MT5                       |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, Scalper Pro"
-#property version       "5.95"
+#property version       "5.96"
 #property strict
 
 #include <Trade/Trade.mqh>
 
-const string SP_EA_VERSAO = "5.95";
+const string SP_EA_VERSAO = "5.96";
 
 CTrade trade;
 
@@ -6541,18 +6541,40 @@ bool ObjetoPainelColapsavel(const string name)
    return true;
 }
 
+// Exibir um objeto tambem o traz para a frente. Com cartoes por tras dos campos, a ordem
+// importa: fundos primeiro, depois campos/botoes/rotulos, por ultimo os textos dos botoes.
+int CamadaObjetoPainel(const string nome)
+{
+   if(nome == "SP_CARD_PAR" || nome == "SP_CARD_PARC" || nome == "SP_PERF_BG") return 0;
+   if(nome == OBJ_P1_STATUS_BG || nome == OBJ_P2_STATUS_BG) return 1;
+   int n = StringLen(nome);
+   if(n > 3)
+   {
+      string suf = StringSubstr(nome, n - 3);
+      if(suf == "_T1" || suf == "_T2") return 3;   // textos sobre COMPRA/FECHA/VENDA
+   }
+   return 2;
+}
+
+void ExibirSecoesPainelEmCamadas()
+{
+   for(int camada = 0; camada <= 3; camada++)
+   {
+      for(int i = 0; i < ObjectsTotal(0, -1, -1); i++)
+      {
+         string nome = ObjectName(0, i, -1, -1);
+         if(!ObjetoPainelColapsavel(nome)) continue;
+         if(CamadaObjetoPainel(nome) != camada) continue;
+         ExibirObjetoPainel(nome);
+         if(EhCampoEditavelPainel(nome))
+            ConfigurarCampoEditavel(nome);
+      }
+   }
+}
+
 void RestaurarVisibilidadeCamposPainel()
 {
-   for(int i = 0; i < ObjectsTotal(0, -1, -1); i++)
-   {
-      string nome = ObjectName(0, i, -1, -1);
-      if(!ObjetoPainelRestauravel(nome)) continue;
-      if(ObjetoPainelSempreVisivel(nome)) continue;
-
-      ExibirObjetoPainel(nome);
-      if(EhCampoEditavelPainel(nome))
-         ConfigurarCampoEditavel(nome);
-   }
+   ExibirSecoesPainelEmCamadas();
 }
 
 void GarantirPainelNaFrente()
@@ -6990,13 +7012,7 @@ void RestaurarLayoutSecoesColapsaveis()
    int lx   = PANEL_X + PANEL_PAD;
    int divW = PANEL_W - PANEL_PAD * 2;
    DesenharSecoesPainel(lx, divW, false);   // reposiciona sem mexer no texto dos campos
-
-   for(int i = ObjectsTotal(0, -1, -1) - 1; i >= 0; i--)
-   {
-      string nome = ObjectName(0, i, -1, -1);
-      if(!ObjetoPainelColapsavel(nome)) continue;
-      ExibirObjetoPainel(nome);
-   }
+   ExibirSecoesPainelEmCamadas();
 }
 
 bool ObjetoPainelSempreVisivel(const string name)
