@@ -1,5 +1,5 @@
 // ============================================================================
-//  SP Copy Filha NT8 v1.2  -  filha NinjaTrader 8 do copiador Scalper Pro (MT5)
+//  SP Copy Filha NT8 v1.3  -  filha NinjaTrader 8 do copiador Scalper Pro (MT5)
 // ----------------------------------------------------------------------------
 //  Le o arquivo de estado que a MAE (Scalper Pro, modo Mae) grava em
 //  %APPDATA%\MetaQuotes\Terminal\Common\Files\SP_Copy_<canal>.txt e replica
@@ -204,6 +204,8 @@ namespace NinjaTrader.NinjaScript.Strategies
                         ? string.Format("{0} contrato(s) SL={1} TP={2} ticks", Contratos, StopTicks, AlvoTicks)
                         : "ATM '" + TemplateAtm + "'",
                     Path.Combine(pastaCommon, ArquivoMae())));
+                Imprimir("presenca para a mae (a cada 0,5 s): " + Path.Combine(pastaCommon, "SP_CopyAck_" + Canal + "_NT-" + SanitizarNome(Account.Name) + ".txt")
+                    + (Directory.Exists(pastaCommon) ? "" : "  <-- PASTA NAO EXISTE: confira 'Pasta Common\\Files do MT5'"));
                 timer = new System.Threading.Timer(OnTimer, null, IntervaloMs, IntervaloMs);
             }
             else if (State == State.Terminated)
@@ -850,7 +852,7 @@ namespace NinjaTrader.NinjaScript.Strategies
                     fs.Write(b, 0, b.Length);
                 }
             }
-            catch (Exception) { /* proxima tentativa em ACK_MS */ }
+            catch (Exception ex) { Avisar("falha ao gravar a presenca para a mae: " + ex.Message); }   // nova tentativa em ACK_MS
         }
 
         // Estado local: copia atual e ids da mae ja tratados (sobrevive a reinicio do NT8).

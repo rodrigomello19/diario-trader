@@ -1,13 +1,13 @@
 //+------------------------------------------------------------------+
-//|                     SCALPER PRO v6.00 - MT5                       |
+//|                     SCALPER PRO v6.01 - MT5                       |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, Scalper Pro"
-#property version       "6.00"
+#property version       "6.01"
 #property strict
 
 #include <Trade/Trade.mqh>
 
-const string SP_EA_VERSAO = "6.00";
+const string SP_EA_VERSAO = "6.01";
 
 CTrade trade;
 
@@ -7722,7 +7722,11 @@ void CopyMae_LerFilhas()
    static bool   s_pronta[];
 
    string nome = "";
+   string diag = "";   // motivo de cada ACK ignorado (diagnostico de "0 filhas")
    long hf = FileFindFirst("SP_CopyAck_" + g_copyCanal + "_*.txt", nome, FILE_COMMON);
+   if(hf == INVALID_HANDLE)
+      diag = StringFormat("nenhum arquivo SP_CopyAck_%s_*.txt em %s\\Files (filha parada, canal diferente ou outra pasta Common)",
+                          g_copyCanal, TerminalInfoString(TERMINAL_COMMONDATA_PATH));
    if(hf != INVALID_HANDLE)
    {
       do
@@ -7734,9 +7738,16 @@ void CopyMae_LerFilhas()
          FileClose(h);
          StringTrimRight(txt);
          string a[];
-         if(StringSplit(txt, '|', a) < 6 || a[0] != "ACK" || a[1] != g_copyCanal) continue;
+         if(StringSplit(txt, '|', a) < 6 || a[0] != "ACK" || a[1] != g_copyCanal)
+         {
+            diag += (diag == "" ? "" : " | ") + nome + ": conteudo invalido";
+            continue;
+         }
          ulong tk = (ulong)StringToInteger(a[2]);
          if(tk == 0) continue;
+         if(agora > tk && agora - tk > (ulong)COPY_MAE_VELHA_MS)
+            diag += (diag == "" ? "" : " | ") + StringFormat("%s: sem atualizacao ha %I64u s (filha parada%s)",
+                    nome, (agora - tk) / 1000, (agora - tk) > 86400000 ? " ou em outro computador" : "");
 
          int k = -1;
          for(int i = 0; i < ArraySize(s_nome); i++)
@@ -7766,6 +7777,13 @@ void CopyMae_LerFilhas()
 
    if(n != g_copyFilhasN || prontas != g_copyFilhasProntas)
       PrintFormat("Scalper Pro copiador MAE: filhas conectadas=%d prontas=%d", n, prontas);
+   // sem filha conectada: diz o motivo (no maximo a cada 30 s)
+   static ulong s_diagMs = 0;
+   if(n == 0 && diag != "" && agora - s_diagMs > 30000)
+   {
+      PrintFormat("Scalper Pro copiador MAE: 0 filhas | %s", diag);
+      s_diagMs = agora;
+   }
    g_copyFilhasN       = n;
    g_copyFilhasProntas = prontas;
 }
