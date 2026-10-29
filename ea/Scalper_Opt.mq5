@@ -1,13 +1,13 @@
 //+------------------------------------------------------------------+
-//|                     SCALPER PRO v5.91 - MT5                       |
+//|                     SCALPER PRO v5.92 - MT5                       |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, Scalper Pro"
-#property version       "5.91"
+#property version       "5.92"
 #property strict
 
 #include <Trade/Trade.mqh>
 
-const string SP_EA_VERSAO = "5.91";
+const string SP_EA_VERSAO = "5.92";
 
 CTrade trade;
 
@@ -333,7 +333,8 @@ const int   PARTIAL_LOCK_SEC     = 15;
 const int   PARTIAL_UI_RESET_SEC = 15;
 
 const int   PARC_TITULO_H = 20;
-const int   PARC_SEC_H    = PARC_TITULO_H + (PARAM_FLD_H + PARAM_ROW_GAP) + PARAM_FLD_H + SEC_EXEC_GAP;
+// titulo + P1/P2/P3 + linha separadora (no meio do espaco antes dos botoes)
+const int   PARC_SEC_H    = PARC_TITULO_H + 2 * (PARAM_FLD_H + PARAM_ROW_GAP) + PARAM_FLD_H + SEC_EXEC_GAP;
 const int   BTN_PARC_W    = 44;
 const int   BTN_PARC_H    = 18;
 const int   PARC_X_PTS    = 26;    // colunas da linha P1/P2 (relativas a lx)
@@ -344,6 +345,7 @@ const int   PARC_X_ST     = 170;
 
 const color C_P1_ACCENT       = 0x80C8FF;
 const color C_P2_ACCENT       = 0x39FF14;
+const color C_P3_ACCENT       = 0x40B0FF;   // laranja (P3 = residuo ate o TP)
 const color C_PARCIAIS_ON_BG  = 0x187010;
 const color C_PARCIAIS_OFF_BG = 0x222222;
 
@@ -352,6 +354,11 @@ string OBJ_P1_STATUS    = "SP_P1_STATUS";
 string OBJ_P2_STATUS    = "SP_P2_STATUS";
 string OBJ_P1_STATUS_BG = "SP_P1_STATUS_BG";
 string OBJ_P2_STATUS_BG = "SP_P2_STATUS_BG";
+string OBJ_P3_STATUS    = "SP_P3_STATUS";
+string OBJ_P3_STATUS_BG = "SP_P3_STATUS_BG";
+string OBJ_P3_PTS       = "SP_P3_PTS_BOX";    // somente leitura: = T.P.
+string OBJ_P3_PCT       = "SP_P3_PCT_BOX";    // somente leitura: = 100 - P1 - P2
+string OBJ_PARC_SEP     = "SP_D2_SEP";
 string OBJ_EDIT_P1_PTS  = "SP_EDIT_P1_PTS";
 string OBJ_EDIT_P1_PCT  = "SP_EDIT_P1_CLOSE";
 string OBJ_EDIT_P2_PTS  = "SP_EDIT_P2_PTS";
@@ -3662,6 +3669,7 @@ void CarregarPerfilAtivo()
 
 void AplicarPerfilAoPainel()
 {
+   AtualizarCamposP3();   // T.P. do perfil = alvo do P3
    EscreverValorCampoEdit(OBJ_EDIT_LOTE);
    EscreverValorCampoEdit(OBJ_EDIT_TP);
    EscreverValorCampoEdit(OBJ_EDIT_SL);
@@ -6980,11 +6988,11 @@ void RestaurarLayoutSecoesColapsaveis()
    int parcY = fieldsY + rowH * 2 + PARAM_FLD_H + SEC_EXEC_GAP;
    ReposicionarSecaoParciais(lx, parcY, divW);
 
-   int auxY  = parcY + PARC_SEC_H;
-   ReposicionarBotoesAux(lx, divW, auxY);
-
-   int yExec = auxY + SEC_AUX_BTN_H + SEC_EXEC_GAP;
+   int yExec = parcY + PARC_SEC_H;
    ReposicionarBotoesExec(lx, divW, yExec);
+
+   int auxY  = yExec + EXEC_BTN_H + SEC_EXEC_GAP;
+   ReposicionarBotoesAux(lx, divW, auxY);
 
    for(int i = ObjectsTotal(0, -1, -1) - 1; i >= 0; i--)
    {
@@ -7313,16 +7321,8 @@ void CriarPainel()
    int parcY = fieldsY + rowH * 2 + PARAM_FLD_H + SEC_EXEC_GAP;
    CriarSecaoParciais(lx, parcY, divW);
 
-   // --- Acoes rapidas: perfil / sync / linhas / limites (pilulas em linha) ---
-   int auxY = parcY + PARC_SEC_H;
-   CreateButton(OBJ_BTN_SETUP, lx, auxY, 10, SEC_AUX_BTN_H, NomeSetupAtivo(), 7);
-   CreateButton(OBJ_BTN_SYNC_HL, lx, auxY, 10, SEC_AUX_BTN_H, "SYNC", 7);
-   CreateButton(OBJ_BTN_LINHAS, lx, auxY, 10, SEC_AUX_BTN_H, "LINHAS", 7);
-   CreateButton(OBJ_BTN_LIMITS, lx, auxY, 10, SEC_AUX_BTN_H, "LIMITES", 7);
-   ReposicionarBotoesAux(lx, divW, auxY);
-
    // --- Execucao: compra / fecha / venda ---
-   int yExec = auxY + SEC_AUX_BTN_H + SEC_EXEC_GAP;
+   int yExec = parcY + PARC_SEC_H;
    CreateButton(OBJ_BTN_BUY, lx, yExec, 10, EXEC_BTN_H, "COMPRA", BTN_EXEC_FONT_SIZE);
    AplicarEstiloBotaoExec(OBJ_BTN_BUY, false);
    CreateButton(OBJ_BTN_CLOSEALL, lx, yExec, 10, EXEC_BTN_H, "FECHA", BTN_EXEC_FONT_SIZE);
@@ -7331,7 +7331,15 @@ void CriarPainel()
    AplicarEstiloBotaoExec(OBJ_BTN_SELL, false);
    ReposicionarBotoesExec(lx, divW, yExec);
 
-   int yAfterExec = yExec + EXEC_BTN_H + SEC_EXEC_METRICS_GAP;
+   // --- Acoes rapidas (abaixo da execucao): perfil / sync / linhas / limites ---
+   int auxY = yExec + EXEC_BTN_H + SEC_EXEC_GAP;
+   CreateButton(OBJ_BTN_SETUP, lx, auxY, 10, SEC_AUX_BTN_H, NomeSetupAtivo(), 7);
+   CreateButton(OBJ_BTN_SYNC_HL, lx, auxY, 10, SEC_AUX_BTN_H, "SYNC", 7);
+   CreateButton(OBJ_BTN_LINHAS, lx, auxY, 10, SEC_AUX_BTN_H, "LINHAS", 7);
+   CreateButton(OBJ_BTN_LIMITS, lx, auxY, 10, SEC_AUX_BTN_H, "LIMITES", 7);
+   ReposicionarBotoesAux(lx, divW, auxY);
+
+   int yAfterExec = auxY + SEC_AUX_BTN_H + SEC_EXEC_METRICS_GAP;
 
    // --- METRICAS: Oper / Pts / Spread / Liberado (logo abaixo dos botoes de execucao) ---
    int metY = yAfterExec;
@@ -9556,6 +9564,7 @@ void AtualizarStatusParciaisDesabilitadas()
    {
       SetParcialLabel(1, "OFF", C_MUTED);
       SetParcialLabel(2, "OFF", C_MUTED);
+      SetParcialLabel(3, "OFF", C_MUTED);
    }
 }
 
@@ -9569,12 +9578,22 @@ void ResetStatusParciais()
    }
    SetParcialLabel(1, "ATIVO", C_STATUS_OK);
    SetParcialLabel(2, "ATIVO", C_STATUS_OK);
+   AtualizarStatusP3(0);
 }
 
 string PartialStatusObject(int partialId)
 {
    if(partialId == 1) return OBJ_P1_STATUS;
    if(partialId == 2) return OBJ_P2_STATUS;
+   if(partialId == 3) return OBJ_P3_STATUS;
+   return "";
+}
+
+string PartialStatusBox(int partialId)
+{
+   if(partialId == 1) return OBJ_P1_STATUS_BG;
+   if(partialId == 2) return OBJ_P2_STATUS_BG;
+   if(partialId == 3) return OBJ_P3_STATUS_BG;
    return "";
 }
 
@@ -9582,7 +9601,34 @@ color PartialStatusColor(int partialId)
 {
    if(partialId == 1) return C_P1_ACCENT;
    if(partialId == 2) return C_P2_ACCENT;
+   if(partialId == 3) return C_P3_ACCENT;
    return C_LABEL_BRIGHT;
+}
+
+//--- P3: o residuo (100% - P1 - P2) que continua ate o TP, o SL ou o trailing
+double ResiduoPercentual()
+{
+   return MathMax(0.0, 100.0 - Partial1_Close - Partial2_Close);
+}
+
+void AtualizarCamposP3()
+{
+   if(ObjectFind(0, OBJ_P3_PTS) >= 0)
+      ObjectSetString(0, OBJ_P3_PTS, OBJPROP_TEXT, TakeProfit > 0 ? DoubleToString(TakeProfit, 0) : "--");
+   if(ObjectFind(0, OBJ_P3_PCT) >= 0)
+      ObjectSetString(0, OBJ_P3_PCT, OBJPROP_TEXT, DoubleToString(ResiduoPercentual(), 0));
+}
+
+// Status do P3: sem residuo "--"; com posicao, "Correndo" depois que P1 e P2 sairam.
+void AtualizarStatusP3(const ulong posTkt)
+{
+   if(!ParciaisAtivas()) { SetParcialLabel(3, "OFF", C_MUTED); return; }
+   if(ResiduoPercentual() < 0.5) { SetParcialLabel(3, "--", C_MUTED); return; }
+   if(posTkt == 0 || !GlobalVariableCheck(GVInitVol(posTkt))) { SetParcialLabel(3, "ATIVO", C_STATUS_OK); return; }
+   bool p1 = GlobalVariableCheck(GVState(posTkt, 1)) && (int)GlobalVariableGet(GVState(posTkt, 1)) == PARTIAL_DONE;
+   bool p2 = GlobalVariableCheck(GVState(posTkt, 2)) && (int)GlobalVariableGet(GVState(posTkt, 2)) == PARTIAL_DONE;
+   if(p1 && p2) SetParcialLabel(3, "Correndo", C_P3_ACCENT);
+   else         SetParcialLabel(3, "ATIVO", C_STATUS_OK);
 }
 
 void SetParcialLabel(int partialId, string txt, color c)
@@ -9590,8 +9636,8 @@ void SetParcialLabel(int partialId, string txt, color c)
    string obj = PartialStatusObject(partialId);
    if(obj == "" || ObjectFind(0, obj) < 0) return;
 
-   string box = (partialId == 1) ? OBJ_P1_STATUS_BG : OBJ_P2_STATUS_BG;
-   if(ObjectFind(0, box) >= 0)
+   string box = PartialStatusBox(partialId);
+   if(box != "" && ObjectFind(0, box) >= 0)
    {
       ObjectSetInteger(0, box, OBJPROP_BORDER_COLOR, c);
       ObjectSetInteger(0, box, OBJPROP_COLOR, c);
@@ -9638,6 +9684,7 @@ void AtualizarStatusParciaisPosicao(ulong posTkt)
    if(!ParciaisAtivas()) { AtualizarStatusParciaisDesabilitadas(); return; }
    for(int p = 1; p <= PARTIAL_COUNT; p++)
       AtualizarStatusParcialUI(posTkt, p);
+   AtualizarStatusP3(posTkt);
 }
 
 //--- volumes
@@ -9896,6 +9943,7 @@ void ConfirmarFechamentoParcial(ulong posTkt, int partialId, double dealVol, ulo
       if(alvo > 0) GlobalVariableSet(GVClosed(posTkt, partialId), alvo);
       SetParcialLabel(partialId, "Executada", clrLime);
       Status(StringFormat("Parcial P%d executada (%.2f)", partialId, alvo), C_STATUS_OK, true);
+      AtualizarStatusP3(posTkt);
       if(partialId == 1)
          AvancarSLTrailAposP1(posTkt);
       else if(partialId == 2)
@@ -10400,7 +10448,11 @@ void FinalizarParciaisPorFechamentoTotal(ulong posTkt)
          SetParcialLabel(p, ok ? "Executada" : "Nao exec.", ok ? clrLime : clrGray);
    }
    if(tinhaPlano)
+   {
+      if(ParciaisAtivas() && ResiduoPercentual() >= 0.5)
+         SetParcialLabel(3, "Encerrada", clrLime);
       AgendarResetStatusParciais();
+   }
 }
 
 //--- painel: secao PARCIAIS (titulo + botao ON/OFF + linhas P1 e P2)
@@ -10444,9 +10496,53 @@ void CriarSecaoParciais(const int lx, const int y, const int divW)
       CreateLabel("SP_PRU" + sp, lx + PARC_X_PTS + PARC_W_PTS + 4, lblY, "pts", C_LABEL_COLOR, 7);
       CreateEditCampoParam(EditPctParcial(p), lx + PARC_X_PCT, rowY, DoubleToString(pct, 0), PARC_W_PCT, PARAM_FLD_H);
       CreateLabel("SP_PRC" + sp, lx + PARC_X_PCT + PARC_W_PCT + 4, lblY, "%", C_LABEL_COLOR, 7);
-      CriarCaixaStatusParcial(p == 1 ? OBJ_P1_STATUS_BG : OBJ_P2_STATUS_BG, PartialStatusObject(p),
+      CriarCaixaStatusParcial(PartialStatusBox(p), PartialStatusObject(p),
                               lx + PARC_X_ST, rowY, divW - PARC_X_ST, st, cs);
    }
+
+   // P3 = residuo: mesmos campos, somente leitura (pts = T.P., % = 100 - P1 - P2)
+   int rowY3 = y + PARC_TITULO_H + 2 * rowH;
+   int lblY3 = rowY3 + (PARAM_FLD_H - PARAM_LBL_FS_H) / 2 + 1;
+   CreateLabel("SP_PRL3", lx, lblY3, "P3", C_P3_ACCENT, 9, true);
+   CriarCaixaSomenteLeitura(OBJ_P3_PTS, lx + PARC_X_PTS, rowY3, PARC_W_PTS, "Residuo vai ate o T.P. (campo T.P. acima)");
+   CreateLabel("SP_PRU3", lx + PARC_X_PTS + PARC_W_PTS + 4, lblY3, "pts", C_LABEL_COLOR, 7);
+   CriarCaixaSomenteLeitura(OBJ_P3_PCT, lx + PARC_X_PCT, rowY3, PARC_W_PCT, "Residuo = 100% - P1 - P2 (automatico)");
+   CreateLabel("SP_PRC3", lx + PARC_X_PCT + PARC_W_PCT + 4, lblY3, "%", C_LABEL_COLOR, 7);
+   CriarCaixaStatusParcial(OBJ_P3_STATUS_BG, OBJ_P3_STATUS, lx + PARC_X_ST, rowY3, divW - PARC_X_ST, st, cs);
+   AtualizarCamposP3();
+   AtualizarStatusP3(0);
+
+   // linha separando as parciais dos botoes
+   CreateDivider(OBJ_PARC_SEP, lx, YSeparadorParciais(y), divW, C_DIVIDER_LIGHT);
+}
+
+int YSeparadorParciais(const int y)
+{
+   return y + PARC_TITULO_H + 2 * (PARAM_FLD_H + PARAM_ROW_GAP) + PARAM_FLD_H + SEC_EXEC_GAP / 2;
+}
+
+void CriarCaixaSomenteLeitura(const string name, const int x, const int y, const int w, const string dica)
+{
+   if(ObjectFind(0, name) >= 0 && ObjectGetInteger(0, name, OBJPROP_TYPE) != OBJ_EDIT)
+      ObjectDelete(0, name);
+   if(ObjectFind(0, name) < 0) ObjectCreate(0, name, OBJ_EDIT, 0, 0, 0);
+   ObjectSetInteger(0, name, OBJPROP_XDISTANCE, x);
+   ObjectSetInteger(0, name, OBJPROP_YDISTANCE, y);
+   ObjectSetInteger(0, name, OBJPROP_XSIZE, w);
+   ObjectSetInteger(0, name, OBJPROP_YSIZE, PARAM_FLD_H);
+   ObjectSetInteger(0, name, OBJPROP_CORNER, CORNER_LEFT_UPPER);
+   ObjectSetInteger(0, name, OBJPROP_BGCOLOR, C_GLASS_BG);
+   ObjectSetInteger(0, name, OBJPROP_COLOR, C_LABEL_COLOR);
+   ObjectSetInteger(0, name, OBJPROP_BORDER_COLOR, C_GLASS_BORDER);
+   ObjectSetInteger(0, name, OBJPROP_BORDER_TYPE, BORDER_FLAT);
+   ObjectSetInteger(0, name, OBJPROP_ALIGN, ALIGN_LEFT);
+   ObjectSetInteger(0, name, OBJPROP_FONTSIZE, 9);
+   ObjectSetString(0, name, OBJPROP_FONT, UI_FONT_BOLD);
+   ObjectSetInteger(0, name, OBJPROP_READONLY, true);
+   ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
+   ObjectSetInteger(0, name, OBJPROP_BACK, false);
+   ObjectSetInteger(0, name, OBJPROP_ZORDER, 5);
+   ObjectSetString(0, name, OBJPROP_TOOLTIP, dica);
 }
 
 void ReposicionarSecaoParciais(const int lx, const int y, const int divW)
@@ -10469,9 +10565,22 @@ void ReposicionarSecaoParciais(const int lx, const int y, const int divW)
       ReposicionarObjetoXY("SP_PRU" + sp, lx + PARC_X_PTS + PARC_W_PTS + 4, lblY);
       ReposicionarObjetoXY(EditPctParcial(p), lx + PARC_X_PCT, rowY);
       ReposicionarObjetoXY("SP_PRC" + sp, lx + PARC_X_PCT + PARC_W_PCT + 4, lblY);
-      ReposicionarObjetoXY(p == 1 ? OBJ_P1_STATUS_BG : OBJ_P2_STATUS_BG, lx + PARC_X_ST, rowY);
+      ReposicionarObjetoXY(PartialStatusBox(p), lx + PARC_X_ST, rowY);
       ReposicionarObjetoXY(PartialStatusObject(p), lx + PARC_X_ST + stW / 2, rowY + PARAM_FLD_H / 2);
    }
+
+   int rowY3 = y + PARC_TITULO_H + 2 * rowH;
+   int lblY3 = rowY3 + (PARAM_FLD_H - PARAM_LBL_FS_H) / 2 + 1;
+   int stW3  = divW - PARC_X_ST;
+   ReposicionarObjetoXY("SP_PRL3", lx, lblY3);
+   ReposicionarObjetoXY(OBJ_P3_PTS, lx + PARC_X_PTS, rowY3);
+   ReposicionarObjetoXY("SP_PRU3", lx + PARC_X_PTS + PARC_W_PTS + 4, lblY3);
+   ReposicionarObjetoXY(OBJ_P3_PCT, lx + PARC_X_PCT, rowY3);
+   ReposicionarObjetoXY("SP_PRC3", lx + PARC_X_PCT + PARC_W_PCT + 4, lblY3);
+   ReposicionarObjetoXY(OBJ_P3_STATUS_BG, lx + PARC_X_ST, rowY3);
+   ReposicionarObjetoXY(OBJ_P3_STATUS, lx + PARC_X_ST + stW3 / 2, rowY3 + PARAM_FLD_H / 2);
+   ReposicionarObjetoXY(OBJ_PARC_SEP, lx, YSeparadorParciais(y));
+   AtualizarCamposP3();
 }
 
 // Le os campos P1/P2 do painel (chamado por AtualizarCampos).
@@ -10488,6 +10597,7 @@ void LerCamposParciais()
 
    double p1c = Partial1_Close, p2c = Partial2_Close;
    SanitizarConfigParciais();
+   AtualizarCamposP3();
    // corrige o que foi digitado (ex.: P1 60% + P2 50% vira P2 40%), fora de uma edicao em andamento
    if(g_campoEditAtivo == "" && (p1c != Partial1_Close || p2c != Partial2_Close))
    {
