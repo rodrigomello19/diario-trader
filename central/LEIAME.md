@@ -39,8 +39,8 @@ A trava dura até o **reset diário** (ex.: 06:00 do dia seguinte). A **senha me
    - **Contas filhas:** separe por vírgula. MT5 pelo login (ex.: `1514567645`); NT8 como `NT-<conta>` (ex.: `NT-APEX2209540000056`). Os IDs aparecem na lista de contas do Painel.
    - Limites, horários, reset e janela de edição. Depois clique em **Salvar configuração**.
 5. Atualize os EAs e a estratégia:
-   - **Scalper Pro v5.87** em todos os terminais MT5 (mãe e filhas);
-   - **SPCopyFilhaNT v1.2** no NinjaTrader 8.
+   - **Scalper Pro v5.87 ou mais nova** (atual: v6.01) em todos os terminais MT5 (mãe e filhas);
+   - **SPCopyFilhaNT v1.2 ou mais nova** (atual: v1.3) no NinjaTrader 8.
 
    A partir daí todos obedecem à central automaticamente. Não há parâmetro para desligar.
 
