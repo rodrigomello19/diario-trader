@@ -1,13 +1,13 @@
 //+------------------------------------------------------------------+
-//|                     SCALPER PRO v6.01 - MT5                       |
+//|                     SCALPER PRO v6.02 - MT5                       |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, Scalper Pro"
-#property version       "6.01"
+#property version       "6.02"
 #property strict
 
 #include <Trade/Trade.mqh>
 
-const string SP_EA_VERSAO = "6.01";
+const string SP_EA_VERSAO = "6.02";
 
 CTrade trade;
 
@@ -174,34 +174,19 @@ const int    SP_STATE_MAGIC   = 0x53504332;
 const int    SP_STATE_VERSION = 1;
 datetime     g_ultimaReconStats = 0;
 
-const int PANEL_X = 5, PANEL_Y = 3, PANEL_W = 332, PANEL_H = 336, PANEL_H_MIN = 130;
+const int PANEL_X = 5, PANEL_Y = 3, PANEL_W = 332, PANEL_H_MIN = 130;
 const int PANEL_COLAPSE_Y_OFFSET = 1200;
 const int PANEL_Y_MAX_NORMAL     = 900;
 const int PANEL_HEADER_H = 34;
 const int PANEL_ACCENT_H = 2;
 const int PANEL_PAD      = 12;
-const int BOX_GAP        = 8;
-const int PARAM_LBL_W    = 38;   // coluna do rotulo (Trail = maior)
-const int PARAM_FLD_W    = 112;  // largura maxima do campo numerico
-const int PARAM_LBL_GAP  = 5;    // espaco rotulo → campo
-const int PARAM_LBL_FS_H = 11;   // altura visual do rotulo (fs 8)
 const int EXEC_BTN_H     = 46;
-const int EXEC_BTN_GAP   = 4;
 const int SEC_AUX_BTN_H  = 30;
-const int SEC_AUX_ROW_GAP = 6;
 const int METRICS_H      = 46;
-const int STAT_LBL_FS    = 6;
-const int STAT_VAL_FS    = 11;
-const int STAT_LBL_Y_OFFSET   = 8;
-const int STAT_VAL_BOTTOM_PAD = 3;
 const int STAT_MSG_FS    = 9;
 const int STAT_MSG_Y_NUDGE = 0;
 const int STAT_ROW_H     = 22;
 const int STAT_STATUS_GAP = 4;
-const int ROW_H          = 26;
-const int PARAM_LBL_H    = 13;
-const int PARAM_FLD_H    = 24;
-const int PARAM_ROW_GAP  = 6;
 const int PANEL_EDIT_ZORDER = 100;
 const int SP_ROTULO_LARGURA = 80;
 const int SP_ROTULO_MARGEM  = 12;
@@ -215,22 +200,9 @@ const color C_GLASS_BG       = 0xFFFFFF;   // #161B22
 const color C_GLASS_BORDER   = 0xEFE9E5;   // #30363D
 const color C_NOME_COLOR     = 0x271811;   // titulo
 const color C_ACCENT_COLOR   = 0xD84E1D;   // teal interativo
-const color C_TP_ACCENT      = 0x477606;   // T.P. teal
 const color C_LABEL_COLOR    = 0x72645B;   // labels secundarios
 const color C_LABEL_BRIGHT   = 0x544034;   // labels principais
-const color C_DIVIDER_COLOR  = 0xEFE9E5;
-const color C_DIVIDER_LIGHT  = 0xE8E1DC;   // linha secao
-const color C_SETUP_NORM_BG   = 0x477606;   // perfil NORMAL (status)
 const color C_SETUP_VOL_BG    = 0x0847B5;   // perfil VOLATIL (status)
-const color C_AUX_SETUP_NORM_BG    = 0x232E1A;
-const color C_AUX_SETUP_NORM_BRD   = 0x346516;
-const color C_AUX_SETUP_NORM_PRESS = 0x1A2418;
-const color C_AUX_SETUP_VOL_BG     = 0x10222A;
-const color C_AUX_SETUP_VOL_BRD    = 0x24BFFB;
-const color C_AUX_SETUP_VOL_PRESS  = 0x0C181E;
-const color C_AUX_SYNC_BG          = 0xFFFFFF;
-const color C_AUX_SYNC_BRD         = 0xE8E1DC;
-const color C_AUX_SYNC_PRESS       = 0xF5F1EE;
 const color C_AUX_LIMITS_BG        = 0xFFFFFF;
 const color C_AUX_LIMITS_BRD       = 0xE8E1DC;
 const color C_AUX_LIMITS_PRESS     = 0xF5F1EE;
@@ -238,24 +210,16 @@ const color C_INPUT_BG       = 0xFFFFFF;   // campos
 const color C_INPUT_BORDER   = 0xDCD2CB;
 const color C_INPUT_TEXT     = 0x271811;
 const color C_SEC_PARAMS     = 0x544034;   // teal secoes
-const color C_SEC_STATUS     = 0x544034;
 const color C_SPREAD_VAL     = 0x271811;   // teal spread
 const color C_CLOSE_BTN_BG   = 0xF5F1EE;   // slate fechar painel
-const color C_BUY_COLOR        = 0x346516;   // verde compra (referencia)
 const color C_BUY_STATUS_TEXT  = 0x477606;   // compra — legivel no fundo escuro
-const color C_SELL_COLOR       = 0x1D1D7F;   // vinho venda (referencia)
 const color C_SELL_STATUS_TEXT = 0x1823B4;   // venda — legivel no fundo escuro
-const color C_CLOSE_COLOR    = 0x72645B;
 const color C_EXEC_BUY_BG    = 0x559407;   // COMPRA
 const color C_EXEC_BUY_PRESS = 0x477606;
 const color C_EXEC_CLOSE_BG  = 0xFFFFFF;   // FECHA cinza
 const color C_EXEC_CLOSE_PRESS = 0xF5F1EE;
 const color C_EXEC_SELL_BG   = 0x202DD9;   // VENDA
 const color C_EXEC_SELL_PRESS = 0x1823B4;
-const color C_EXEC_SYNC_BG   = 0xFFFFFF;
-const color C_EXEC_SYNC_PRESS = 0xF5F1EE;
-const color C_EXEC_SYNC_TXT  = 0xD84E1D;
-const color C_EXEC_SYNC_BRD  = 0xE8E1DC;
 const color C_STATUS_OK      = 0x477606;
 const color C_STATUS_WARN    = 0x0847B5;
 const color C_STATUS_ERR     = 0x1823B4;   // S.L. vermelho suave
@@ -282,19 +246,9 @@ const color C_BTN_BORDER_PRESS   = 0xB3A298;
 const int   BTN_PRESS_MIN_MS     = 150;        // tempo minimo do destaque ao clique (ms)
 const int   ROTULOS_LIMPEZA_ORFAOS_SEC = 5;    // intervalo minimo para varrer rotulos orfaos
 const int   BTN_EXEC_FONT_SIZE   = 9;
-const int   BTN_LIMITS_ICON_SIZE = 16;
-const int   BTN_LIMITS_H         = 28;
-const int   BTN_SETUP_W          = 56;
-const int   BTN_SETUP_H          = 22;
-const int   SEC_TITLE_GAP        = 10;
-const int   SEC_EXEC_GAP         = 12;
-const int   SEC_EXEC_METRICS_GAP = 12;
-const int   SEC_STATUS_GAP       = 10;
 
 const string UI_FONT       = "Segoe UI";
 const string UI_FONT_BOLD  = "Segoe UI Semibold";
-const string UI_FONT_SYMBOL = "Segoe UI Symbol";
-const string UI_FONT_LOCK   = "Webdings";        // glifo "6" = cadeado (MT5/Windows)
 
 string OBJ_BG           = "SP_BG";
 string OBJ_BORDER       = "SP_BORDER";
@@ -313,6 +267,11 @@ string OBJ_BTN_PERF_N   = "SP_PERF_N";      // seletor de perfil (cartao PARAMET
 string OBJ_BTN_PERF_V   = "SP_PERF_V";
 string OBJ_BTN_LOTE_DN  = "SP_LOTE_DN";     // passo do lote
 string OBJ_BTN_LOTE_UP  = "SP_LOTE_UP";
+string g_btnPressNome   = "";               // botao com destaque de clique (volta ao normal no timer/tick)
+ulong  g_btnPressMs     = 0;
+ulong  g_estPendPos[];                      // fechamentos com historico ainda nao pronto (tentados no timer)
+ulong  g_estPendDeal[];
+int    g_estPendTent[];
 string OBJ_BTN_TP_DN    = "SP_TP_DN";       // passo de 100 pts no T.P. e no S.L.
 string OBJ_BTN_TP_UP    = "SP_TP_UP";
 string OBJ_BTN_SL_DN    = "SP_SL_DN";
@@ -347,10 +306,8 @@ const int   PARTIAL_COUNT        = 2;
 const int   PARTIAL_LOCK_SEC     = 15;
 const int   PARTIAL_UI_RESET_SEC = 15;
 
-const int   PARC_TITULO_H = 20;
 // titulo + P1/P2 + linha separadora (no meio do espaco antes dos botoes).
 // O residuo (100% - P1 - P2) segue ate o TP/SL/trailing e nao aparece no painel.
-const int   PARC_SEC_H    = PARC_TITULO_H + (PARAM_FLD_H + PARAM_ROW_GAP) + PARAM_FLD_H + SEC_EXEC_GAP;
 const int   BTN_PARC_W    = 44;
 const int   BTN_PARC_H    = 18;
 const int   PARC_X_PTS    = 30;    // colunas da linha P1/P2 (relativas a borda interna do cartao)
@@ -382,7 +339,6 @@ string OBJ_P1_STATUS    = "SP_P1_STATUS";
 string OBJ_P2_STATUS    = "SP_P2_STATUS";
 string OBJ_P1_STATUS_BG = "SP_P1_STATUS_BG";
 string OBJ_P2_STATUS_BG = "SP_P2_STATUS_BG";
-string OBJ_PARC_SEP     = "SP_D2_SEP";
 string OBJ_EDIT_P1_PTS  = "SP_EDIT_P1_PTS";
 string OBJ_EDIT_P1_PCT  = "SP_EDIT_P1_CLOSE";
 string OBJ_EDIT_P2_PTS  = "SP_EDIT_P2_PTS";
@@ -437,7 +393,6 @@ const string SP_MSG_FECHANDO    = "Fechando...";
 const string SP_MSG_TRAIL_FIXO  = "Trail fixo";
 const string SP_MSG_TRAIL_DIN   = "Trail dinamico";
 const string SP_MSG_TRAIL_DIST  = "Trail > Step";
-const string SP_MSG_SYNC_OK     = "Sync OK";
 const string SP_MSG_SEM_LINHAS  = "Sem linhas";
 const string SP_MSG_SYNC_ATIVO  = "Ativo invalido";
 const string SP_MSG_SYNC_GRAF   = "Grafico N/A";
@@ -680,11 +635,9 @@ void     SalvarConfigPainelPerfil(const int perfil);
 void     CarregarConfigPainelPerfil(const int perfil);
 void     ReconciliarLinhasNiveisPosicao();
 void     LimparGraficoPosicaoFechada(const ulong posId, const ulong posTktHint, const ulong posTktTrans);
-void     DefinirVisibilidadeObjeto(const string name, const bool visivel);
 void     ExibirObjetoPainel(const string name);
 void     ReposicionarObjetoXY(const string name, const int x, const int y);
 void     RestaurarLayoutSecoesColapsaveis();
-void     ReposicionarBotoesExec(const int lx, const int divW, const int yExec);
 void     ReposicionarBotoesAux(const int lx, const int divW, const int yAux);
 bool     ObjetoPainelRestauravel(const string name);
 bool     ObjetoPainelColapsavel(const string name);
@@ -709,14 +662,10 @@ void     AplicarEstiloBotaoAux(const string name, const bool press);
 void     GarantirBotaoLimites();
 void     AtualizarEstadoLimitesUI();
 void     CreateGlassRect(const string name, const int x, const int y, const int w, const int h);
-void     CreateParamRowHoriz(const string lblName, const string editName, const int x, const int y,
-                             const int fldW, const string label, const string value);
 color    CorRotuloParametro(const string lblName);
 string   TextoRotuloParametro(const string lblName);
 void     AplicarEstiloRotuloParametro(const string lblName);
-color    CorRotuloMetricaStatus(const string lblName);
 color    CorValorPtsPainel(const double pts);
-void     AplicarEstiloRotuloMetricaStatus(const string lblName);
 bool     EhCampoEditavelPainel(const string name);
 bool     EhCampoParametroPainel(const string name);
 void     CreateEditCampoParam(const string name, const int x, const int y, const string text,
@@ -818,7 +767,7 @@ bool     EstatisticasDiaPersistidas();
 void     SincronizarEstadoSeguranca();
 void     GravarEstadoArquivoSeguranca();
 void     VerificarIntegridadeEstadoSeguranca();
-void     ProcessarEstatisticasFechamento(ulong posId, ulong dealFechamento = 0, double ptsCapturados = 0);
+void     ProcessarEstatisticasFechamento(ulong posId, ulong dealFechamento = 0, double ptsCapturados = 0, bool agendarSeFalhar = true);
 void     RegistrarFechamentoCompleto(ulong posId, ulong dealFechamento = 0, double ptsCapturados = 0);
 ulong    ResolverTicketPosicao(ulong posId);
 void     GravarTicketPosicao(ulong posTkt);
@@ -1480,8 +1429,8 @@ bool ObterPrecosOperacao(ulong positionId, double &precoEntrada, double &precoSa
    direcao = -1;
    if(positionId == 0) return false;
 
-   if(!HistorySelectByPosition(positionId))
-      HistorySelect(0, TimeCurrent() + 60);
+   if(!HistorySelectByPosition(positionId) || HistoryDealsTotal() == 0)
+      HistorySelect(TimeCurrent() - 30 * 86400, TimeCurrent() + 60);   // reserva: 30 dias, nunca o historico inteiro
 
    datetime tEntrada = D'2099.12.31';
    datetime tSaida = 0;
@@ -1491,8 +1440,8 @@ bool ObterPrecosOperacao(ulong positionId, double &precoEntrada, double &precoSa
    int total = HistoryDealsTotal();
    for(int i = 0; i < total; i++)
    {
-      ulong d = HistoryDealGetTicket(i);
-      if(d == 0 || !HistoryDealSelect(d)) continue;
+      ulong d = HistoryDealGetTicket(i);   // ja seleciona o negocio para leitura
+      if(d == 0) continue;
       if(!DealDoSimboloAtivo(d)) continue;
       if((ulong)HistoryDealGetInteger(d, DEAL_POSITION_ID) != positionId) continue;
 
@@ -1655,14 +1604,16 @@ ulong UltimoDealFechamentoPosicao(ulong positionId)
 {
    if(positionId == 0) return 0;
 
-   HistorySelect(0, TimeCurrent() + 60);
+   // so os negocios desta posicao (antes: historico inteiro da conta)
+   if(!HistorySelectByPosition(positionId) || HistoryDealsTotal() == 0)
+      HistorySelect(TimeCurrent() - 30 * 86400, TimeCurrent() + 60);
    ulong   melhor = 0;
    datetime tMelhor = 0;
    int total = HistoryDealsTotal();
    for(int i = total - 1; i >= 0; i--)
    {
       ulong d = HistoryDealGetTicket(i);
-      if(d == 0 || !HistoryDealSelect(d)) continue;
+      if(d == 0) continue;
       if(!DealDoSimboloAtivo(d)) continue;
       if((ulong)HistoryDealGetInteger(d, DEAL_POSITION_ID) != positionId) continue;
 
@@ -1681,9 +1632,16 @@ ulong UltimoDealFechamentoPosicao(ulong positionId)
 
 bool DealDoSimboloAtivo(ulong dealTkt)
 {
-   if(dealTkt == 0 || !HistoryDealSelect(dealTkt)) return false;
+   if(dealTkt == 0) return false;
 
+   // Le direto da lista ja selecionada. HistoryDealSelect so quando o negocio nao esta nela:
+   // ele SUBSTITUI a lista selecionada por um unico negocio e quebraria os lacos de historico.
    string sym = HistoryDealGetString(dealTkt, DEAL_SYMBOL);
+   if(sym == "")
+   {
+      if(!HistoryDealSelect(dealTkt)) return false;
+      sym = HistoryDealGetString(dealTkt, DEAL_SYMBOL);
+   }
    if(sym == _Symbol) return true;
 
    int len = StringLen(_Symbol);
@@ -1892,18 +1850,31 @@ void ReconstruirEstatisticasDia(bool forcar = false)
 
    ZerarEstatisticasSeNovoDia();
 
-   if(!SelecionarHistoricoDia())
+   // So os negocios de hoje (antes: historico inteiro da conta a cada 3 s)
+   datetime inicio = DiaCalendarioAtual();
+   if(!HistorySelect(inicio, TimeCurrent() + 60))
       return;
 
-   datetime inicio = DiaCalendarioAtual();
-   ulong posIds[];
-   int nPos = 0;
-   double totalPts = 0;
+   // Nada mudou desde a ultima reconstrucao: nao refaz
+   static int      s_total  = -1;
+   static ulong    s_ultimo = 0;
+   static datetime s_dia    = 0;
+   int   total  = HistoryDealsTotal();
+   ulong ultimo = (total > 0) ? HistoryDealGetTicket(total - 1) : 0;
+   if(!forcar && total == s_total && ultimo == s_ultimo && inicio == s_dia)
+   {
+      g_ultimaReconStats = TimeCurrent();
+      return;
+   }
 
-   for(int j = 0; j < HistoryDealsTotal(); j++)
+   // 1a passada: posicoes fechadas hoje (a lista nao pode ser trocada durante a varredura)
+   ulong posIds[];
+   ulong dealIds[];
+   int nPos = 0;
+   for(int j = 0; j < total; j++)
    {
       ulong d = HistoryDealGetTicket(j);
-      if(d == 0 || !HistoryDealSelect(d)) continue;
+      if(d == 0) continue;
       if(!DealDoSimboloAtivo(d)) continue;
       if((datetime)HistoryDealGetInteger(d, DEAL_TIME) < inicio) continue;
 
@@ -1912,26 +1883,36 @@ void ReconstruirEstatisticasDia(bool forcar = false)
 
       ulong posId = (ulong)HistoryDealGetInteger(d, DEAL_POSITION_ID);
       if(posId == 0) continue;
-      if(PosicaoIdAindaAberta(posId)) continue;
       if(PosicaoIdNaLista(posIds, nPos, posId)) continue;
+      if(PosicaoIdAindaAberta(posId)) continue;
 
       ArrayResize(posIds, nPos + 1);
-      posIds[nPos++] = posId;
-      HistorySelectByPosition(posId);
-      double ptsPos = PontosPosicaoHistorico(posId);
-      if(MathAbs(ptsPos) < 0.01)
-         ptsPos = PontosFechamentoRapido(posId, d);
-      if(MathAbs(ptsPos) < 0.01)
-         ptsPos = PontosPorEntradaSalva(posId, d);
-      if(MathAbs(ptsPos) < 0.01)
-         ptsPos = PontosPorLucroDeal(d);
-      if(MathAbs(ptsPos) >= 0.01)
+      ArrayResize(dealIds, nPos + 1);
+      posIds[nPos]  = posId;
+      dealIds[nPos] = d;
+      nPos++;
+   }
+
+   // 2a passada: pontos de cada posicao (cada calculo seleciona o historico da propria posicao)
+   double totalPts = 0;
+   bool   incompleto = false;
+   for(int k = 0; k < nPos; k++)
+   {
+      ulong  posId = posIds[k];
+      ulong  d     = dealIds[k];
+      double ptsPos = 0;
+      if(CalcularPontosFechamento(posId, d, ptsPos))
       {
          totalPts += ptsPos;
          GlobalVariableSet(GVStatsPosDone(posId), 1.0);
       }
-      else if(GlobalVariableCheck(GVStatsPosDone(posId)))
-         GlobalVariableDel(GVStatsPosDone(posId));
+      else
+      {
+         // historico ainda incompleto: o fechamento contabiliza; refaz na proxima chamada
+         incompleto = true;
+         if(GlobalVariableCheck(GVStatsPosDone(posId)))
+            GlobalVariableDel(GVStatsPosDone(posId));
+      }
    }
 
    double ptsAtual = GlobalVariableCheck(GV_DAY_PTS) ? GlobalVariableGet(GV_DAY_PTS) : 0.0;
@@ -1949,6 +1930,10 @@ void ReconstruirEstatisticasDia(bool forcar = false)
       GlobalVariableSet(GV_DAY_OPS, (double)nPos);
 
    GlobalVariableSet(GV_DAY_DATE, (double)DiaCalendarioAtual());
+
+   s_total  = incompleto ? -1 : total;
+   s_ultimo = ultimo;
+   s_dia    = inicio;
 
    g_ultimoOpsPainel = -1;
    g_ultimoPtsPainel = -999999.0;
@@ -1979,7 +1964,94 @@ void RegistrarFechamentoCompleto(ulong posId, ulong dealFechamento = 0, double p
    VerificarLimitePontuacao();
 }
 
-void ProcessarEstatisticasFechamento(ulong posId, ulong dealFechamento = 0, double ptsCapturados = 0)
+// Pontos de uma posicao fechada. true = precos encontrados (0 ponto tambem e um resultado valido,
+// ex.: saida no zero a zero); false = historico ainda nao disponivel.
+bool CalcularPontosFechamento(const ulong posId, ulong &deal, double &pts)
+{
+   pts = 0;
+   if(posId == 0) return false;
+   if(deal == 0)
+      deal = UltimoDealFechamentoPosicao(posId);
+
+   double precoIn = 0, precoOut = 0;
+   long   dir = -1;
+   if(ObterPrecosOperacao(posId, precoIn, precoOut, dir, deal, 0))
+   {
+      pts = PontosPorPrecosOperacao(precoIn, precoOut, dir);
+      return true;
+   }
+
+   ulong alt = ResolverPositionId(posId);
+   if(alt > 0 && alt != posId && ObterPrecosOperacao(alt, precoIn, precoOut, dir, deal, 0))
+   {
+      pts = PontosPorPrecosOperacao(precoIn, precoOut, dir);
+      return true;
+   }
+
+   // preco de entrada salvo na abertura + preco do negocio de saida
+   if(deal > 0 && GlobalVariableCheck(GVEntryOpen(posId)) && HistoryDealSelect(deal)
+      && HistoryDealGetDouble(deal, DEAL_PRICE) > 0)
+   {
+      pts = PontosPorEntradaSalva(posId, deal);
+      return true;
+   }
+
+   if(deal > 0)
+   {
+      pts = PontosPorLucroDeal(deal);
+      if(MathAbs(pts) >= 0.01) return true;
+   }
+   return false;
+}
+
+
+void AgendarEstatisticaPendente(const ulong posId, const ulong deal)
+{
+   int n = ArraySize(g_estPendPos);
+   for(int i = 0; i < n; i++)
+      if(g_estPendPos[i] == posId)
+      {
+         if(deal > 0) g_estPendDeal[i] = deal;
+         return;
+      }
+   ArrayResize(g_estPendPos, n + 1);
+   ArrayResize(g_estPendDeal, n + 1);
+   ArrayResize(g_estPendTent, n + 1);
+   g_estPendPos[n]  = posId;
+   g_estPendDeal[n] = deal;
+   g_estPendTent[n] = 0;
+}
+
+void ProcessarEstatisticasPendentes()
+{
+   for(int i = ArraySize(g_estPendPos) - 1; i >= 0; i--)
+   {
+      ulong posId = g_estPendPos[i];
+      bool  feito = GlobalVariableCheck(GVStatsPosDone(posId));
+      if(!feito)
+      {
+         ProcessarEstatisticasFechamento(posId, g_estPendDeal[i], 0, false);
+         feito = GlobalVariableCheck(GVStatsPosDone(posId));
+         if(feito) VerificarLimitePontuacao();
+      }
+      g_estPendTent[i]++;
+      if(feito || g_estPendTent[i] >= 30)   // ate ~30 s; depois a reconstrucao do dia corrige
+      {
+         int n = ArraySize(g_estPendPos);
+         for(int k = i; k < n - 1; k++)
+         {
+            g_estPendPos[k]  = g_estPendPos[k + 1];
+            g_estPendDeal[k] = g_estPendDeal[k + 1];
+            g_estPendTent[k] = g_estPendTent[k + 1];
+         }
+         ArrayResize(g_estPendPos, n - 1);
+         ArrayResize(g_estPendDeal, n - 1);
+         ArrayResize(g_estPendTent, n - 1);
+      }
+   }
+}
+
+void ProcessarEstatisticasFechamento(ulong posId, ulong dealFechamento = 0, double ptsCapturados = 0, bool agendarSeFalhar = true)
 {
    if(posId == 0) return;
    ptsCapturados = 0;
@@ -1988,37 +2060,21 @@ void ProcessarEstatisticasFechamento(ulong posId, ulong dealFechamento = 0, doub
 
    if(GlobalVariableCheck(GVStatsPosDone(posId))) return;
 
-   for(int w = 0; PosicaoIdAindaAberta(posId) && w < 30; w++)
-      Sleep(50);
-
-   if(PosicaoIdAindaAberta(posId) && dealFechamento == 0) return;
+   // Nunca espera aqui (Sleep travava o EA e o copiador): se ainda nao da para calcular,
+   // tenta de novo no timer.
+   if(PosicaoIdAindaAberta(posId) && dealFechamento == 0)
+   {
+      if(agendarSeFalhar) AgendarEstatisticaPendente(posId, 0);
+      return;
+   }
 
    ulong  deal = dealFechamento;
    double pts  = 0;
-   HistorySelect(0, TimeCurrent() + 60);
-
-   for(int tent = 0; MathAbs(pts) < 0.01 && tent < 12; tent++)
+   if(!CalcularPontosFechamento(posId, deal, pts))
    {
-      if(deal == 0)
-         deal = UltimoDealFechamentoPosicao(posId);
-      if(deal > 0)
-         pts = PontosFechamentoRapido(posId, deal);
-      if(MathAbs(pts) < 0.01)
-         pts = PontosPorEntradaSalva(posId, deal);
-      if(MathAbs(pts) < 0.01)
-         pts = PontosPosicaoHistorico(posId);
-      if(MathAbs(pts) < 0.01)
-         pts = PontosPosicaoHistorico(ResolverPositionId(posId));
-      if(MathAbs(pts) < 0.01 && deal > 0)
-         pts = PontosPorLucroDeal(deal);
-      if(MathAbs(pts) >= 0.01) break;
-      if(tent < 11) Sleep(100);
-   }
-
-   if(MathAbs(pts) < 0.01)
-   {
+      if(agendarSeFalhar) AgendarEstatisticaPendente(posId, deal);
       if(InpLogDetalhado)
-         Print("SP stats: pos=", posId, " aguardando historico (pts nao calculados)");
+         Print("SP stats: pos=", posId, " aguardando historico (nova tentativa no timer)");
       return;
    }
    double ptsDia = (GlobalVariableCheck(GV_DAY_PTS) ? GlobalVariableGet(GV_DAY_PTS) : 0) + pts;
@@ -4010,7 +4066,8 @@ void GerenciarTPVirtual(ulong posTkt)
    if(lucroPts < TakeProfit) return;
    if(ParcialPendenteNoNivelTP(posTkt, lucroPts)) return;   // a parcial do mesmo nivel sai primeiro
 
-   trade.PositionClose(posTkt);
+   if(trade.PositionClose(posTkt))
+      CopyMae_PublicarJa();
 }
 
 bool AplicarTPBrokerSeAusente(const ulong posTkt)
@@ -4030,7 +4087,19 @@ bool AplicarTPBrokerSeAusente(const ulong posTkt)
       return false;
 
    ValidarSLTPBroker(compra, sl, tp);
-   return ModificarNiveisPosicaoEA(posTkt, sl, tp);
+
+   // Recusado pela corretora: nova tentativa so depois de 1 s (antes: a cada tick)
+   static ulong s_tpTkt = 0;
+   static ulong s_tpProxMs = 0;
+   ulong agora = GetTickCount64();
+   if(posTkt == s_tpTkt && agora < s_tpProxMs) return false;
+   bool ok = ModificarNiveisPosicaoEA(posTkt, sl, tp);
+   if(!ok)
+   {
+      s_tpTkt    = posTkt;
+      s_tpProxMs = agora + 1000;
+   }
+   return ok;
 }
 
 //+------------------------------------------------------------------+
@@ -5209,6 +5278,7 @@ void ExecutarEntradaPorLinha(bool compra)
    else
       ok = trade.Sell(lote, _Symbol, 0, sl, tp, "SP_PendSell");
    s_enviandoJl = false;
+   if(ok) CopyMae_PublicarJa();
 
    lastOrderBar = bar;
    if(!ok)
@@ -6072,32 +6142,6 @@ void CreateEditCampoParam(const string name, const int x, const int y, const str
    ConfigurarCampoEditavel(name);
 }
 
-void CreateEdit(string name, int x, int y, string text, int width = 80, int height = 20,
-                int align = ALIGN_CENTER)
-{
-   if(ObjectFind(0, name) >= 0)
-   {
-      if(ObjectGetInteger(0, name, OBJPROP_TYPE) != OBJ_BUTTON)
-         ObjectDelete(0, name);
-   }
-   if(ObjectFind(0, name) < 0) ObjectCreate(0, name, OBJ_BUTTON, 0, 0, 0);
-   ObjectSetInteger(0, name, OBJPROP_XDISTANCE, x);
-   ObjectSetInteger(0, name, OBJPROP_YDISTANCE, y);
-   ObjectSetInteger(0, name, OBJPROP_XSIZE, width);
-   ObjectSetInteger(0, name, OBJPROP_YSIZE, height);
-   ObjectSetInteger(0, name, OBJPROP_CORNER, CORNER_LEFT_UPPER);
-   ObjectSetInteger(0, name, OBJPROP_BGCOLOR, C_INPUT_BG);
-   ObjectSetInteger(0, name, OBJPROP_COLOR, C_INPUT_TEXT);
-   ObjectSetInteger(0, name, OBJPROP_BORDER_COLOR, C_INPUT_BORDER);
-   ObjectSetInteger(0, name, OBJPROP_BORDER_TYPE, BORDER_FLAT);
-   ObjectSetInteger(0, name, OBJPROP_ALIGN, align);
-   ObjectSetInteger(0, name, OBJPROP_FONTSIZE, 9);
-   ObjectSetString(0, name, OBJPROP_FONT, UI_FONT_BOLD);
-   ObjectSetString(0, name, OBJPROP_TEXT, text);
-   ObjectSetInteger(0, name, OBJPROP_STATE, false);
-   ConfigurarCampoEditavel(name);
-}
-
 void ConfigurarCampoEditavel(const string name)
 {
    if(ObjectFind(0, name) < 0) return;
@@ -6570,18 +6614,29 @@ int CamadaObjetoPainel(const string nome)
 
 void ExibirSecoesPainelEmCamadas()
 {
-   for(int camada = 0; camada <= 3; camada++)
+   // uma varredura dos objetos (antes: quatro), separando por camada
+   string nomes[];
+   int    camadas[];
+   int    n = 0;
+   int    total = ObjectsTotal(0, -1, -1);
+   ArrayResize(nomes, total);
+   ArrayResize(camadas, total);
+   for(int i = 0; i < total; i++)
    {
-      for(int i = 0; i < ObjectsTotal(0, -1, -1); i++)
-      {
-         string nome = ObjectName(0, i, -1, -1);
-         if(!ObjetoPainelColapsavel(nome)) continue;
-         if(CamadaObjetoPainel(nome) != camada) continue;
-         ExibirObjetoPainel(nome);
-         if(EhCampoEditavelPainel(nome))
-            ConfigurarCampoEditavel(nome);
-      }
+      string nome = ObjectName(0, i, -1, -1);
+      if(!ObjetoPainelColapsavel(nome)) continue;
+      nomes[n]   = nome;
+      camadas[n] = CamadaObjetoPainel(nome);
+      n++;
    }
+   for(int camada = 0; camada <= 3; camada++)
+      for(int k = 0; k < n; k++)
+      {
+         if(camadas[k] != camada) continue;
+         ExibirObjetoPainel(nomes[k]);
+         if(EhCampoEditavelPainel(nomes[k]))
+            ConfigurarCampoEditavel(nomes[k]);
+      }
 }
 
 void RestaurarVisibilidadeCamposPainel()
@@ -6657,21 +6712,9 @@ color CorRotuloParametro(const string lblName)
    return C_LABEL_COLOR;
 }
 
-color CorRotuloMetricaStatus(const string lblName)
-{
-   return C_LABEL_COLOR;
-}
-
 color CorValorPtsPainel(const double pts)
 {
    return C_NOME_COLOR;
-}
-
-void AplicarEstiloRotuloMetricaStatus(const string lblName)
-{
-   if(ObjectFind(0, lblName) < 0) return;
-   ObjectSetInteger(0, lblName, OBJPROP_COLOR, CorRotuloMetricaStatus(lblName));
-   AplicarLabelMetrica(lblName);
 }
 
 string TextoRotuloParametro(const string lblName)
@@ -6701,16 +6744,6 @@ void AplicarEstiloRotuloParametro(const string lblName)
    }
    else
       ObjectSetInteger(0, lblName, OBJPROP_SELECTABLE, false);
-}
-
-void CreateParamRowHoriz(const string lblName, const string editName, const int x, const int y,
-                         const int fldW, const string label, const string value)
-{
-   int lblY  = y + (PARAM_FLD_H - PARAM_LBL_FS_H) / 2 + 1;
-   int editX = x + PARAM_LBL_W + PARAM_LBL_GAP;
-   CreateLabel(lblName, x, lblY, label, CorRotuloParametro(lblName), 8);
-   AplicarEstiloRotuloParametro(lblName);
-   CreateEditCampoParam(editName, editX, y, value, fldW, PARAM_FLD_H);
 }
 
 void GarantirTextoBotaoSync()
@@ -6771,11 +6804,22 @@ void ProcessarCliqueBotaoPainel(const string btn)
 
    if(btn != OBJ_BTN_CLOSE)
    {
-      ulong elapsed = GetTickCount64() - tPress;
-      if(elapsed < (ulong)BTN_PRESS_MIN_MS)
-         Sleep((uint)(BTN_PRESS_MIN_MS - elapsed));
-      EstiloBotaoNormal(btn);
+      // Sem Sleep (travava o EA e o copiador): o destaque volta ao normal no proximo timer/tick
+      if(g_btnPressNome != "" && g_btnPressNome != btn)
+         EstiloBotaoNormal(g_btnPressNome);
+      g_btnPressNome = btn;
+      g_btnPressMs   = tPress;
    }
+   ChartRedraw(0);
+}
+
+void ProcessarBotaoPressionado()
+{
+   if(g_btnPressNome == "") return;
+   if(GetTickCount64() - g_btnPressMs < (ulong)BTN_PRESS_MIN_MS) return;
+   string b = g_btnPressNome;
+   g_btnPressNome = "";
+   EstiloBotaoNormal(b);
    ChartRedraw(0);
 }
 
@@ -6844,21 +6888,6 @@ void CreateButton(string name, int x, int y, int w, int h, string text, int font
    AplicarEstiloBotao(name, false);
 }
 
-void CreateDivider(string name, int x, int y, int w, color lineColor)
-{
-   if(ObjectFind(0, name) < 0) ObjectCreate(0, name, OBJ_RECTANGLE_LABEL, 0, 0, 0);
-   ObjectSetInteger(0, name, OBJPROP_XDISTANCE, x);
-   ObjectSetInteger(0, name, OBJPROP_YDISTANCE, y);
-   ObjectSetInteger(0, name, OBJPROP_XSIZE, w);
-   ObjectSetInteger(0, name, OBJPROP_YSIZE, 1);
-   ObjectSetInteger(0, name, OBJPROP_BGCOLOR, lineColor);
-   ObjectSetInteger(0, name, OBJPROP_COLOR, lineColor);
-   ObjectSetInteger(0, name, OBJPROP_BORDER_COLOR, lineColor);
-   ObjectSetInteger(0, name, OBJPROP_BORDER_TYPE, BORDER_FLAT);
-   ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
-   ObjectSetInteger(0, name, OBJPROP_HIDDEN, true);
-}
-
 void CreateRect(string name, int x, int y, int w, int h, color bg, color border = clrNONE)
 {
    if(ObjectFind(0, name) < 0) ObjectCreate(0, name, OBJ_RECTANGLE_LABEL, 0, 0, 0);
@@ -6877,32 +6906,6 @@ void CreateRect(string name, int x, int y, int w, int h, color bg, color border 
    ObjectSetInteger(0, name, OBJPROP_HIDDEN, true);
 }
 
-void CreateSectionTitle(string divName, string bgName, string lblName,
-                        int x, int y, int w, int titleCX, string text,
-                        color secColor, int bgW, color lineColor, int lineStopX = 0)
-{
-   int lblPad  = 4;
-   int lblFs   = 8;
-   int lblH    = 12;
-   int lblW    = (int)StringLen(text) * 8 + lblPad * 2;
-   int lblY    = y;
-   int divY    = lblY + lblH / 2;
-   int lineEnd = (lineStopX > 0) ? lineStopX : (x + w);
-   int lineX   = x + lblW + SEC_TITLE_GAP;
-   int lineW   = lineEnd - lineX;
-
-   if(ObjectFind(0, bgName) >= 0)
-      ObjectDelete(0, bgName);
-
-   if(lineW > 4)
-      CreateDivider(divName, lineX, divY, lineW, C_DIVIDER_LIGHT);
-
-   CreateLabel(lblName, x + lblPad, lblY, text, secColor, lblFs, true);
-   ObjectSetInteger(0, lblName, OBJPROP_ZORDER, 3);
-   ObjectSetInteger(0, lblName, OBJPROP_BACK, false);
-   ObjectSetInteger(0, lblName, OBJPROP_TIMEFRAMES, OBJ_ALL_PERIODS);
-}
-
 void ExibirObjetoPainel(const string name)
 {
    if(ObjectFind(0, name) < 0) return;
@@ -6916,88 +6919,6 @@ void ReposicionarObjetoXY(const string name, const int x, const int y)
    if(ObjectFind(0, name) < 0) return;
    ObjectSetInteger(0, name, OBJPROP_XDISTANCE, x);
    ObjectSetInteger(0, name, OBJPROP_YDISTANCE, y);
-}
-
-void DefinirVisibilidadeObjeto(const string name, const bool visivel)
-{
-   if(ObjectFind(0, name) < 0) return;
-   if(visivel)
-      ExibirObjetoPainel(name);
-   else
-      ObjectSetInteger(0, name, OBJPROP_TIMEFRAMES, OBJ_NO_PERIODS);
-}
-
-void ReposicionarParamRowLayout(const string lblName, const string editName,
-                                const int x, const int y, const int fldW)
-{
-   int lblY  = y + (PARAM_FLD_H - PARAM_LBL_FS_H) / 2 + 1;
-   int editX = x + PARAM_LBL_W + PARAM_LBL_GAP;
-   ReposicionarObjetoXY(lblName, x, lblY);
-   ReposicionarObjetoXY(editName, editX, y);
-   if(ObjectFind(0, editName) >= 0)
-   {
-      ObjectSetInteger(0, editName, OBJPROP_XSIZE, fldW);
-      if(EhCampoParametroPainel(editName))
-         ObjectSetInteger(0, editName, OBJPROP_ALIGN, ALIGN_LEFT);
-   }
-   AplicarEstiloRotuloParametro(lblName);
-   ExibirObjetoPainel(lblName);
-   ExibirObjetoPainel(editName);
-}
-
-void ReposicionarTituloSecaoLayout(const string divName, const string lblName,
-                                   const int x, const int y, const int w,
-                                   const string text, const int lineStopX = 0)
-{
-   int lblPad  = 4;
-   int lblH    = 12;
-   int lblW    = (int)StringLen(text) * 8 + lblPad * 2;
-   int divY    = y + lblH / 2;
-   int lineEnd = (lineStopX > 0) ? lineStopX : (x + w);
-   int lineX   = x + lblW + SEC_TITLE_GAP;
-   int lineW   = lineEnd - lineX;
-
-   ReposicionarObjetoXY(lblName, x + lblPad, y);
-   if(ObjectFind(0, divName) >= 0 && lineW > 4)
-   {
-      ObjectSetInteger(0, divName, OBJPROP_XDISTANCE, lineX);
-      ObjectSetInteger(0, divName, OBJPROP_YDISTANCE, divY);
-      ObjectSetInteger(0, divName, OBJPROP_XSIZE, lineW);
-   }
-   ExibirObjetoPainel(lblName);
-   ExibirObjetoPainel(divName);
-}
-
-void ReposicionarGlassBoxLayout(const string name, const int x, const int y,
-                                const int w, const int h, const int zorder = 1)
-{
-   if(ObjectFind(0, name) < 0) return;
-   ObjectSetInteger(0, name, OBJPROP_XDISTANCE, x);
-   ObjectSetInteger(0, name, OBJPROP_YDISTANCE, y);
-   ObjectSetInteger(0, name, OBJPROP_XSIZE, w);
-   ObjectSetInteger(0, name, OBJPROP_YSIZE, h);
-   ObjectSetInteger(0, name, OBJPROP_ZORDER, zorder);
-   ExibirObjetoPainel(name);
-}
-
-void ReposicionarBotoesExec(const int lx, const int divW, const int yExec)
-{
-   int btnW = (divW - EXEC_BTN_GAP * 2) / 3;
-   int ex   = lx;
-
-   string botoesExec[] = {OBJ_BTN_BUY, OBJ_BTN_CLOSEALL, OBJ_BTN_SELL};
-   for(int i = 0; i < ArraySize(botoesExec); i++)
-   {
-      if(ObjectFind(0, botoesExec[i]) >= 0)
-      {
-         ObjectSetInteger(0, botoesExec[i], OBJPROP_XDISTANCE, ex);
-         ObjectSetInteger(0, botoesExec[i], OBJPROP_YDISTANCE, yExec);
-         ObjectSetInteger(0, botoesExec[i], OBJPROP_XSIZE, btnW);
-         ObjectSetInteger(0, botoesExec[i], OBJPROP_YSIZE, EXEC_BTN_H);
-         ExibirObjetoPainel(botoesExec[i]);
-      }
-      ex += btnW + EXEC_BTN_GAP;
-   }
 }
 
 void ReposicionarBotoesAux(const int lx, const int divW, const int yAux)
@@ -7029,7 +6950,7 @@ void RestaurarLayoutSecoesColapsaveis()
    int lx   = PANEL_X + PANEL_PAD;
    int divW = PANEL_W - PANEL_PAD * 2;
    DesenharSecoesPainel(lx, divW, false);   // reposiciona sem mexer no texto dos campos
-   ExibirSecoesPainelEmCamadas();
+   // a exibicao em camadas e feita por RestaurarVisibilidadeCamposPainel (chamada logo depois)
 }
 
 bool ObjetoPainelSempreVisivel(const string name)
@@ -7146,12 +7067,6 @@ void AplicarAlturaPainel(const int altura)
       ObjectSetInteger(0, OBJ_BG, OBJPROP_YSIZE, altura - 2);
 }
 
-void ReposicionarObjetoY(const string name, const int y)
-{
-   if(ObjectFind(0, name) >= 0)
-      ObjectSetInteger(0, name, OBJPROP_YDISTANCE, y);
-}
-
 int YTextoStatusPainel(const int yStat)
 {
    return yStat + STAT_ROW_H / 2 + STAT_MSG_Y_NUDGE;
@@ -7262,7 +7177,7 @@ void AplicarEstadoMinimizadoPainel()
       ExibirObjetoPainel(OBJ_CANDLE_TIMER);
    if(!g_painelMinimizado)
    {
-      RestaurarVisibilidadeCamposPainel();
+      // a exibicao em camadas ja foi feita em OcultarSecoesPainelColapsadas(false)
       GarantirCamposEditaveisPainel();
       GarantirMetricasStatusNaFrente();
       GarantirPainelNaFrente();
@@ -7477,7 +7392,10 @@ void BuyOrder()
    CalcularSLTPMercado(true, sl, tp);
 
    if(trade.Buy(lote, _Symbol, 0, sl, tp, "SP_Market"))
+   {
       lastOrderBar = bar;
+      CopyMae_PublicarJa();
+   }
    else if(!TradingPermitido())
       AgendarFalhaTrade(SP_MSG_ERRO_ENT);
    else
@@ -7501,7 +7419,10 @@ void SellOrder()
    CalcularSLTPMercado(false, sl, tp);
 
    if(trade.Sell(lote, _Symbol, 0, sl, tp, "SP_Market"))
+   {
       lastOrderBar = bar;
+      CopyMae_PublicarJa();
+   }
    else if(!TradingPermitido())
       AgendarFalhaTrade(SP_MSG_ERRO_ENT);
    else
@@ -7518,7 +7439,10 @@ void CloseAll()
       if(PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
 
       if(trade.PositionClose(t))
+      {
          nPos++;
+         CopyMae_PublicarJa();   // cada saida vai para as filhas na hora
+      }
    }
 
    bool tinhaLinha = g_jLinhaArmada || g_lLinhaArmada;
@@ -8299,7 +8223,6 @@ void CopyFilha_Processar()
    if(g_copyModoEf != COPY_FILHA) return;
 
    bool leu = CopyFilha_LerArquivo();
-   CopyFilha_GravarAck();
    if(!g_copyMaeValida)
    {
       static ulong s_ultAvisoArq = 0;
@@ -8535,6 +8458,14 @@ void CopyAtualizarStatusPainel()
    ChartRedraw(0);
 }
 
+// Mae: publica para as filhas assim que uma ordem e executada (sem esperar o fim do evento).
+// Custa microssegundos e nao grava nada se as posicoes nao mudaram.
+void CopyMae_PublicarJa()
+{
+   if(g_copyModoEf == COPY_MAE)
+      CopyMae_Publicar(false);
+}
+
 void CopyTimer()
 {
    if(g_copyModoEf == COPY_MAE)
@@ -8543,7 +8474,10 @@ void CopyTimer()
       CopyMae_LerFilhas();
    }
    else if(g_copyModoEf == COPY_FILHA)
+   {
       CopyFilha_Processar();
+      CopyFilha_GravarAck();   // presenca para a mae depois da copia (nao atrasa a ordem)
+   }
    CopyAtualizarStatusPainel();
 }
 
@@ -8701,7 +8635,10 @@ void Central_Processar()
             if(t == 0 || !PositionSelectByTicket(t)) continue;
             if(PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
             if(trade.PositionClose(t))
+            {
+               CopyMae_PublicarJa();
                PrintFormat("Scalper Pro CENTRAL: posicao #%I64u zerada (%s)", t, g_centralMotivo);
+            }
          }
       }
    }
@@ -8807,6 +8744,20 @@ void OnTick()
 
    g_onTickSeq++;
    AtualizarCacheCotacao();
+
+   // Copiador primeiro: a execucao das copias tem prioridade sobre o resto do tick
+   if(g_copyModoEf == COPY_MAE)
+      CopyMae_Publicar(false);
+   else if(g_copyModoEf == COPY_FILHA)
+   {
+      static ulong s_copyTickMs = 0;
+      ulong agoraCp = GetTickCount64();
+      if(agoraCp - s_copyTickMs >= 5)   // alem do timer: le a mae tambem nos ticks (no maximo a cada 5 ms)
+      {
+         s_copyTickMs = agoraCp;
+         CopyFilha_Processar();
+      }
+   }
    Central_Processar();
 
    // --- P0: execucao (mercado, pendentes J/L, SL/TP no broker) ---
@@ -8954,14 +8905,19 @@ void OnTick()
 
 void OnTimer()
 {
+   // Ordem por prioridade: copias primeiro, depois a Central (leitura/gravacao de arquivo)
+   if(g_copyModoEf != COPY_DESLIGADO)
+      CopyTimer();
    Central_Processar();
+   ProcessarBotaoPressionado();
    if(g_copyModoEf != COPY_DESLIGADO)
    {
-      CopyTimer();
       ulong agoraMs = GetTickCount64();
       if(agoraMs - g_copyTimerLegadoMs < 1000) return;
       g_copyTimerLegadoMs = agoraMs;
    }
+
+   ProcessarEstatisticasPendentes();
 
    ProcessarResetStatusGeralAgendado();
    ProcessarResetStatusParciaisAgendado();
@@ -8983,8 +8939,20 @@ void OnChartEvent(const int id, const long &lparam,
    if(id == CHARTEVENT_CHART_CHANGE)
    {
       AtualizarRotulosSLTP();
-      if(TemPosicaoNoSimbolo())
+      ulong tkCh = TicketPosicaoSimbolo();
+      if(tkCh > 0 && NiveisManuaisPrecisamSync(tkCh))
          ProcessarNiveisManuaisGrafico();
+
+      // O painel fica preso ao canto (pixels): scroll e zoom nao o movem.
+      // So refaz o painel quando o tamanho da janela do grafico muda.
+      static long s_chW = -1, s_chH = -1;
+      long chW = ChartGetInteger(0, CHART_WIDTH_IN_PIXELS);
+      long chH = ChartGetInteger(0, CHART_HEIGHT_IN_PIXELS);
+      if(chW == s_chW && chH == s_chH)
+         return;
+      s_chW = chW;
+      s_chH = chH;
+
       if(!g_painelMinimizado)
       {
          AplicarAlturaPainel(AlturaPainelNormal());
@@ -9447,6 +9415,8 @@ string GVLastDeal(ulong posTkt)      { return GV_PREFIX + "LD_" + IntegerToStrin
 string GVSlP1(ulong posTkt)          { return GV_PREFIX + "S1_" + IntegerToString(posTkt); }
 string GVSlP2(ulong posTkt)          { return GV_PREFIX + "S2_" + IntegerToString(posTkt); }
 string GVUltimaTentativa(ulong t, int p) { return GV_PREFIX + "UT" + IntegerToString(p) + "_" + IntegerToString(t); }
+string GVVolAntesParcial(ulong t, int p) { return GV_PREFIX + "VA" + IntegerToString(p) + "_" + IntegerToString(t); }
+string GVFalhasParcial(ulong t, int p)   { return GV_PREFIX + "UF" + IntegerToString(p) + "_" + IntegerToString(t); }
 
 bool ParciaisAtivas()
 {
@@ -9833,6 +9803,8 @@ void LimparGVsParciais(ulong posTkt)
       if(GlobalVariableCheck(GVClosed(posTkt, p))) GlobalVariableDel(GVClosed(posTkt, p));
       if(GlobalVariableCheck(GVState(posTkt, p)))  GlobalVariableDel(GVState(posTkt, p));
       if(GlobalVariableCheck(GVUltimaTentativa(posTkt, p))) GlobalVariableDel(GVUltimaTentativa(posTkt, p));
+      if(GlobalVariableCheck(GVVolAntesParcial(posTkt, p))) GlobalVariableDel(GVVolAntesParcial(posTkt, p));
+      if(GlobalVariableCheck(GVFalhasParcial(posTkt, p)))   GlobalVariableDel(GVFalhasParcial(posTkt, p));
    }
 }
 
@@ -10154,9 +10126,11 @@ bool FecharVolumePorDeal(ulong posTkt, double volume, bool &fechouTotal, string 
    return true;
 }
 
+// Uma verificacao, sem esperar. Se ainda nao reduziu, a confirmacao vem pela transacao
+// (OnTradeTransaction) ou pela verificacao do proximo tick.
 bool ConfirmarVolumeReduzido(ulong posTkt, double volAntes, int partialId)
 {
-   for(int i = 0; i < 16; i++)
+   for(int i = 0; i < 1; i++)
    {
       double dv = 0;
       ulong  dt = 0;
@@ -10179,8 +10153,6 @@ bool ConfirmarVolumeReduzido(ulong posTkt, double volAntes, int partialId)
          return true;
       }
 
-      if(i < 15)
-         Sleep(50);
    }
    return false;
 }
@@ -10212,10 +10184,13 @@ bool EnviarParcial(ulong posTkt, int partialId)
    if(!PositionSelectByTicket(posTkt)) return false;
 
    string gvUT = GVUltimaTentativa(posTkt, partialId);
-   if(InpCooldownMs > 0 && GlobalVariableCheck(gvUT))
+   // espera entre tentativas: a normal e, depois de varias falhas seguidas, 2 s (sem Sleep)
+   int falhas = GlobalVariableCheck(GVFalhasParcial(posTkt, partialId)) ? (int)GlobalVariableGet(GVFalhasParcial(posTkt, partialId)) : 0;
+   ulong espera = (falhas >= MathMax(1, InpTentativasEnvio)) ? 2000 : (ulong)MathMax(0, InpCooldownMs);
+   if(espera > 0 && GlobalVariableCheck(gvUT))
    {
       ulong elapsed = GetTickCount64() - (ulong)GlobalVariableGet(gvUT);
-      if(elapsed < (ulong)InpCooldownMs)
+      if(elapsed < espera)
          return false;
    }
    GlobalVariableSet(gvUT, (double)GetTickCount64());
@@ -10250,6 +10225,7 @@ bool EnviarParcial(ulong posTkt, int partialId)
 
    TravarPosicao(posTkt, partialId);
    GlobalVariableSet(gvSt, (double)PARTIAL_INFLIGHT);
+   GlobalVariableSet(GVVolAntesParcial(posTkt, partialId), volAntes);
 
    bool aguardando = false;
    bool ok = ExecutarFechamentoVolume(posTkt, volEnvia, volAntes, partialId, aguardando);
@@ -10257,12 +10233,15 @@ bool EnviarParcial(ulong posTkt, int partialId)
 
    if(!ok)
    {
+      GlobalVariableSet(GVFalhasParcial(posTkt, partialId), (double)(falhas + 1));
       GlobalVariableSet(gvSt, (double)PARTIAL_WAITING);
       if(ObjectGetString(0, PartialStatusObject(partialId), OBJPROP_TEXT) == "Enviando...")
          SetParcialLabel(partialId, "Falhou", clrRed);
       return false;
    }
 
+   if(GlobalVariableCheck(GVFalhasParcial(posTkt, partialId)))
+      GlobalVariableDel(GVFalhasParcial(posTkt, partialId));
    if(aguardando)
       SetParcialLabel(partialId, "Aguardando...", clrOrange);
 
@@ -10323,16 +10302,22 @@ void ProcessarParciaisPosicao(ulong posTkt)
 
       if(st == PARTIAL_WAITING || st == PARTIAL_TRIGGERED)
       {
-         for(int t = 0; t < InpTentativasEnvio; t++)
-         {
-            if(EnviarParcial(posTkt, p)) break;
-            Sleep(100);
-            if(!PositionSelectByTicket(posTkt)) return;
-         }
+         // uma tentativa por tick (antes: ate N tentativas com Sleep no mesmo tick)
+         EnviarParcial(posTkt, p);
          return;
       }
       if(st == PARTIAL_INFLIGHT)
+      {
+         // enviada e ainda nao confirmada: verifica o volume a cada 200 ms, sem esperar
+         static ulong s_verifMs = 0;
+         ulong agoraV = GetTickCount64();
+         if(agoraV - s_verifMs >= 200 && GlobalVariableCheck(GVVolAntesParcial(posTkt, p)))
+         {
+            s_verifMs = agoraV;
+            ConfirmarVolumeReduzido(posTkt, GlobalVariableGet(GVVolAntesParcial(posTkt, p)), p);
+         }
          AtualizarStatusParcialUI(posTkt, p);
+      }
    }
 }
 
@@ -10549,11 +10534,6 @@ void CriarSecaoParciais(const int lx, const int y, const int divW, const bool cr
       CriarCaixaStatusParcial(PartialStatusBox(p), PartialStatusObject(p),
                               x0 + PARC_X_ST, rowY, inW - PARC_X_ST, st, cs);
    }
-}
-
-void ReposicionarSecaoParciais(const int lx, const int y, const int divW)
-{
-   CriarSecaoParciais(lx, y, divW, false);
 }
 
 //--- Painel (opcao A): PARAMETROS (com o perfil) -> PARCIAIS -> COMPRA/FECHA/VENDA -> SYNC/LINHAS/LIMITES.

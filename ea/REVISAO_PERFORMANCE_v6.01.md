@@ -76,3 +76,21 @@ O código morto **não deixa o EA mais lento**, porque o compilador não executa
 - **Antivírus:** exclua `%APPDATA%\MetaQuotes\Terminal\Common\Files` da verificação em tempo real.
 - **Gráficos e indicadores:** evite indicadores pesados nos terminais filhos. Os indicadores do mesmo ativo dividem a mesma linha de processamento do terminal.
 - **Vários terminais na mesma máquina:** com o processador sobrecarregado, o atraso entre as filhas aumenta. Feche gráficos que não usa.
+
+## Implementado na v6.02 (04/11/2026)
+
+Nenhuma funcionalidade mudou. A prioridade foi não atrasar ordens de entrada e saída.
+
+| Item | O que mudou |
+|---|---|
+| A1 + B1 | O cálculo dos pontos no fechamento não usa mais `Sleep`: se o histórico ainda não está pronto, a nova tentativa é feita no timer (1 s), por até 30 s. O histórico é lido só da posição, não da conta inteira. `HistoryDealSelect` saiu dos laços, então o preço médio das saídas parciais volta a funcionar. **Saída no zero a zero (0 ponto) passa a ser registrada**: antes era descartada e não chegava à Central. |
+| A2 + B2 | A reconstrução do dia lê só os negócios de hoje, só refaz quando há negócio novo e varre as posições em duas passadas (corrige a perda de operações). |
+| A3 | A mãe publica logo depois de cada `Buy`/`Sell`/`PositionClose` (painel, teclas, linhas J/L, FECHA, TP virtual e zerar da Central) e no início de cada tick. |
+| A4 | Parciais sem `Sleep`: uma tentativa por tick, confirmação pela transação ou pela checagem do volume a cada 200 ms. Depois de várias falhas seguidas, espera 2 s entre as tentativas. |
+| A5 | Scroll e zoom não redesenham mais o painel: só a mudança de tamanho da janela redesenha. A exibição em camadas faz uma varredura (antes eram quatro) e roda uma vez só. |
+| A6 | `OnTimer`: o copiador roda antes da Central. A filha grava a presença depois de processar a cópia e também lê a mãe a cada tick (no máximo a cada 5 ms). |
+| A8 | Botões sem `Sleep`: o destaque do clique volta ao normal no timer ou no próximo tick. |
+| A10 | TP na corretora recusado: nova tentativa só depois de 1 s. |
+| C | Removidas 13 funções e 51 constantes sem uso. |
+
+**Ficou para depois** (ganho pequeno ou risco maior): os itens A9 e A11, os itens menores de B3, a referência ao botão de perfil antigo e as 4 variáveis gravadas e nunca lidas.
