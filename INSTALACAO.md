@@ -4,7 +4,7 @@ Pacote de 04/11/2026
 
 | Ferramenta | Versão | Onde roda |
 |---|---|---|
-| Scalper Pro (EA) | v6.02 | MetaTrader 5 (mãe e filhas) |
+| Scalper Pro (EA) | v6.03 | MetaTrader 5 (mãe e filhas) |
 | Central de Controle | — | Windows |
 | SPCopyFilhaNT (filha do copiador) | v1.3 | NinjaTrader 8 |
 | SPForcaMercado (indicador, opcional) | v1.10 | NinjaTrader 8 |
