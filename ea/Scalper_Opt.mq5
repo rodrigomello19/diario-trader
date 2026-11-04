@@ -1,13 +1,13 @@
 //+------------------------------------------------------------------+
-//|                     SCALPER PRO v6.02 - MT5                       |
+//|                     SCALPER PRO v6.03 - MT5                       |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, Scalper Pro"
-#property version       "6.02"
+#property version       "6.03"
 #property strict
 
 #include <Trade/Trade.mqh>
 
-const string SP_EA_VERSAO = "6.02";
+const string SP_EA_VERSAO = "6.03";
 
 CTrade trade;
 
@@ -5472,6 +5472,8 @@ bool EhObjetoLinhaSLTPGrafico(const string nome)
 
 bool EhHlineProtegidaDoEA(const string nome)
 {
+   // Todas as linhas do proprio EA (trailing, SL/TP, pendentes J/L, ...), exceto as copiadas pelo SYNC
+   if(StringFind(nome, "SP_") == 0 && !EhObjetoLinhaSyncCopiada(nome)) return true;
    if(StringFind(nome, PARC_LINHA_PREFIX) == 0) return true;   // linhas P1/P2
    if(StringFind(nome, LIN_PREFIX) == 0) return true;   // linhas do dia (arquivo)
    if(StringFind(nome, "SP_TRAIL_") == 0) return true;
@@ -9243,6 +9245,26 @@ void LinhasCriarModelo()
                TerminalInfoString(TERMINAL_COMMONDATA_PATH), LIN_ARQ);
 }
 
+void LimparLinhasAntesDeCarregar()
+{
+   int apagadas = 0;
+   for(int i = ObjectsTotal(0, -1, -1) - 1; i >= 0; i--)
+   {
+      string nome = ObjectName(0, i, -1, -1);
+      if(nome == "") continue;
+      if(StringFind(nome, LIN_PREFIX) == 0 || EhObjetoLinhaSyncCopiada(nome))
+      {
+         if(ObjectDelete(0, nome)) apagadas++;
+         continue;
+      }
+      if(EhHlineProtegidaDoEA(nome)) continue;
+      if(EhLinhaHorizontalNoGrafico(0, nome) && ObjectDelete(0, nome))
+         apagadas++;
+   }
+   if(apagadas > 0)
+      PrintFormat("SP LINHAS: %d linha(s) horizontal(is) apagada(s) antes de carregar o arquivo", apagadas);
+}
+
 // Confere a data/tamanho do arquivo (1x por segundo) e redesenha quando ele for salvo.
 void LinhasVerificarArquivo()
 {
@@ -9359,8 +9381,9 @@ void LinhasCarregar(const bool avisar)
    }
    FileClose(h);
 
-   // redesenha: apaga so as linhas do arquivo, inclusive ajustes feitos nelas (as linhas manuais e as do SYNC ficam)
-   ObjectsDeleteAll(0, LIN_PREFIX);
+   // Antes de carregar: apaga TODAS as linhas horizontais do grafico (manuais, do SYNC e do arquivo).
+   // As linhas de operacao do EA (trailing, SL/TP, pendentes, P1/P2) ficam.
+   LimparLinhasAntesDeCarregar();
    int desenhadas = 0;
    for(int i = 0; i < ArraySize(precoLinha); i++)
    {

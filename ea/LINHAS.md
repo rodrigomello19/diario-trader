@@ -1,4 +1,4 @@
-# Linhas do dia no Scalper Pro (v5.89)
+# Linhas do dia no Scalper Pro (v6.03)
 
 Há duas formas de colocar suas linhas no gráfico de operação:
 
@@ -37,7 +37,8 @@ DESTAQUE:  29361,12
   - A barra de status mostra o resultado, por exemplo `LINHAS: 14 ok, 1 ignorada(s) (29.4O1)`, e o detalhe vai para a aba Experts.
 - **Vale para todos os terminais:** o arquivo fica em `Common\Files`, então o botão LINHAS de qualquer terminal (mãe ou filha) desenha as mesmas linhas.
 - **As linhas podem ser ajustadas:** dá para selecionar, arrastar, mudar a cor ou apagar com o mouse, como qualquer linha. Elas ficam salvas no gráfico, inclusive ao fechar o MT5 ou remover o EA.
-- **Ao clicar em LINHAS de novo,** o EA apaga as linhas do arquivo, **inclusive os ajustes feitos nelas**, e redesenha a partir do arquivo. As linhas que você traçou à mão e as do SYNC continuam no gráfico.
+- **Ao clicar em LINHAS,** o EA primeiro **apaga todas as linhas horizontais do gráfico** e depois desenha as do arquivo (v6.03). Isso inclui as linhas que você traçou à mão, as copiadas pelo SYNC e as do arquivo, com os ajustes feitos nelas.
+  - **Continuam no gráfico:** as linhas de operação do EA (trailing, SL/TP, ordens pendentes J/L e P1/P2), as linhas verticais e as linhas diagonais.
 
 **Atenção:** os preços precisam ser do **mesmo ativo e da mesma corretora** do gráfico. Futuro (NQ/MNQ) e CFD (US100) têm cotações diferentes.
 
