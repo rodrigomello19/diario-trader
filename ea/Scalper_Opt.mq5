@@ -1,13 +1,13 @@
 //+------------------------------------------------------------------+
-//|                     SCALPER PRO v6.03 - MT5                       |
+//|                     SCALPER PRO v6.04 - MT5                       |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, Scalper Pro"
-#property version       "6.03"
+#property version       "6.04"
 #property strict
 
 #include <Trade/Trade.mqh>
 
-const string SP_EA_VERSAO = "6.03";
+const string SP_EA_VERSAO = "6.04";
 
 CTrade trade;
 
@@ -107,6 +107,9 @@ input group "=== Linhas do dia (arquivo SP_Linhas.txt) ==="
 input bool   InpLinhasArquivo      = false;   // Carregar SP_Linhas.txt ao iniciar o EA (padrao: so pelo botao LINHAS)
 input bool   InpLinhasAutoRecarga  = false;   // Redesenhar sozinho quando o arquivo for salvo
 input double InpLinhasFaixaPct     = 10.0;    // Ignorar precos a mais de X% do preco atual (erro de digitacao)
+
+input group "=== Indicador espelho do NT8 (botao ESPELHO) ==="
+input string InpEspelhoPrefixoObj  = "";      // Prefixo dos objetos do indicador a esconder ("" = so o aviso ao indicador)
 
 input group "=== Timer grafico ==="
 input double InpTimerDeslocPts     = 1.0;    // Deslocamento vertical (pts)
@@ -267,6 +270,11 @@ string OBJ_BTN_PERF_N   = "SP_PERF_N";      // seletor de perfil (cartao PARAMET
 string OBJ_BTN_PERF_V   = "SP_PERF_V";
 string OBJ_BTN_LOTE_DN  = "SP_LOTE_DN";     // passo do lote
 string OBJ_BTN_LOTE_UP  = "SP_LOTE_UP";
+string OBJ_BTN_TS       = "SP_BTN_TS";        // liga/desliga o trailing stop (cartao PARAMETROS)
+string OBJ_BTN_ESPELHO  = "SP_BTN_ESPELHO";   // mostra/esconde o indicador espelho do NT8
+bool   g_tsLigado       = true;
+bool   g_espelhoOculto  = false;
+const int ESPELHO_EVENTO = 7101;             // evento enviado ao indicador: CHARTEVENT_CUSTOM + 7101
 string g_btnPressNome   = "";               // botao com destaque de clique (volta ao normal no timer/tick)
 ulong  g_btnPressMs     = 0;
 ulong  g_estPendPos[];                      // fechamentos com historico ainda nao pronto (tentados no timer)
@@ -4207,7 +4215,7 @@ void RemoverLinhaTrailing(ulong posTkt)
 
 void AtualizarLinhaTrailing(ulong posTkt)
 {
-   if(TrailingStart <= 0 || TrailingStep <= 0 || !TrailLinhaDeveSerExibida(posTkt))
+   if(!g_tsLigado || TrailingStart <= 0 || TrailingStep <= 0 || !TrailLinhaDeveSerExibida(posTkt))
    {
       RemoverLinhaTrailing(posTkt);
       return;
@@ -4604,6 +4612,7 @@ void ReconciliarLinhasTrailing()
 
 void TrailingStop(ulong posTkt)
 {
+   if(!g_tsLigado) return;   // TS desligado no painel: o SL fica onde esta
    if(TrailingStart <= 0 || TrailingStep <= 0) return;
 
    if(posTkt == 0) posTkt = TicketPosicaoSimbolo();
@@ -6461,7 +6470,8 @@ void AplicarEstiloBotaoAux(const string name, const bool press)
 
    RemoverDecorBotao(name);
 
-   if(name != OBJ_BTN_SETUP && name != OBJ_BTN_SYNC_HL && name != OBJ_BTN_LIMITS && name != OBJ_BTN_LINHAS)
+   if(name != OBJ_BTN_SETUP && name != OBJ_BTN_SYNC_HL && name != OBJ_BTN_LIMITS && name != OBJ_BTN_LINHAS
+      && name != OBJ_BTN_ESPELHO)
       return;
 
    color bg  = press ? C_AUX_LIMITS_PRESS : C_AUX_LIMITS_BG;
@@ -6478,6 +6488,8 @@ void AplicarEstiloBotaoAux(const string name, const bool press)
       ObjectSetString(0, name, OBJPROP_TEXT, "SYNC");
    else if(name == OBJ_BTN_LINHAS)
       ObjectSetString(0, name, OBJPROP_TEXT, "LINHAS");
+   else if(name == OBJ_BTN_ESPELHO)
+      ObjectSetString(0, name, OBJPROP_TEXT, g_espelhoOculto ? "ESPELHO OFF" : "ESPELHO");
    else
       ObjectSetString(0, name, OBJPROP_TEXT, "LIMITES");
 
@@ -6502,6 +6514,8 @@ void AplicarEstiloBotao(const string name, bool press)
    if(ObjectFind(0, name) < 0) return;
    if(name == OBJ_BTN_PARCIAIS) { AtualizarBotaoParciais(); return; }
    if(name == OBJ_BTN_PERF_N || name == OBJ_BTN_PERF_V) { AtualizarSegmentoPerfil(); return; }
+   if(name == OBJ_BTN_TS) { AtualizarBotaoTS(); return; }
+   if(name == OBJ_BTN_ESPELHO) { AtualizarBotaoEspelho(); return; }
 
    RemoverDecorBotao(name);
 
@@ -6772,7 +6786,8 @@ void ProcessarCliqueBotaoPainel(const string btn)
 
    if(g_painelBloqueado && btn != OBJ_BTN_MINIMIZE && btn != OBJ_BTN_CLOSE
       && btn != OBJ_BTN_LIMITS && btn != OBJ_BTN_SETUP && btn != OBJ_BTN_LINHAS
-      && btn != OBJ_BTN_PERF_N && btn != OBJ_BTN_PERF_V)
+      && btn != OBJ_BTN_PERF_N && btn != OBJ_BTN_PERF_V
+      && btn != OBJ_BTN_TS && btn != OBJ_BTN_ESPELHO)
       return;
 
    ulong agoraClique = GetTickCount64();
@@ -6791,6 +6806,8 @@ void ProcessarCliqueBotaoPainel(const string btn)
    if(btn == OBJ_BTN_SYNC_HL) SincronizarLinhasHorizontais();
    else if(btn == OBJ_BTN_LINHAS) LinhasCarregar(true);
    else if(btn == OBJ_BTN_PARCIAIS) ToggleParciaisSistema();
+   else if(btn == OBJ_BTN_TS) ToggleTrailingStop();
+   else if(btn == OBJ_BTN_ESPELHO) ToggleEspelho();
    else if(btn == OBJ_BTN_PERF_N) { if(SetupVolatilAtivo())  AlternarPerfilSetup(); }
    else if(btn == OBJ_BTN_PERF_V) { if(!SetupVolatilAtivo()) AlternarPerfilSetup(); }
    else if(btn == OBJ_BTN_LOTE_DN) AjustarLotePasso(-1);
@@ -6830,6 +6847,7 @@ string ResolverCliqueBotaoPainel(const string sparam)
    if(sparam == OBJ_BTN_BUY || sparam == OBJ_BTN_SELL || sparam == OBJ_BTN_CLOSEALL
       || sparam == OBJ_BTN_SYNC_HL || sparam == OBJ_BTN_LIMITS || sparam == OBJ_BTN_LINHAS
       || sparam == OBJ_BTN_PARCIAIS || sparam == OBJ_BTN_PERF_N || sparam == OBJ_BTN_PERF_V
+      || sparam == OBJ_BTN_TS || sparam == OBJ_BTN_ESPELHO
       || sparam == OBJ_BTN_LOTE_DN || sparam == OBJ_BTN_LOTE_UP
       || sparam == OBJ_BTN_TP_DN || sparam == OBJ_BTN_TP_UP || sparam == OBJ_BTN_SL_DN || sparam == OBJ_BTN_SL_UP
       || sparam == OBJ_BTN_SETUP || sparam == OBJ_BTN_MINIMIZE || sparam == OBJ_BTN_CLOSE)
@@ -6925,14 +6943,14 @@ void ReposicionarObjetoXY(const string name, const int x, const int y)
 
 void ReposicionarBotoesAux(const int lx, const int divW, const int yAux)
 {
-   string b[3];
-   b[0] = OBJ_BTN_SYNC_HL; b[1] = OBJ_BTN_LINHAS; b[2] = OBJ_BTN_LIMITS;
-   int w = (divW - 16) / 3;
-   for(int i = 0; i < 3; i++)
+   string b[4];
+   b[0] = OBJ_BTN_SYNC_HL; b[1] = OBJ_BTN_LINHAS; b[2] = OBJ_BTN_ESPELHO; b[3] = OBJ_BTN_LIMITS;
+   int w = (divW - 18) / 4;
+   for(int i = 0; i < 4; i++)
    {
       if(ObjectFind(0, b[i]) < 0) continue;
-      int x  = lx + i * (w + 8);
-      int wi = (i == 2) ? divW - 2 * (w + 8) : w;
+      int x  = lx + i * (w + 6);
+      int wi = (i == 3) ? divW - 3 * (w + 6) : w;
       ObjectSetInteger(0, b[i], OBJPROP_XDISTANCE, x);
       ObjectSetInteger(0, b[i], OBJPROP_YDISTANCE, yAux);
       ObjectSetInteger(0, b[i], OBJPROP_XSIZE, wi);
@@ -6944,6 +6962,7 @@ void ReposicionarBotoesAux(const int lx, const int divW, const int yAux)
       ObjectSetString(0, OBJ_BTN_LINHAS, OBJPROP_TOOLTIP, "Carregar as linhas do arquivo Common\\Files\\SP_Linhas.txt");
    if(ObjectFind(0, OBJ_BTN_SYNC_HL) >= 0)
       ObjectSetString(0, OBJ_BTN_SYNC_HL, OBJPROP_TOOLTIP, "Copiar as linhas do grafico de estudo");
+   AtualizarBotaoEspelho();
    GarantirBotaoLimites();
 }
 
@@ -8652,6 +8671,8 @@ int OnInit()
    ConfigurarTrade();
    CarregarParametrosEntrada();
    CarregarConfigParciais();
+   g_tsLigado      = !GlobalVariableCheck(GvCfgKey("TS_ON")) || GlobalVariableGet(GvCfgKey("TS_ON")) > 0.5;
+   g_espelhoOculto = GlobalVariableCheck(NomeGVEspelho()) && GlobalVariableGet(NomeGVEspelho()) > 0.5;
    if(!CopyInit())
       return INIT_PARAMETERS_INCORRECT;
 
@@ -8688,6 +8709,8 @@ int OnInit()
    g_ultimoPtsPainel = -999999.0;
    g_ultimoSpreadPainel = -1;
    AtualizarPainelEstatisticas(true);
+   if(g_espelhoOculto)
+      AplicarEspelho();   // reaplica o estado salvo (indicador e objetos)
    LinhasCriarModelo();
    if(InpLinhasArquivo)
       LinhasCarregar(false);
@@ -8920,6 +8943,8 @@ void OnTimer()
    }
 
    ProcessarEstatisticasPendentes();
+   if(g_espelhoOculto && InpEspelhoPrefixoObj != "")
+      EsconderObjetosEspelhoNovos();
 
    ProcessarResetStatusGeralAgendado();
    ProcessarResetStatusParciaisAgendado();
@@ -10696,6 +10721,8 @@ int DesenharSecoesPainel(const int lx, const int divW, const bool criar)
    CreateButton(OBJ_BTN_SL_UP, c1 + colW - 26, f2, 26, PFLD_H, "+", 11);
 
    RotuloCampo("SP_ST", c2, l2);
+   CreateButton(OBJ_BTN_TS, c2 + 62, l2 - 2, 28, 15, g_tsLigado ? "ON" : "OFF", 7);
+   AtualizarBotaoTS();
    CreateLabel("SP_TR", c2 + colW, l2, TextoRotuloParametro("SP_TR"), CorRotuloParametro("SP_TR"), 7, true);
    ObjectSetInteger(0, "SP_TR", OBJPROP_ANCHOR, ANCHOR_RIGHT_UPPER);
    AplicarEstiloRotuloParametro("SP_TR");
@@ -10720,6 +10747,7 @@ int DesenharSecoesPainel(const int lx, const int divW, const bool criar)
    int ya = ye + EXEC_BTN_H + GAP_EXEC_AUX;
    CreateButton(OBJ_BTN_SYNC_HL, lx, ya, 10, SEC_AUX_BTN_H, "SYNC", 7);
    CreateButton(OBJ_BTN_LINHAS, lx, ya, 10, SEC_AUX_BTN_H, "LINHAS", 7);
+   CreateButton(OBJ_BTN_ESPELHO, lx, ya, 10, SEC_AUX_BTN_H, "ESPELHO", 7);
    CreateButton(OBJ_BTN_LIMITS, lx, ya, 10, SEC_AUX_BTN_H, "LIMITES", 7);
    ReposicionarBotoesAux(lx, divW, ya);
 
@@ -10747,3 +10775,96 @@ void LerCamposParciais()
       EscreverValorCampoEdit(OBJ_EDIT_P2_PCT);
    }
 }
+
+//+------------------------------------------------------------------+
+//| TS ON/OFF e indicador espelho do NT8 (v6.04)                     |
+//+------------------------------------------------------------------+
+void AtualizarBotaoTS()
+{
+   if(ObjectFind(0, OBJ_BTN_TS) < 0) return;
+   RemoverDecorBotao(OBJ_BTN_TS);
+   ObjectSetString(0, OBJ_BTN_TS, OBJPROP_TEXT, g_tsLigado ? "ON" : "OFF");
+   ObjectSetString(0, OBJ_BTN_TS, OBJPROP_FONT, UI_FONT_BOLD);
+   ObjectSetInteger(0, OBJ_BTN_TS, OBJPROP_FONTSIZE, 7);
+   ObjectSetInteger(0, OBJ_BTN_TS, OBJPROP_COLOR, g_tsLigado ? C_EXEC_TEXT_ON : C_NOME_COLOR);
+   ObjectSetInteger(0, OBJ_BTN_TS, OBJPROP_BGCOLOR, g_tsLigado ? C_PARCIAIS_ON_BG : C_PARCIAIS_OFF_BG);
+   ObjectSetInteger(0, OBJ_BTN_TS, OBJPROP_BORDER_COLOR, g_tsLigado ? C_PARCIAIS_ON_BG : C_PARCIAIS_OFF_BG);
+   ObjectSetInteger(0, OBJ_BTN_TS, OBJPROP_BORDER_TYPE, BORDER_FLAT);
+   ObjectSetInteger(0, OBJ_BTN_TS, OBJPROP_STATE, false);
+   ObjectSetString(0, OBJ_BTN_TS, OBJPROP_TOOLTIP, g_tsLigado
+                   ? "Trailing stop LIGADO (clique para desligar: o SL fica onde esta)"
+                   : "Trailing stop DESLIGADO (clique para ligar)");
+}
+
+void ToggleTrailingStop()
+{
+   g_tsLigado = !g_tsLigado;
+   GlobalVariableSet(GvCfgKey("TS_ON"), g_tsLigado ? 1.0 : 0.0);
+   AtualizarBotaoTS();
+   ReconciliarLinhasTrailing();   // desligado: a linha do trailing some; ligado: volta
+   AtualizarRotulosSLTP();
+   Status(g_tsLigado ? "Trailing stop ligado" : "Trailing stop desligado: o SL fica onde esta",
+          g_tsLigado ? C_STATUS_OK : C_STATUS_WARN, true);
+   ChartRedraw(0);
+}
+
+// Estado do espelho por grafico (GV fora do prefixo SP_, que e limpo como ticket)
+string NomeGVEspelho()
+{
+   return "RMESP_OCULTO_" + IntegerToString(ChartID());
+}
+
+void AtualizarBotaoEspelho()
+{
+   if(ObjectFind(0, OBJ_BTN_ESPELHO) < 0) return;
+   AplicarEstiloBotaoAux(OBJ_BTN_ESPELHO, false);
+   ObjectSetString(0, OBJ_BTN_ESPELHO, OBJPROP_TEXT, g_espelhoOculto ? "ESPELHO OFF" : "ESPELHO");
+   ObjectSetInteger(0, OBJ_BTN_ESPELHO, OBJPROP_COLOR, g_espelhoOculto ? C_MUTED : C_NOME_COLOR);
+   ObjectSetString(0, OBJ_BTN_ESPELHO, OBJPROP_TOOLTIP, g_espelhoOculto
+                   ? "Bolhas e VWAP do NT8 escondidas (clique para mostrar)"
+                   : "Esconder as bolhas e a VWAP do NT8 (grafico limpo)");
+}
+
+// Avisa o indicador na hora (evento do grafico, sem consulta periodica) e, se informado,
+// esconde/mostra os objetos com o prefixo do indicador.
+void AplicarEspelho()
+{
+   GlobalVariableSet(NomeGVEspelho(), g_espelhoOculto ? 1.0 : 0.0);
+   EventChartCustom(ChartID(), (ushort)ESPELHO_EVENTO, g_espelhoOculto ? 1 : 0, 0.0, "RM_NT8Espelho");
+   if(InpEspelhoPrefixoObj != "")
+   {
+      for(int i = ObjectsTotal(0, -1, -1) - 1; i >= 0; i--)
+      {
+         string nome = ObjectName(0, i, -1, -1);
+         if(StringFind(nome, InpEspelhoPrefixoObj) != 0) continue;
+         ObjectSetInteger(0, nome, OBJPROP_TIMEFRAMES, g_espelhoOculto ? OBJ_NO_PERIODS : OBJ_ALL_PERIODS);
+      }
+   }
+}
+
+void ToggleEspelho()
+{
+   g_espelhoOculto = !g_espelhoOculto;
+   AplicarEspelho();
+   AtualizarBotaoEspelho();
+   Status(g_espelhoOculto ? "Espelho NT8 escondido" : "Espelho NT8 visivel", C_STATUS_OK, false);
+   ChartRedraw(0);
+}
+
+// Enquanto escondido: objetos que o indicador criar depois tambem ficam escondidos
+// (so varre quando a quantidade de objetos do grafico muda).
+void EsconderObjetosEspelhoNovos()
+{
+   static int s_total = -1;
+   int total = ObjectsTotal(0, -1, -1);
+   if(total == s_total) return;
+   s_total = total;
+   for(int i = total - 1; i >= 0; i--)
+   {
+      string nome = ObjectName(0, i, -1, -1);
+      if(StringFind(nome, InpEspelhoPrefixoObj) != 0) continue;
+      if(ObjectGetInteger(0, nome, OBJPROP_TIMEFRAMES) != OBJ_NO_PERIODS)
+         ObjectSetInteger(0, nome, OBJPROP_TIMEFRAMES, OBJ_NO_PERIODS);
+   }
+}
+
