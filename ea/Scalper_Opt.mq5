@@ -108,7 +108,7 @@ input bool   InpLinhasArquivo      = false;   // Carregar SP_Linhas.txt ao inici
 input bool   InpLinhasAutoRecarga  = false;   // Redesenhar sozinho quando o arquivo for salvo
 input double InpLinhasFaixaPct     = 10.0;    // Ignorar precos a mais de X% do preco atual (erro de digitacao)
 
-input group "=== Indicador espelho do NT8 (botao ESPELHO) ==="
+input group "=== Indicador espelho do NT8 (botao BOLHAS) ==="
 input string InpEspelhoPrefixoObj  = "";      // Prefixo dos objetos do indicador a esconder ("" = so o aviso ao indicador)
 
 input group "=== Timer grafico ==="
@@ -4906,7 +4906,7 @@ void AplicarEstiloBotaoAux(const string name, const bool press)
    else if(name == OBJ_BTN_LINHAS)
       ObjectSetString(0, name, OBJPROP_TEXT, "LINHAS");
    else if(name == OBJ_BTN_ESPELHO)
-      ObjectSetString(0, name, OBJPROP_TEXT, g_espelhoOculto ? "ESPELHO OFF" : "ESPELHO");
+      ObjectSetString(0, name, OBJPROP_TEXT, g_espelhoOculto ? "BOLHAS OFF" : "BOLHAS");
 
    ObjectSetString(0, name, OBJPROP_FONT, UI_FONT_BOLD);
    ObjectSetInteger(0, name, OBJPROP_FONTSIZE, 7);
@@ -9046,7 +9046,7 @@ int DesenharSecoesPainel(const int lx, const int divW, const bool criar)
    int ya = ye + EXEC_BTN_H + GAP_EXEC_AUX;
    CreateButton(OBJ_BTN_SYNC_HL, lx, ya, 10, SEC_AUX_BTN_H, "SYNC", 7);
    CreateButton(OBJ_BTN_LINHAS, lx, ya, 10, SEC_AUX_BTN_H, "LINHAS", 7);
-   CreateButton(OBJ_BTN_ESPELHO, lx, ya, 10, SEC_AUX_BTN_H, "ESPELHO", 7);
+   CreateButton(OBJ_BTN_ESPELHO, lx, ya, 10, SEC_AUX_BTN_H, "BOLHAS", 7);
    ReposicionarBotoesAux(lx, divW, ya);
 
    return ya + SEC_AUX_BTN_H + GAP_AUX_MET;
@@ -9108,7 +9108,7 @@ void AtualizarBotaoEspelho()
 {
    if(ObjectFind(0, OBJ_BTN_ESPELHO) < 0) return;
    AplicarEstiloBotaoAux(OBJ_BTN_ESPELHO, false);
-   ObjectSetString(0, OBJ_BTN_ESPELHO, OBJPROP_TEXT, g_espelhoOculto ? "ESPELHO OFF" : "ESPELHO");
+   ObjectSetString(0, OBJ_BTN_ESPELHO, OBJPROP_TEXT, g_espelhoOculto ? "BOLHAS OFF" : "BOLHAS");
    ObjectSetInteger(0, OBJ_BTN_ESPELHO, OBJPROP_COLOR, g_espelhoOculto ? C_MUTED : C_NOME_COLOR);
    ObjectSetString(0, OBJ_BTN_ESPELHO, OBJPROP_TOOLTIP, g_espelhoOculto
                    ? "Bolhas e VWAP do NT8 escondidas (clique para mostrar)"
@@ -9137,7 +9137,7 @@ void ToggleEspelho()
    g_espelhoOculto = !g_espelhoOculto;
    AplicarEspelho();
    AtualizarBotaoEspelho();
-   Status(g_espelhoOculto ? "Espelho NT8 escondido" : "Espelho NT8 visivel", C_STATUS_OK, false);
+   Status(g_espelhoOculto ? "Bolhas e VWAP do NT8 escondidas" : "Bolhas e VWAP do NT8 visiveis", C_STATUS_OK, false);
    ChartRedraw(0);
 }
 

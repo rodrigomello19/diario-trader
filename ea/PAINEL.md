@@ -15,7 +15,7 @@ Scalper Pro  v5.94 | US100                    [-] [X]
 └────────────────────────────────────────────────┘
 [   COMPRA   ] [   FECHA   ] [   VENDA   ]
     tecla I        tecla O       tecla P
-[   SYNC   ] [  LINHAS  ] [  ESPELHO  ]
+[   SYNC   ] [  LINHAS  ] [  BOLHAS   ]
 ┌ LIBERADO │  Oper  │ Pontos │ Spread ┐
 │          │   2    │  +840  │   12   │
 └──────────┴────────┴────────┴────────┘
@@ -40,8 +40,8 @@ Copiador
   - Vale também com uma posição aberta, e a mudança entra no próximo tick.
   - A escolha fica salva por ativo, mesmo depois de reiniciar o MT5.
   - Parciais, TP, SL e o copiador não mudam.
-- **ESPELHO (v6.04):** esconde ou mostra a VWAP, as bandas, as bolhas e a absorção do indicador **RM_NT8Espelho** no mesmo gráfico.
-  - Com o indicador escondido, o botão mostra **ESPELHO OFF**.
+- **BOLHAS (v6.04, antes ESPELHO):** esconde ou mostra a VWAP, as bandas, as bolhas e a absorção do indicador **RM_NT8Espelho** no mesmo gráfico.
+  - Com o indicador escondido, o botão mostra **BOLHAS OFF**.
   - **Como funciona:** o EA envia um evento ao indicador, que muda só a visibilidade do que já desenhou. Nada é apagado nem recriado.
   - O indicador continua lendo os dados enquanto está escondido, então tudo volta atualizado.
   - Não há verificação periódica, e as ordens não são afetadas.

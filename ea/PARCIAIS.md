@@ -27,7 +27,7 @@ P1 [ 500 ] pts  [ 50 ] %   [  ATIVO  ]
 P2 [1000 ] pts  [ 30 ] %   [  ATIVO  ]
 ──────────────────────────────────────
 [  COMPRA  ] [  FECHA  ] [  VENDA  ]
-[SYNC] [LINHAS] [ESPELHO]
+[SYNC] [LINHAS] [BOLHAS]
 ```
 
 - **Pontos e %:** são editáveis como os outros campos (clique, digite, Enter). Ficam salvos.
