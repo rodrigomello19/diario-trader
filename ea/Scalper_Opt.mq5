@@ -1,13 +1,13 @@
 //+------------------------------------------------------------------+
-//|                     SCALPER PRO v6.04 - MT5                       |
+//|                     SCALPER PRO v6.05 - MT5                       |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, Scalper Pro"
-#property version       "6.04"
+#property version       "6.05"
 #property strict
 
 #include <Trade/Trade.mqh>
 
-const string SP_EA_VERSAO = "6.04";
+const string SP_EA_VERSAO = "6.05";
 
 CTrade trade;
 
@@ -119,18 +119,6 @@ input group "=== Desempenho / Log ==="
 input bool   InpLogDetalhado     = false;   // Log completo no Experts
 input int    InpPerfLogSeg       = 10;      // Janela do log de performance (s)
 
-input group "=== Fechamento por limites (popup PIN) ==="
-input int    InpFecharDelaySeg   = 5;       // Segundos antes fechar MT5
-input string InpMsgFecharPontos  = "Meta de pontos atingida."; //Msg fechar pontos
-input string InpMsgFecharOper    = "Limite de operacoes atingido."; //Msg fechar num operações
-
-input group "=== Caixa de mensagem (bloqueio / fechar MT5) ==="
-input int    InpMsgBoxLargura    = 700;     // Largura (px)
-input int    InpMsgBoxAltura     = 100;     // Altura (px)
-input int    InpMsgBoxPosX       = -1;      // Pos X esquerda (-1=centralizar)
-input int    InpMsgBoxPosY       = -1;      // Pos Y topo (-1=centralizar)
-input int    InpMsgBoxFonte      = 10;      // Tamanho da fonte
-
 input group "=== Teclas (codigo ASCII) ==="
 input int    InpTeclaCompPend    = 74;      // Compra pendente (J)
 input int    InpTeclaVendPend    = 76;      // Venda pendente (L)
@@ -149,32 +137,12 @@ double TrailingStep   = 100;
 
 string GV_PREFIX    = "SP_";
 string GV_OPS_COUNT   = "SP_OPS_COUNT";
-string GV_OPS_LOCK    = "SP_OPS_LOCK";
-string GV_OPS_LOCK_DAY = "SP_OPS_LOCK_DAY";
-string GV_LIMIT_REASON = "SP_LIMIT_REASON";
-string GV_LIM_MAX_OPS  = "SP_LIM_MAX_OPS";
-string GV_LIM_PTS_POS  = "SP_LIM_PTS_POS";
-string GV_LIM_PTS_NEG  = "SP_LIM_PTS_NEG";
-string GV_PIN_HASH     = "SP_PIN_HASH";
-string GV_SCHED_ON     = "SP_SCHED_ON";
-string GV_SCHED_HHMM   = "SP_SCHED_HHMM";
-string GV_SCHED_DAYS   = "SP_SCHED_DAYS";
-string GV_SCHED_FIRE   = "SP_SCHED_FIRE_DAY";
 
-const int   PIN_DIGITOS        = 6;
-const int   PIN_MAX_FALHAS     = 3;
-const int   PIN_COOLDOWN_SEG   = 30;
 
-#define LIMIT_MOTIVO_NENHUM    0
-#define LIMIT_MOTIVO_OPERACOES 1
-#define LIMIT_MOTIVO_PTS_MAX   2
-#define LIMIT_MOTIVO_PTS_MIN   3
 string GV_DAY_DATE    = "SP_DAY_DATE";
 string GV_DAY_PTS     = "SP_DAY_PTS";
 string GV_DAY_OPS     = "SP_DAY_OPS";
 
-const int    SP_STATE_MAGIC   = 0x53504332;
-const int    SP_STATE_VERSION = 1;
 datetime     g_ultimaReconStats = 0;
 
 const int PANEL_X = 5, PANEL_Y = 3, PANEL_W = 332, PANEL_H_MIN = 130;
@@ -263,7 +231,6 @@ string OBJ_BTN_BUY      = "SP_BUY";
 string OBJ_BTN_SELL     = "SP_SELL";
 string OBJ_BTN_CLOSEALL = "SP_CLOSEALL";
 string OBJ_BTN_SYNC_HL  = "SP_SYNC_HL";
-string OBJ_BTN_LIMITS   = "SP_BTN_LIMITS";
 string OBJ_BTN_SETUP    = "SP_BTN_SETUP";
 string OBJ_BTN_LINHAS   = "SP_BTN_LINHAS";
 string OBJ_BTN_PERF_N   = "SP_PERF_N";      // seletor de perfil (cartao PARAMETROS)
@@ -357,27 +324,7 @@ ENUM_MODO_TRAIL g_modoTrail = TRAIL_FIXO;
 bool     g_painelMinimizado = false;
 int      g_statY_status = 0;
 int      g_statY_metrics = 0;
-const string SPL_PREFIX       = "SPL_";
-string SPL_BG           = "SPL_BG";
-string SPL_TITLE        = "SPL_TITLE";
-string SPL_EDIT_OPS     = "SPL_EDIT_OPS";
-string SPL_EDIT_POS     = "SPL_EDIT_POS";
-string SPL_EDIT_NEG     = "SPL_EDIT_NEG";
-string SPL_EDIT_PIN     = "SPL_EDIT_PIN";
-string SPL_EDIT_PIN_ATUAL = "SPL_EDIT_PIN_ATUAL";
-string SPL_EDIT_PIN_NOVO  = "SPL_EDIT_PIN_NOVO";
-string SPL_EDIT_PIN_CONF  = "SPL_EDIT_PIN_CONF";
-string SPL_BTN_OK       = "SPL_BTN_OK";
-string SPL_BTN_CANCEL   = "SPL_BTN_CANCEL";
-string SPL_BTN_TROCAR_PIN = "SPL_BTN_TROCAR_PIN";
-string SPL_BTN_PIN_SALVAR = "SPL_BTN_PIN_SALVAR";
-string SPL_BTN_VOLTAR   = "SPL_BTN_VOLTAR";
-string SPL_EDIT_SCHED_HHMM = "SPL_EDIT_SCHED_HHMM";
-string SPL_BTN_SCHED_ON    = "SPL_BTN_SCHED_ON";
-const string SPL_BTN_DOW_PFX = "SPL_BTN_DOW_";
 
-#define SPL_VIEW_LIMITES 0
-#define SPL_VIEW_PIN     1
 string OBJ_TXT_STATUS   = "SP_STATUS";
 const string SP_STATUS_PRONTO   = "PRONTO";
 const string SP_MSG_COMPRA      = "COMPRA";
@@ -396,8 +343,6 @@ const string SP_MSG_EA_TRADE    = "Permita trade no EA";
 const string SP_MSG_CONTA_TRADE = "Conta sem trade";
 const string SP_MSG_SYM_TRADE   = "Ativo sem trade";
 const string SP_MSG_PENDENTE    = "Pendente";
-const string SP_MSG_BLOQUEADO   = "BLOQUEADO";
-const string SP_MSG_FECHANDO    = "Fechando...";
 const string SP_MSG_TRAIL_FIXO  = "Trail fixo";
 const string SP_MSG_TRAIL_DIN   = "Trail dinamico";
 const string SP_MSG_TRAIL_DIST  = "Trail > Step";
@@ -406,31 +351,15 @@ const string SP_MSG_SYNC_ATIVO  = "Ativo invalido";
 const string SP_MSG_SYNC_GRAF   = "Grafico N/A";
 const string SP_MSG_SL_OK       = "SL OK";
 const string SP_MSG_EDITANDO    = "Editando";
-const string SP_MSG_PIN_CAD     = "Cadastre PIN";
-const string SP_MSG_PIN_ERR     = "PIN incorreto";
-const string SP_MSG_PIN_BLOQ    = "PIN bloqueado";
-const string SP_MSG_PIN_6       = "PIN: 6 digitos";
-const string SP_MSG_PIN_DIFF    = "PIN diverge";
-const string SP_MSG_PIN_OK      = "PIN OK";
-const string SP_MSG_HORARIO     = "Horario invalido";
-const string SP_MSG_DIAS        = "Selecione dias";
-const string SP_MSG_LIM_BLOQ    = "Ainda no limite";
-const string SP_MSG_LIM_OK      = "Limites OK";
 string OBJ_TXT_SPREAD   = "SP_SPREAD";
 string OBJ_TXT_OPS      = "SP_OPS";
 string OBJ_TXT_PTS      = "SP_PTS_SESSAO";
-string OBJ_MSG_OVERLAY_BG  = "SPM_BG";
-string OBJ_MSG_OVERLAY_TXT = "SPM_TXT";
-string OBJ_MSG_OVERLAY_CNT = "SPM_CNT";
-const string OBJ_MSG_OVERLAY_LINHA = "SPM_TXT_L";
-const int    MSG_OVERLAY_MAX_LINHAS = 8;
 string OBJ_EDIT_LOTE         = "SP_EDIT_LOTE";
 string OBJ_EDIT_SL           = "SP_EDIT_SL";
 string OBJ_EDIT_TP           = "SP_EDIT_TP";
 string OBJ_EDIT_TRAIL_START  = "SP_EDIT_TRAIL_START";
 
 string OBJ_EDIT_TRAIL_STEP   = "SP_EDIT_TRAIL_STEP";
-string OBJ_LIMITS_ICON  = "SP_LIMITS_ICON";
 string OBJ_METRICS_BG   = "SP_METRICS_BG";
 string OBJ_LIM_STATE    = "SP_LIM_STATE";
 string OBJ_STATUS_STRIP  = "SP_STATUS_STRIP";
@@ -478,23 +407,7 @@ bool g_chartOneClickSaved  = false;
 bool g_chartKeyboardSaved  = false;
 bool g_eaRevertendoSL      = false;
 bool g_eaAtualizandoNiveis = false;
-bool g_painelBloqueado     = false;
-bool g_limiteBloqueadoDia  = false;
-bool g_fechamentoAgendado  = false;
-datetime g_fechamentoHora  = 0;
 datetime g_statusResetEm   = 0;
-int      g_limMaxOperacoes = 0;
-double   g_limPtsPos       = 0;
-double   g_limPtsNeg       = 0;
-bool     g_popupLimitesAberto = false;
-int      g_popupView         = SPL_VIEW_LIMITES;
-bool     g_popupPinCadastro  = false;
-int      g_pinFalhas       = 0;
-datetime g_pinBloqueadoAte = 0;
-bool     g_schedEnabled    = false;
-int      g_schedHour       = 18;
-int      g_schedMin        = 0;
-int      g_schedDaysMask   = 0;
 ulong    g_rotulosPendenteTkt    = 0;
 ulong    g_rotulosPendenteNoTick = 0;
 ulong    g_onTickSeq             = 0;
@@ -631,7 +544,7 @@ void     RestaurarStatusPronto();
 void     ProcessarResetStatusGeralAgendado();
 void     LimparGVs(ulong posTkt);
 void     AtualizarCampos();
-void     ToggleModoTrail();
+void     CiclarModoTS();
 bool     TrailDinamicoAtivo();
 double   DistanciaTrailDinamico();
 void     AtualizarBotaoSetup();
@@ -667,7 +580,6 @@ double   NormalizeVol(double vol);
 double   NormalizeVolPainel(double vol);
 void     AplicarEstiloBotaoExec(const string name, const bool press);
 void     AplicarEstiloBotaoAux(const string name, const bool press);
-void     GarantirBotaoLimites();
 void     AtualizarEstadoLimitesUI();
 void     CreateGlassRect(const string name, const int x, const int y, const int w, const int h);
 color    CorRotuloParametro(const string lblName);
@@ -691,7 +603,6 @@ void     AplicarDestaqueCampoEdit(const string nomeCampo, const bool editando);
 void     AtivarTecladoEdicaoCampo(const bool ativo);
 void     CancelarEdicaoCampoAtiva();
 void     ProcessarCliqueBotaoPainel(const string btn);
-bool     EA_EstaBloqueado();
 void     CarregarContadorOperacoes();
 void     RegistrarOperacaoAberta(ulong posTkt, string origem);
 void     TentarContarOperacaoFechada(ulong posTkt);
@@ -764,17 +675,11 @@ void     AgendarStatusEntradaRealizada(ulong posTkt);
 void     ProcessarStatusEntradaAgendado();
 void     AgendarVisuaisPendenteJL(bool compra, double preco);
 void     ProcessarVisuaisPendenteJLAgendados();
-bool     VerificarDesbloqueio();
-void     BloquearPorLimite();
-bool     LimiteOperacoesAtingido();
 double   CalcularPontuacaoSessao();
 void     AtualizarPainelEstatisticas(bool redesenhar = true);
 bool     ExistePendenteAtiva(ulong ticketIgnorar = 0);
 void     ReconstruirEstatisticasDia(bool forcar = false);
 bool     EstatisticasDiaPersistidas();
-void     SincronizarEstadoSeguranca();
-void     GravarEstadoArquivoSeguranca();
-void     VerificarIntegridadeEstadoSeguranca();
 void     ProcessarEstatisticasFechamento(ulong posId, ulong dealFechamento = 0, double ptsCapturados = 0, bool agendarSeFalhar = true);
 void     RegistrarFechamentoCompleto(ulong posId, ulong dealFechamento = 0, double ptsCapturados = 0);
 ulong    ResolverTicketPosicao(ulong posId);
@@ -802,53 +707,7 @@ void     LimparPrecoEntradaPosicao(ulong posId);
 string   GVStatsPosDone(ulong posId);
 string   GVEntryOpen(ulong posId);
 string   GVEntryDir(ulong posId);
-bool     FechamentoPorPontosAtivo();
-bool     LimitePontuacaoAtingido(double &pontuacao, int &motivo);
-int      MotivoLimiteAtingidoAgora();
-string   MensagemBloqueioLimite(int motivo);
-void     AplicarBloqueioLimiteDia(int motivo);
-bool     RestaurarBloqueioLimiteDia();
-void     BloquearPainelUI(bool bloquear);
-void     InicializarLimitesEfetivos();
-void     SalvarLimitesEfetivos();
-bool     PinJaCadastrado();
-void     GravarPinHash(const string pin);
-bool     PinFormatoValido(const string pin);
-string   NormalizarPin(const string pin);
-uint     HashPin(const string pin);
-bool     ValidarPinEntrada(const string pin);
-bool     PinBloqueadoPorTentativas();
-void     RegistrarFalhaPin();
-void     SanitizarEditPin(const string nomeEdit);
-void     AbrirPopupLimites();
-void     AbrirPopupPin(bool cadastro);
-void     FecharPopupLimites();
-void     ConfirmarPopupLimites();
-void     SalvarPopupPin();
-void     DesbloquearOperacoesAposLimites();
-bool     EhObjetoPopupLimites(const string name);
-bool     ResolverCliquePopupLimites(const string sparam, string &acao);
-void     InicializarAgendaFechamento();
-void     SalvarAgendaFechamento();
-void     LerAgendaCamposPopup();
-bool     ParseHorarioHHMM(const string texto, int &hora, int &minuto);
-string   FormatarHorarioHHMM(int hora, int minuto);
-datetime DiaCalendarioLocal();
-void     VerificarFechamentoHorario();
-bool     EhCliqueAgendaPopup(const string sparam);
-void     AtualizarBotoesDiasPopup();
-void     AtualizarBotaoSchedOnPopup();
-string   NomeBotaoDiaPopup(int dow);
-void     MontarAgendaNoPopup(int bx, int by, int lx, int ex, int ew, int &y);
-void     MostrarQuadroMensagem(const string msg, int segundosRestantes);
-void     AtualizarQuadroMensagem(int segundosRestantes);
-void     RemoverLinhasQuadroMensagem();
-void     RemoverQuadroMensagem();
-void     IniciarFechamentoMT5(const string msg, bool registrarBloqueioOperacoes);
-void     ProcessarFechamentoAgendado();
-void     VerificarLimitePontuacao();
 datetime DiaCalendarioAtual();
-void     LimparBloqueioOperacoes(bool zerarContador);
 void     LimparGVsOrfas();
 double   LucroPontosPosicao(ulong posTkt);
 bool     EhLinhaHorizontalNoGrafico(const long chartId, const string nome);
@@ -1165,13 +1024,6 @@ void RestaurarGrafico()
 //+------------------------------------------------------------------+
 //| Limite de operacoes                                              |
 //+------------------------------------------------------------------+
-bool EA_EstaBloqueado()
-{
-   if(g_limiteBloqueadoDia)
-      return true;
-   return GlobalVariableCheck(GV_OPS_LOCK) && GlobalVariableGet(GV_OPS_LOCK) > 0;
-}
-
 void CarregarContadorOperacoes()
 {
    ZerarEstatisticasSeNovoDia();
@@ -1205,9 +1057,7 @@ void AtualizarPainelEstatisticas(bool redesenhar = true)
 
       if(g_contadorOperacoes != g_ultimoOpsPainel)
       {
-         string txt = (g_limMaxOperacoes > 0)
-                      ? StringFormat("%d/%d", g_contadorOperacoes, g_limMaxOperacoes)
-                      : IntegerToString(g_contadorOperacoes);
+         string txt = IntegerToString(g_contadorOperacoes);
          ObjectSetString(0, OBJ_TXT_OPS, OBJPROP_TEXT, txt);
          AplicarLabelMetrica(OBJ_TXT_OPS);
          g_ultimoOpsPainel = g_contadorOperacoes;
@@ -1235,11 +1085,6 @@ void AtualizarPainelEstatisticas(bool redesenhar = true)
    }
 }
 
-bool LimiteOperacoesAtingido()
-{
-   return (g_limMaxOperacoes > 0 && g_contadorOperacoes >= g_limMaxOperacoes);
-}
-
 datetime DiaCalendarioAtual()
 {
    MqlDateTime dt;
@@ -1250,29 +1095,10 @@ datetime DiaCalendarioAtual()
    return StructToTime(dt);
 }
 
-void LimparBloqueioOperacoes(bool zerarContador)
-{
-   if(GlobalVariableCheck(GV_OPS_LOCK))      GlobalVariableDel(GV_OPS_LOCK);
-   if(GlobalVariableCheck(GV_OPS_LOCK_DAY))   GlobalVariableDel(GV_OPS_LOCK_DAY);
-   if(GlobalVariableCheck(GV_LIMIT_REASON))   GlobalVariableDel(GV_LIMIT_REASON);
-   g_limiteBloqueadoDia = false;
-   if(!g_fechamentoAgendado)
-      RemoverQuadroMensagem();
-   if(zerarContador)
-   {
-      GlobalVariableSet(GV_OPS_COUNT, 0);
-      g_contadorOperacoes = 0;
-      g_ultimoOpsPainel = -1;
-      AtualizarPainelEstatisticas(true);
-   }
-   GravarEstadoArquivoSeguranca();
-}
-
 bool GVOperacoesPersistente(const string name)
 {
    if(StringFind(name, "SP_CFG_") == 0) return true;
-   return (name == GV_OPS_COUNT || name == GV_OPS_LOCK || name == GV_OPS_LOCK_DAY
-        || name == GV_LIMIT_REASON
+   return (name == GV_OPS_COUNT
         || name == GV_DAY_DATE || name == GV_DAY_PTS || name == GV_DAY_OPS);
 }
 
@@ -1684,8 +1510,6 @@ void ZerarEstatisticasSeNovoDia()
    GlobalVariableSet(GV_DAY_PTS, 0.0);
    GlobalVariableSet(GV_DAY_OPS, 0.0);
    GlobalVariableSet(GV_OPS_COUNT, 0.0);
-   LimparBloqueioOperacoes(false);
-   g_limiteBloqueadoDia = false;
    g_contadorOperacoes = 0;
    g_ultimoOpsPainel = -1;
    g_ultimoPtsPainel = -999999.0;
@@ -1755,19 +1579,6 @@ void LimparGVsOrfas()
       if(!PosicaoAtivaNoSimbolo(ticket))
          GlobalVariableDel(name);
    }
-}
-
-int DelayFechamentoSegundos()
-{
-   int s = InpFecharDelaySeg;
-   if(s < 1)  s = 1;
-   if(s > 60) s = 60;
-   return s;
-}
-
-bool FechamentoPorPontosAtivo()
-{
-   return (g_limPtsPos > 0 || g_limPtsNeg > 0);
 }
 
 ulong ResolverPositionId(ulong ticketOuPosId)
@@ -1969,7 +1780,6 @@ void RegistrarFechamentoCompleto(ulong posId, ulong dealFechamento = 0, double p
 
    ProcessarEstatisticasFechamento(idStats, dealFechamento, 0);
    TentarContarOperacaoFechada(idStats);
-   VerificarLimitePontuacao();
 }
 
 // Pontos de uma posicao fechada. true = precos encontrados (0 ponto tambem e um resultado valido,
@@ -2040,7 +1850,6 @@ void ProcessarEstatisticasPendentes()
       {
          ProcessarEstatisticasFechamento(posId, g_estPendDeal[i], 0, false);
          feito = GlobalVariableCheck(GVStatsPosDone(posId));
-         if(feito) VerificarLimitePontuacao();
       }
       g_estPendTent[i]++;
       if(feito || g_estPendTent[i] >= 30)   // ate ~30 s; depois a reconstrucao do dia corrige
@@ -2113,1400 +1922,41 @@ void ProcessarEstatisticasFechamento(ulong posId, ulong dealFechamento = 0, doub
    AtualizarPainelEstatisticas(true);
 }
 
-bool LimitePontuacaoAtingido(double &pontuacao, int &motivo)
-{
-   pontuacao = CalcularPontuacaoSessao();
-   motivo    = LIMIT_MOTIVO_NENHUM;
-
-   if(g_limPtsPos > 0 && pontuacao >= g_limPtsPos)
-   {
-      motivo = LIMIT_MOTIVO_PTS_MAX;
-      return true;
-   }
-   if(g_limPtsNeg > 0 && pontuacao <= -g_limPtsNeg)
-   {
-      motivo = LIMIT_MOTIVO_PTS_MIN;
-      return true;
-   }
-
-   return false;
-}
-
-int MotivoLimiteAtingidoAgora()
-{
-   CarregarContadorOperacoes();
-
-   if(g_limMaxOperacoes > 0 && LimiteOperacoesAtingido())
-      return LIMIT_MOTIVO_OPERACOES;
-
-   if(FechamentoPorPontosAtivo())
-   {
-      double pts = CalcularPontuacaoSessao();
-      int    motivoPts = LIMIT_MOTIVO_NENHUM;
-      if(g_limPtsPos > 0 && pts >= g_limPtsPos)
-         motivoPts = LIMIT_MOTIVO_PTS_MAX;
-      else if(g_limPtsNeg > 0 && pts <= -g_limPtsNeg)
-         motivoPts = LIMIT_MOTIVO_PTS_MIN;
-      if(motivoPts > LIMIT_MOTIVO_NENHUM)
-         return motivoPts;
-   }
-
-   return LIMIT_MOTIVO_NENHUM;
-}
-
-string MensagemBloqueioLimite(int motivo)
-{
-   switch(motivo)
-   {
-      case LIMIT_MOTIVO_OPERACOES:
-         return "Limite de operacoes atingido.";
-      case LIMIT_MOTIVO_PTS_MAX:
-         return "Meta de pontos atingida.";
-      case LIMIT_MOTIVO_PTS_MIN:
-         return "Perda maxima atingida.";
-   }
-   return "Operacoes bloqueadas.";
-}
-
-void AplicarBloqueioLimiteDia(int motivo)
-{
-   if(motivo <= LIMIT_MOTIVO_NENHUM) return;
-
-   GlobalVariableSet(GV_OPS_LOCK, 1.0);
-   GlobalVariableSet(GV_OPS_LOCK_DAY, (double)DiaCalendarioAtual());
-   GlobalVariableSet(GV_LIMIT_REASON, (double)motivo);
-
-   g_limiteBloqueadoDia = true;
-   MostrarQuadroMensagem(MensagemBloqueioLimite(motivo), -1);
-   Status(SP_MSG_BLOQUEADO, C_STATUS_ERR, true, true);
-   GravarEstadoArquivoSeguranca();
-}
-
-bool RestaurarBloqueioLimiteDia()
-{
-   CarregarContadorOperacoes();
-
-   int motivo = LIMIT_MOTIVO_NENHUM;
-
-   if(EA_EstaBloqueado())
-   {
-      datetime diaBloqueio = GlobalVariableCheck(GV_OPS_LOCK_DAY)
-                           ? (datetime)GlobalVariableGet(GV_OPS_LOCK_DAY) : 0;
-      if(diaBloqueio == DiaCalendarioAtual())
-      {
-         motivo = GlobalVariableCheck(GV_LIMIT_REASON)
-                  ? (int)GlobalVariableGet(GV_LIMIT_REASON) : LIMIT_MOTIVO_OPERACOES;
-         if(motivo <= LIMIT_MOTIVO_NENHUM)
-            motivo = LIMIT_MOTIVO_OPERACOES;
-      }
-      else
-         LimparBloqueioOperacoes(false);
-   }
-
-   if(motivo <= LIMIT_MOTIVO_NENHUM)
-      motivo = MotivoLimiteAtingidoAgora();
-
-   if(motivo <= LIMIT_MOTIVO_NENHUM)
-      return false;
-
-   AplicarBloqueioLimiteDia(motivo);
-   return true;
-}
-
 //+------------------------------------------------------------------+
-//| Persistencia redundante (arquivo + GV) e stats pelo historico     |
+//| Limites do dia, horarios e trava: feitos pela Central de Controle |
+//| (v6.05 removeu o popup LIMITES/PIN e o fechamento do MT5 do EA)   |
 //+------------------------------------------------------------------+
-string ArquivoEstadoSegurancaSP()
-{
-   string sym = _Symbol;
-   StringReplace(sym, ".", "_");
-   StringReplace(sym, ":", "_");
-   StringReplace(sym, "/", "_");
-   StringReplace(sym, "\\", "_");
-   return StringFormat("SP_sec_%d_%s.dat", (long)AccountInfoInteger(ACCOUNT_LOGIN), sym);
-}
-
-uint ChecksumEstadoSeguranca(const long conta, const string sym, const int lockActive,
-                               const datetime lockDay, const int limitReason,
-                               const int limMaxOps, const double limPtsPos, const double limPtsNeg,
-                               const uint pinHash, const int schedOn, const int schedHHMM,
-                               const int schedDays, const datetime schedFireDay)
-{
-   uint h = 2166136261U ^ (uint)conta;
-   h = (h ^ (uint)SP_STATE_MAGIC) * 16777619U;
-   h = (h ^ (uint)SP_STATE_VERSION) * 16777619U;
-   h = (h ^ (uint)StringLen(sym)) * 16777619U;
-   for(int i = 0; i < StringLen(sym); i++)
-      h = (h ^ (uint)StringGetCharacter(sym, i)) * 16777619U;
-   h = (h ^ (uint)lockActive) * 16777619U;
-   h = (h ^ (uint)lockDay) * 16777619U;
-   h = (h ^ (uint)limitReason) * 16777619U;
-   h = (h ^ (uint)limMaxOps) * 16777619U;
-   uint ptsPosBits = (uint)MathRound(limPtsPos * 100.0);
-   uint ptsNegBits = (uint)MathRound(limPtsNeg * 100.0);
-   h = (h ^ ptsPosBits) * 16777619U;
-   h = (h ^ ptsNegBits) * 16777619U;
-   h = (h ^ pinHash) * 16777619U;
-   h = (h ^ (uint)schedOn) * 16777619U;
-   h = (h ^ (uint)schedHHMM) * 16777619U;
-   h = (h ^ (uint)schedDays) * 16777619U;
-   h = (h ^ (uint)schedFireDay) * 16777619U;
-   return h;
-}
-
-bool LerEstadoArquivoSeguranca(int &lockActive, datetime &lockDay, int &limitReason,
-                               int &limMaxOps, double &limPtsPos, double &limPtsNeg,
-                               uint &pinHash, int &schedOn, int &schedHHMM, int &schedDays,
-                               datetime &schedFireDay)
-{
-   lockActive = 0;
-   lockDay = 0;
-   limitReason = 0;
-   limMaxOps = 0;
-   limPtsPos = 0;
-   limPtsNeg = 0;
-   pinHash = 0;
-   schedOn = 0;
-   schedHHMM = 0;
-   schedDays = 0;
-   schedFireDay = 0;
-
-   string arq = ArquivoEstadoSegurancaSP();
-   if(!FileIsExist(arq, FILE_COMMON))
-      return false;
-
-   int h = FileOpen(arq, FILE_READ | FILE_BIN | FILE_COMMON);
-   if(h == INVALID_HANDLE)
-      return false;
-
-   int magic = FileReadInteger(h, INT_VALUE);
-   int version = FileReadInteger(h, INT_VALUE);
-   long conta = FileReadLong(h);
-   string sym = FileReadString(h);
-   int lockAct = FileReadInteger(h, INT_VALUE);
-   datetime lockD = (datetime)FileReadLong(h);
-   int limReason = FileReadInteger(h, INT_VALUE);
-   int maxOps = FileReadInteger(h, INT_VALUE);
-   double ptsPos = FileReadDouble(h);
-   double ptsNeg = FileReadDouble(h);
-   uint pin = (uint)FileReadInteger(h, INT_VALUE);
-   int schOn = FileReadInteger(h, INT_VALUE);
-   int schHHMM = FileReadInteger(h, INT_VALUE);
-   int schDays = FileReadInteger(h, INT_VALUE);
-   datetime schFire = (datetime)FileReadLong(h);
-   uint chkLido = (uint)FileReadInteger(h, INT_VALUE);
-   FileClose(h);
-
-   if(magic != SP_STATE_MAGIC || version != SP_STATE_VERSION)
-      return false;
-   if(conta != AccountInfoInteger(ACCOUNT_LOGIN))
-      return false;
-   if(sym != _Symbol)
-      return false;
-
-   uint chkCalc = ChecksumEstadoSeguranca(conta, sym, lockAct, lockD, limReason,
-                                            maxOps, ptsPos, ptsNeg, pin, schOn, schHHMM,
-                                            schDays, schFire);
-   if(chkCalc != chkLido)
-      return false;
-
-   lockActive = lockAct;
-   lockDay = lockD;
-   limitReason = limReason;
-   limMaxOps = maxOps;
-   limPtsPos = ptsPos;
-   limPtsNeg = ptsNeg;
-   pinHash = pin;
-   schedOn = schOn;
-   schedHHMM = schHHMM;
-   schedDays = schDays;
-   schedFireDay = schFire;
-   return true;
-}
-
-void GravarEstadoArquivoSeguranca()
-{
-   int lockActive = (EA_EstaBloqueado() || g_limiteBloqueadoDia) ? 1 : 0;
-   datetime lockDay = GlobalVariableCheck(GV_OPS_LOCK_DAY)
-                    ? (datetime)GlobalVariableGet(GV_OPS_LOCK_DAY) : 0;
-   int limitReason = GlobalVariableCheck(GV_LIMIT_REASON)
-                   ? (int)GlobalVariableGet(GV_LIMIT_REASON) : 0;
-   uint pinHash = GlobalVariableCheck(GV_PIN_HASH) ? (uint)GlobalVariableGet(GV_PIN_HASH) : 0;
-   datetime schedFire = GlobalVariableCheck(GV_SCHED_FIRE)
-                      ? (datetime)GlobalVariableGet(GV_SCHED_FIRE) : 0;
-   int schedHHMM = g_schedHour * 100 + g_schedMin;
-
-   long conta = AccountInfoInteger(ACCOUNT_LOGIN);
-   uint chk = ChecksumEstadoSeguranca(conta, _Symbol, lockActive, lockDay, limitReason,
-                                      g_limMaxOperacoes, g_limPtsPos, g_limPtsNeg, pinHash,
-                                      g_schedEnabled ? 1 : 0, schedHHMM, g_schedDaysMask, schedFire);
-
-   string arq = ArquivoEstadoSegurancaSP();
-   int h = FileOpen(arq, FILE_WRITE | FILE_BIN | FILE_COMMON);
-   if(h == INVALID_HANDLE)
-      return;
-
-   FileWriteInteger(h, SP_STATE_MAGIC, INT_VALUE);
-   FileWriteInteger(h, SP_STATE_VERSION, INT_VALUE);
-   FileWriteLong(h, conta);
-   FileWriteString(h, _Symbol);
-   FileWriteInteger(h, lockActive, INT_VALUE);
-   FileWriteLong(h, (long)lockDay);
-   FileWriteInteger(h, limitReason, INT_VALUE);
-   FileWriteInteger(h, g_limMaxOperacoes, INT_VALUE);
-   FileWriteDouble(h, g_limPtsPos);
-   FileWriteDouble(h, g_limPtsNeg);
-   FileWriteInteger(h, (int)pinHash, INT_VALUE);
-   FileWriteInteger(h, g_schedEnabled ? 1 : 0, INT_VALUE);
-   FileWriteInteger(h, schedHHMM, INT_VALUE);
-   FileWriteInteger(h, g_schedDaysMask, INT_VALUE);
-   FileWriteLong(h, (long)schedFire);
-   FileWriteInteger(h, (int)chk, INT_VALUE);
-   FileFlush(h);
-   FileClose(h);
-}
-
-void AplicarLimitesDoArquivo(int limMaxOps, double limPtsPos, double limPtsNeg)
-{
-   if(limMaxOps < 0) limMaxOps = 0;
-   if(limPtsPos < 0) limPtsPos = 0;
-   if(limPtsNeg < 0) limPtsNeg = 0;
-
-   g_limMaxOperacoes = limMaxOps;
-   g_limPtsPos = limPtsPos;
-   g_limPtsNeg = limPtsNeg;
-   GlobalVariableSet(GV_LIM_MAX_OPS, (double)g_limMaxOperacoes);
-   GlobalVariableSet(GV_LIM_PTS_POS, g_limPtsPos);
-   GlobalVariableSet(GV_LIM_PTS_NEG, g_limPtsNeg);
-}
-
-void AplicarAgendaDoArquivo(int schedOn, int schedHHMM, int schedDays, datetime schedFireDay)
-{
-   g_schedEnabled = (schedOn > 0);
-   g_schedHour = schedHHMM / 100;
-   g_schedMin  = schedHHMM % 100;
-   if(g_schedHour < 0 || g_schedHour > 23) g_schedHour = 18;
-   if(g_schedMin < 0 || g_schedMin > 59) g_schedMin = 0;
-   g_schedDaysMask = schedDays;
-   if(g_schedDaysMask < 0) g_schedDaysMask = 0;
-   if(g_schedDaysMask > 127) g_schedDaysMask = 127;
-
-   GlobalVariableSet(GV_SCHED_ON, g_schedEnabled ? 1.0 : 0.0);
-   GlobalVariableSet(GV_SCHED_HHMM, (double)(g_schedHour * 100 + g_schedMin));
-   GlobalVariableSet(GV_SCHED_DAYS, (double)g_schedDaysMask);
-   if(schedFireDay > 0)
-      GlobalVariableSet(GV_SCHED_FIRE, (double)schedFireDay);
-}
-
-void SincronizarEstadoSeguranca()
-{
-   int lockActive = 0, limitReason = 0, limMaxOps = 0, schedOn = 0, schedHHMM = 0, schedDays = 0;
-   datetime lockDay = 0, schedFireDay = 0;
-   double limPtsPos = 0, limPtsNeg = 0;
-   uint pinHash = 0;
-
-   bool temArquivo = LerEstadoArquivoSeguranca(lockActive, lockDay, limitReason, limMaxOps,
-                                               limPtsPos, limPtsNeg, pinHash, schedOn, schedHHMM,
-                                               schedDays, schedFireDay);
-
-   bool gvTemLimites = GlobalVariableCheck(GV_LIM_MAX_OPS)
-                    || GlobalVariableCheck(GV_LIM_PTS_POS)
-                    || GlobalVariableCheck(GV_LIM_PTS_NEG);
-   bool arqTemLimites = (limMaxOps > 0 || limPtsPos > 0.0 || limPtsNeg > 0.0);
-
-   if(temArquivo && (!gvTemLimites || arqTemLimites))
-   {
-      if(!gvTemLimites || arqTemLimites)
-         AplicarLimitesDoArquivo(limMaxOps, limPtsPos, limPtsNeg);
-   }
-
-   if(temArquivo && pinHash != 0 && !GlobalVariableCheck(GV_PIN_HASH))
-      GlobalVariableSet(GV_PIN_HASH, (double)pinHash);
-
-   if(temArquivo && (!GlobalVariableCheck(GV_SCHED_ON) || schedOn > 0 || schedDays > 0))
-      AplicarAgendaDoArquivo(schedOn, schedHHMM, schedDays, schedFireDay);
-
-   if(temArquivo && lockActive > 0 && lockDay == DiaCalendarioAtual())
-   {
-      if(!GlobalVariableCheck(GV_OPS_LOCK))
-      {
-         GlobalVariableSet(GV_OPS_LOCK, 1.0);
-         GlobalVariableSet(GV_OPS_LOCK_DAY, (double)lockDay);
-         if(limitReason > LIMIT_MOTIVO_NENHUM)
-            GlobalVariableSet(GV_LIMIT_REASON, (double)limitReason);
-         g_limiteBloqueadoDia = true;
-      }
-   }
-
-   GravarEstadoArquivoSeguranca();
-}
-
-void VerificarIntegridadeEstadoSeguranca()
+// Rebuild das estatisticas do dia pelo historico (a cada 3 s, no timer de 1 s).
+// Antes rodava dentro da verificacao de limites; continua igual.
+void ManterEstatisticasDia()
 {
    static datetime ultima = 0;
    datetime agora = TimeCurrent();
    if(ultima > 0 && (agora - ultima) < 3)
       return;
    ultima = agora;
-
-   int lockActive = 0, limitReason = 0, limMaxOps = 0, schedOn = 0, schedHHMM = 0, schedDays = 0;
-   datetime lockDay = 0, schedFireDay = 0;
-   double limPtsPos = 0, limPtsNeg = 0;
-   uint pinHash = 0;
-
-   if(LerEstadoArquivoSeguranca(lockActive, lockDay, limitReason, limMaxOps, limPtsPos, limPtsNeg,
-                                pinHash, schedOn, schedHHMM, schedDays, schedFireDay))
-   {
-      bool gvSemLimites = !GlobalVariableCheck(GV_LIM_MAX_OPS)
-                       && !GlobalVariableCheck(GV_LIM_PTS_POS)
-                       && !GlobalVariableCheck(GV_LIM_PTS_NEG);
-      bool arqComLimites = (limMaxOps > 0 || limPtsPos > 0.0 || limPtsNeg > 0.0);
-      if(gvSemLimites && arqComLimites)
-         AplicarLimitesDoArquivo(limMaxOps, limPtsPos, limPtsNeg);
-
-      if(pinHash != 0 && !GlobalVariableCheck(GV_PIN_HASH))
-         GlobalVariableSet(GV_PIN_HASH, (double)pinHash);
-
-      if(lockActive > 0 && lockDay == DiaCalendarioAtual() && !EA_EstaBloqueado())
-      {
-         int motivo = (limitReason > LIMIT_MOTIVO_NENHUM) ? limitReason : MotivoLimiteAtingidoAgora();
-         if(motivo <= LIMIT_MOTIVO_NENHUM)
-            motivo = LIMIT_MOTIVO_OPERACOES;
-         AplicarBloqueioLimiteDia(motivo);
-      }
-   }
-
    ReconstruirEstatisticasDia(false);
-
-   int motivoAtual = MotivoLimiteAtingidoAgora();
-   if(motivoAtual > LIMIT_MOTIVO_NENHUM && !g_limiteBloqueadoDia)
-      AplicarBloqueioLimiteDia(motivoAtual);
 }
 
-//+------------------------------------------------------------------+
-//| Limites em runtime + popup PIN 6 digitos                          |
-//+------------------------------------------------------------------+
-bool PinFormatoValido(const string pin)
+// Uma vez no OnInit: apaga objetos e variaveis globais do sistema de limites antigo
+// (popup SPL_, caixa de mensagem SPM_, botao LIMITES, trava do dia, PIN e agenda).
+void RemoverRestosLimitesAntigos()
 {
-   if(StringLen(pin) != PIN_DIGITOS) return false;
-   for(int i = 0; i < PIN_DIGITOS; i++)
-   {
-      ushort ch = (ushort)StringGetCharacter(pin, i);
-      if(ch < '0' || ch > '9') return false;
-   }
-   return true;
+   ObjectsDeleteAll(0, "SPL_");
+   ObjectsDeleteAll(0, "SPM_");
+   ObjectDelete(0, "SP_BTN_LIMITS");
+   ObjectDelete(0, "SP_LIMITS_ICON");
+   ObjectDelete(0, "SP_TR");
+   string gvs[] = {"SP_OPS_LOCK", "SP_OPS_LOCK_DAY", "SP_LIMIT_REASON", "SP_LIM_MAX_OPS", "SP_LIM_PTS_POS",
+                   "SP_LIM_PTS_NEG", "SP_PIN_HASH", "SP_SCHED_ON", "SP_SCHED_HHMM", "SP_SCHED_DAYS",
+                   "SP_SCHED_FIRE_DAY"};
+   for(int i = 0; i < ArraySize(gvs); i++)
+      if(GlobalVariableCheck(gvs[i])) GlobalVariableDel(gvs[i]);
 }
-
-string NormalizarPin(const string pin)
-{
-   string out = "";
-   for(int i = 0; i < StringLen(pin) && StringLen(out) < PIN_DIGITOS; i++)
-   {
-      ushort ch = (ushort)StringGetCharacter(pin, i);
-      if(ch >= '0' && ch <= '9')
-         out += ShortToString(ch);
-   }
-   while(StringLen(out) < PIN_DIGITOS)
-      out = "0" + out;
-   if(StringLen(out) > PIN_DIGITOS)
-      out = StringSubstr(out, 0, PIN_DIGITOS);
-   return out;
-}
-
-uint HashPin(const string pin)
-{
-   string p = NormalizarPin(pin);
-   if(!PinFormatoValido(p)) return 0;
-
-   ulong h = (ulong)StringToInteger(p);
-   h = h * 1315423911ULL + (ulong)AccountInfoInteger(ACCOUNT_LOGIN);
-   h = h * 1315423911ULL + (ulong)StringLen(_Symbol);
-   return (uint)(h ^ (h >> 32));
-}
-
-bool PinJaCadastrado()
-{
-   if(GlobalVariableCheck(GV_PIN_HASH))
-      return true;
-
-   int lockActive = 0, limitReason = 0, limMaxOps = 0, schedOn = 0, schedHHMM = 0, schedDays = 0;
-   datetime lockDay = 0, schedFireDay = 0;
-   double limPtsPos = 0, limPtsNeg = 0;
-   uint pinHash = 0;
-   if(LerEstadoArquivoSeguranca(lockActive, lockDay, limitReason, limMaxOps, limPtsPos, limPtsNeg,
-                                pinHash, schedOn, schedHHMM, schedDays, schedFireDay) && pinHash != 0)
-   {
-      GlobalVariableSet(GV_PIN_HASH, (double)pinHash);
-      return true;
-   }
-   return false;
-}
-
-void GravarPinHash(const string pin)
-{
-   string p = NormalizarPin(pin);
-   if(!PinFormatoValido(p)) return;
-   GlobalVariableSet(GV_PIN_HASH, (double)HashPin(p));
-   GravarEstadoArquivoSeguranca();
-}
-
-bool ValidarPinEntrada(const string pin)
-{
-   if(PinBloqueadoPorTentativas())
-      return false;
-
-   if(!PinJaCadastrado())
-   {
-      Status(SP_MSG_PIN_CAD, clrOrange, true);
-      return false;
-   }
-
-   uint esperado = (uint)GlobalVariableGet(GV_PIN_HASH);
-   uint informado = HashPin(pin);
-   if(informado == 0 || informado != esperado)
-   {
-      RegistrarFalhaPin();
-      return false;
-   }
-
-   g_pinFalhas = 0;
-   g_pinBloqueadoAte = 0;
-   return true;
-}
-
-bool PinBloqueadoPorTentativas()
-{
-   if(g_pinBloqueadoAte <= 0) return false;
-   if(TimeCurrent() >= g_pinBloqueadoAte)
-   {
-      g_pinBloqueadoAte = 0;
-      g_pinFalhas = 0;
-      return false;
-   }
-   return true;
-}
-
-void RegistrarFalhaPin()
-{
-   g_pinFalhas++;
-   if(g_pinFalhas >= PIN_MAX_FALHAS)
-   {
-      g_pinBloqueadoAte = TimeCurrent() + PIN_COOLDOWN_SEG;
-      g_pinFalhas = 0;
-      Status(SP_MSG_PIN_BLOQ, C_STATUS_WARN, true);
-   }
-   else
-      Status(SP_MSG_PIN_ERR, C_STATUS_ERR, true);
-}
-
-void InicializarLimitesEfetivos()
-{
-   if(GlobalVariableCheck(GV_LIM_MAX_OPS))
-      g_limMaxOperacoes = (int)GlobalVariableGet(GV_LIM_MAX_OPS);
-   else
-      g_limMaxOperacoes = 0;
-
-   if(GlobalVariableCheck(GV_LIM_PTS_POS))
-      g_limPtsPos = GlobalVariableGet(GV_LIM_PTS_POS);
-   else
-      g_limPtsPos = 0;
-
-   if(GlobalVariableCheck(GV_LIM_PTS_NEG))
-      g_limPtsNeg = GlobalVariableGet(GV_LIM_PTS_NEG);
-   else
-      g_limPtsNeg = 0;
-
-   if(g_limMaxOperacoes < 0) g_limMaxOperacoes = 0;
-   if(g_limPtsPos < 0) g_limPtsPos = 0;
-   if(g_limPtsNeg < 0) g_limPtsNeg = 0;
-
-   SalvarLimitesEfetivos();
-}
-
-void SalvarLimitesEfetivos()
-{
-   GlobalVariableSet(GV_LIM_MAX_OPS, (double)g_limMaxOperacoes);
-   GlobalVariableSet(GV_LIM_PTS_POS, g_limPtsPos);
-   GlobalVariableSet(GV_LIM_PTS_NEG, g_limPtsNeg);
-   GravarEstadoArquivoSeguranca();
-}
-
-//+------------------------------------------------------------------+
-//| Fechamento programado (hora local do PC + dias da semana)         |
-//+------------------------------------------------------------------+
-datetime DiaCalendarioLocal()
-{
-   MqlDateTime dt;
-   TimeToStruct(TimeLocal(), dt);
-   dt.hour = 0;
-   dt.min  = 0;
-   dt.sec  = 0;
-   return StructToTime(dt);
-}
-
-string FormatarHorarioHHMM(int hora, int minuto)
-{
-   if(hora < 0) hora = 0;
-   if(hora > 23) hora = 23;
-   if(minuto < 0) minuto = 0;
-   if(minuto > 59) minuto = 59;
-   return StringFormat("%02d:%02d", hora, minuto);
-}
-
-bool ParseHorarioHHMM(const string texto, int &hora, int &minuto)
-{
-   hora = 0;
-   minuto = 0;
-   string t = texto;
-   StringReplace(t, " ", "");
-   StringReplace(t, ".", ":");
-   StringReplace(t, "-", ":");
-
-   string partes[];
-   int n = StringSplit(t, ':', partes);
-   if(n < 1) return false;
-
-   hora = (int)StringToInteger(partes[0]);
-   if(n >= 2)
-      minuto = (int)StringToInteger(partes[1]);
-
-   if(hora < 0 || hora > 23 || minuto < 0 || minuto > 59)
-      return false;
-
-   return true;
-}
-
-void InicializarAgendaFechamento()
-{
-   g_schedEnabled = false;
-   g_schedHour = 18;
-   g_schedMin = 0;
-   g_schedDaysMask = 0x7F;
-
-   if(GlobalVariableCheck(GV_SCHED_ON))
-      g_schedEnabled = (GlobalVariableGet(GV_SCHED_ON) > 0.5);
-
-   if(GlobalVariableCheck(GV_SCHED_HHMM))
-   {
-      int packed = (int)GlobalVariableGet(GV_SCHED_HHMM);
-      g_schedHour = packed / 100;
-      g_schedMin  = packed % 100;
-      if(g_schedHour < 0 || g_schedHour > 23) g_schedHour = 18;
-      if(g_schedMin < 0 || g_schedMin > 59) g_schedMin = 0;
-   }
-
-   if(GlobalVariableCheck(GV_SCHED_DAYS))
-   {
-      g_schedDaysMask = (int)GlobalVariableGet(GV_SCHED_DAYS);
-      if(g_schedDaysMask < 0) g_schedDaysMask = 0;
-      if(g_schedDaysMask > 127) g_schedDaysMask = 127;
-   }
-}
-
-void SalvarAgendaFechamento()
-{
-   GlobalVariableSet(GV_SCHED_ON, g_schedEnabled ? 1.0 : 0.0);
-   GlobalVariableSet(GV_SCHED_HHMM, (double)(g_schedHour * 100 + g_schedMin));
-   GlobalVariableSet(GV_SCHED_DAYS, (double)g_schedDaysMask);
-   GravarEstadoArquivoSeguranca();
-}
-
-void LerAgendaCamposPopup()
-{
-   if(ObjectFind(0, SPL_EDIT_SCHED_HHMM) >= 0)
-   {
-      string hhmm = ObjectGetString(0, SPL_EDIT_SCHED_HHMM, OBJPROP_TEXT);
-      int h = g_schedHour, m = g_schedMin;
-      if(ParseHorarioHHMM(hhmm, h, m))
-      {
-         g_schedHour = h;
-         g_schedMin = m;
-      }
-   }
-}
-
-string NomeBotaoDiaPopup(int dow)
-{
-   return SPL_BTN_DOW_PFX + IntegerToString(dow);
-}
-
-void AtualizarBotoesDiasPopup()
-{
-   const string nomes[7] = {"DOM","SEG","TER","QUA","QUI","SEX","SAB"};
-
-   for(int d = 0; d < 7; d++)
-   {
-      string nome = NomeBotaoDiaPopup(d);
-      if(ObjectFind(0, nome) < 0) continue;
-
-      bool ativo = ((g_schedDaysMask & (1 << d)) != 0);
-      ObjectSetString(0, nome, OBJPROP_TEXT, nomes[d]);
-      ObjectSetInteger(0, nome, OBJPROP_BGCOLOR, ativo ? C_ACCENT_COLOR : C_BTN_BG);
-      ObjectSetInteger(0, nome, OBJPROP_COLOR, ativo ? clrWhite : C_BTN_TEXT);
-      ObjectSetInteger(0, nome, OBJPROP_STATE, false);
-   }
-}
-
-void AtualizarBotaoSchedOnPopup()
-{
-   if(ObjectFind(0, SPL_BTN_SCHED_ON) < 0) return;
-
-   ObjectSetString(0, SPL_BTN_SCHED_ON, OBJPROP_TEXT, g_schedEnabled ? "ON" : "OFF");
-   ObjectSetInteger(0, SPL_BTN_SCHED_ON, OBJPROP_BGCOLOR, g_schedEnabled ? C_ACCENT_COLOR : C_BTN_BG);
-   ObjectSetInteger(0, SPL_BTN_SCHED_ON, OBJPROP_COLOR, g_schedEnabled ? clrWhite : C_BTN_TEXT);
-   ObjectSetInteger(0, SPL_BTN_SCHED_ON, OBJPROP_STATE, false);
-}
-
-void MontarAgendaNoPopup(int bx, int by, int lx, int ex, int ew, int &y)
-{
-   y += 12;
-   CriarLabelPopup("SPL_LBL_SCHED", lx, y, "Fechar MT5 (hora PC)", 8);
-   y += 26;
-
-   CriarBotaoPopup(SPL_BTN_SCHED_ON, lx, y - 2, 40, 22, g_schedEnabled ? "ON" : "OFF");
-   AtualizarBotaoSchedOnPopup();
-   CriarEditPopup(SPL_EDIT_SCHED_HHMM, ex, y - 2, FormatarHorarioHHMM(g_schedHour, g_schedMin), 56, 22);
-   y += 34;
-
-   int dw = 32, dg = 2;
-   for(int d = 0; d < 7; d++)
-      CriarBotaoPopup(NomeBotaoDiaPopup(d), lx + d * (dw + dg), y, dw, 18, " ");
-   AtualizarBotoesDiasPopup();
-   y += 32;
-}
-
-bool EhCliqueAgendaPopup(const string sparam)
-{
-   if(!g_popupLimitesAberto || g_popupView != SPL_VIEW_LIMITES)
-      return false;
-
-   if(sparam == SPL_BTN_SCHED_ON || StringFind(sparam, SPL_BTN_SCHED_ON + "_") == 0)
-   {
-      g_schedEnabled = !g_schedEnabled;
-      AtualizarBotaoSchedOnPopup();
-      ObjectSetInteger(0, sparam, OBJPROP_STATE, false);
-      ChartRedraw(0);
-      return true;
-   }
-
-   if(StringFind(sparam, SPL_BTN_DOW_PFX) == 0)
-   {
-      int dow = (int)StringToInteger(StringSubstr(sparam, StringLen(SPL_BTN_DOW_PFX)));
-      if(dow >= 0 && dow <= 6)
-      {
-         int bit = (1 << dow);
-         if((g_schedDaysMask & bit) != 0)
-            g_schedDaysMask &= ~bit;
-         else
-            g_schedDaysMask |= bit;
-         AtualizarBotoesDiasPopup();
-      }
-      ObjectSetInteger(0, sparam, OBJPROP_STATE, false);
-      ChartRedraw(0);
-      return true;
-   }
-
-   return false;
-}
-
-void VerificarFechamentoHorario()
-{
-   if(!g_schedEnabled || g_fechamentoAgendado)
-      return;
-
-   if(g_schedDaysMask == 0)
-      return;
-
-   MqlDateTime dt;
-   TimeToStruct(TimeLocal(), dt);
-
-   if((g_schedDaysMask & (1 << dt.day_of_week)) == 0)
-      return;
-
-   if(dt.hour != g_schedHour || dt.min != g_schedMin)
-      return;
-
-   datetime diaLocal = DiaCalendarioLocal();
-   if(GlobalVariableCheck(GV_SCHED_FIRE))
-   {
-      datetime ultimo = (datetime)GlobalVariableGet(GV_SCHED_FIRE);
-      if(ultimo == diaLocal)
-         return;
-   }
-
-   GlobalVariableSet(GV_SCHED_FIRE, (double)diaLocal);
-
-   string msg = "Horario programado atingido.\nO MT5 sera fechado.";
-   IniciarFechamentoMT5(msg, false);
-   if(InpLogDetalhado)
-      PrintFormat("SP fechamento programado %02d:%02d dow=%d", g_schedHour, g_schedMin, dt.day_of_week);
-}
-
-void SanitizarEditPin(const string nomeEdit)
-{
-   if(ObjectFind(0, nomeEdit) < 0) return;
-   string t = ObjectGetString(0, nomeEdit, OBJPROP_TEXT);
-   string out = "";
-   for(int i = 0; i < StringLen(t) && StringLen(out) < PIN_DIGITOS; i++)
-   {
-      ushort ch = (ushort)StringGetCharacter(t, i);
-      if(ch >= '0' && ch <= '9')
-         out += ShortToString(ch);
-   }
-   if(out != t)
-      ObjectSetString(0, nomeEdit, OBJPROP_TEXT, out);
-}
-
-bool EhObjetoPopupLimites(const string name)
-{
-   return (StringFind(name, SPL_PREFIX) == 0);
-}
-
-void FecharPopupLimites()
-{
-   ObjectsDeleteAll(0, SPL_PREFIX);
-   g_popupLimitesAberto = false;
-   g_popupView = SPL_VIEW_LIMITES;
-   g_popupPinCadastro = false;
-   ChartRedraw(0);
-}
-
-void CriarLabelPopup(string name, int x, int y, string text, int fs = 8)
-{
-   if(ObjectFind(0, name) < 0) ObjectCreate(0, name, OBJ_LABEL, 0, 0, 0);
-   ObjectSetInteger(0, name, OBJPROP_CORNER, CORNER_LEFT_UPPER);
-   ObjectSetInteger(0, name, OBJPROP_XDISTANCE, x);
-   ObjectSetInteger(0, name, OBJPROP_YDISTANCE, y);
-   ObjectSetInteger(0, name, OBJPROP_COLOR, C_LABEL_BRIGHT);
-   ObjectSetInteger(0, name, OBJPROP_FONTSIZE, fs);
-   ObjectSetString(0, name, OBJPROP_FONT, UI_FONT);
-   ObjectSetString(0, name, OBJPROP_TEXT, text);
-   ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
-   ObjectSetInteger(0, name, OBJPROP_ZORDER, 210);
-}
-
-void CriarEditPopup(string name, int x, int y, string text, int w, int h)
-{
-   if(ObjectFind(0, name) < 0) ObjectCreate(0, name, OBJ_EDIT, 0, 0, 0);
-   ObjectSetInteger(0, name, OBJPROP_CORNER, CORNER_LEFT_UPPER);
-   ObjectSetInteger(0, name, OBJPROP_XDISTANCE, x);
-   ObjectSetInteger(0, name, OBJPROP_YDISTANCE, y);
-   ObjectSetInteger(0, name, OBJPROP_XSIZE, w);
-   ObjectSetInteger(0, name, OBJPROP_YSIZE, h);
-   ObjectSetInteger(0, name, OBJPROP_BGCOLOR, C_INPUT_BG);
-   ObjectSetInteger(0, name, OBJPROP_COLOR, C_INPUT_TEXT);
-   ObjectSetInteger(0, name, OBJPROP_BORDER_COLOR, C_INPUT_BORDER);
-   ObjectSetInteger(0, name, OBJPROP_ALIGN, ALIGN_CENTER);
-   ObjectSetInteger(0, name, OBJPROP_FONTSIZE, 9);
-   ObjectSetString(0, name, OBJPROP_FONT, UI_FONT);
-   ObjectSetString(0, name, OBJPROP_TEXT, text);
-   ObjectSetInteger(0, name, OBJPROP_ZORDER, 211);
-}
-
-void CriarBotaoPopup(string name, int x, int y, int w, int h, string text)
-{
-   if(ObjectFind(0, name) < 0) ObjectCreate(0, name, OBJ_BUTTON, 0, 0, 0);
-   ObjectSetInteger(0, name, OBJPROP_CORNER, CORNER_LEFT_UPPER);
-   ObjectSetInteger(0, name, OBJPROP_XDISTANCE, x);
-   ObjectSetInteger(0, name, OBJPROP_YDISTANCE, y);
-   ObjectSetInteger(0, name, OBJPROP_XSIZE, w);
-   ObjectSetInteger(0, name, OBJPROP_YSIZE, h);
-   ObjectSetString(0, name, OBJPROP_FONT, "Arial");
-   ObjectSetString(0, name, OBJPROP_TEXT, text);
-   ObjectSetInteger(0, name, OBJPROP_FONTSIZE, 8);
-   ObjectSetInteger(0, name, OBJPROP_BGCOLOR, C_BTN_BG);
-   ObjectSetInteger(0, name, OBJPROP_COLOR, C_BTN_TEXT);
-   ObjectSetInteger(0, name, OBJPROP_BORDER_COLOR, C_BTN_BORDER);
-   ObjectSetInteger(0, name, OBJPROP_ZORDER, 212);
-}
-
-void CriarFundoPopupLimites(int bx, int by, int bw, int bh)
-{
-   if(ObjectCreate(0, SPL_BG, OBJ_RECTANGLE_LABEL, 0, 0, 0))
-   {
-      ObjectSetInteger(0, SPL_BG, OBJPROP_CORNER, CORNER_LEFT_UPPER);
-      ObjectSetInteger(0, SPL_BG, OBJPROP_XDISTANCE, bx);
-      ObjectSetInteger(0, SPL_BG, OBJPROP_YDISTANCE, by);
-      ObjectSetInteger(0, SPL_BG, OBJPROP_XSIZE, bw);
-      ObjectSetInteger(0, SPL_BG, OBJPROP_YSIZE, bh);
-      ObjectSetInteger(0, SPL_BG, OBJPROP_BGCOLOR, C_HEADER_COLOR);
-      ObjectSetInteger(0, SPL_BG, OBJPROP_BORDER_COLOR, C_ACCENT_COLOR);
-      ObjectSetInteger(0, SPL_BG, OBJPROP_BORDER_TYPE, BORDER_FLAT);
-      ObjectSetString(0, SPL_BG, OBJPROP_TEXT, " ");
-      ObjectSetInteger(0, SPL_BG, OBJPROP_ZORDER, 208);
-   }
-}
-
-void AbrirPopupPin(bool cadastro)
-{
-   if(g_fechamentoAgendado) return;
-
-   int cw = (int)ChartGetInteger(0, CHART_WIDTH_IN_PIXELS);
-   int ch = (int)ChartGetInteger(0, CHART_HEIGHT_IN_PIXELS);
-   if(cw < 200) cw = 800;
-   if(ch < 150) ch = 600;
-
-   int bw = 270, bh = cadastro ? 220 : 248;
-   int bx = (cw - bw) / 2;
-   int by = (ch - bh) / 2;
-   int lx = bx + 14;
-   int ex = lx + 118;
-   int ew = bw - 14 - 118 - 14;
-
-   FecharPopupLimites();
-   g_popupView = SPL_VIEW_PIN;
-   g_popupPinCadastro = cadastro;
-   g_popupLimitesAberto = true;
-
-   CriarFundoPopupLimites(bx, by, bw, bh);
-   string titulo = cadastro ? "CADASTRAR PIN" : "TROCAR PIN";
-   CriarLabelPopup(SPL_TITLE, bx + 14, by + 10, titulo, 9);
-
-   int y = by + 36;
-   if(!cadastro)
-   {
-      CriarLabelPopup("SPL_LBL_PIN_ATUAL", lx, y, "PIN atual", 8);
-      CriarEditPopup(SPL_EDIT_PIN_ATUAL, ex, y - 2, "", ew, 22);
-      y += 30;
-   }
-
-   CriarLabelPopup("SPL_LBL_PIN_NOVO", lx, y, "PIN novo", 8);
-   CriarEditPopup(SPL_EDIT_PIN_NOVO, ex, y - 2, "", ew, 22);
-   y += 30;
-   CriarLabelPopup("SPL_LBL_PIN_CONF", lx, y, "Confirmar PIN", 8);
-   CriarEditPopup(SPL_EDIT_PIN_CONF, ex, y - 2, "", ew, 22);
-   y += 38;
-
-   int btnW = 78, gap = 10;
-   int btnX = bx + (bw - btnW * 2 - gap) / 2;
-   CriarBotaoPopup(SPL_BTN_PIN_SALVAR, btnX, y, btnW, 24, "Salvar");
-   CriarBotaoPopup(SPL_BTN_VOLTAR, btnX + btnW + gap, y, btnW, 24, "Voltar");
-
-   ChartRedraw(0);
-}
-
-void AbrirPopupLimites()
-{
-   if(g_fechamentoAgendado) return;
-   if(g_popupLimitesAberto && g_popupView == SPL_VIEW_LIMITES)
-   {
-      FecharPopupLimites();
-      return;
-   }
-
-   if(!PinJaCadastrado())
-   {
-      AbrirPopupPin(true);
-      return;
-   }
-
-   int cw = (int)ChartGetInteger(0, CHART_WIDTH_IN_PIXELS);
-   int ch = (int)ChartGetInteger(0, CHART_HEIGHT_IN_PIXELS);
-   if(cw < 200) cw = 800;
-   if(ch < 150) ch = 600;
-
-   int bw = 270, bh = 455;
-   int bx = (cw - bw) / 2;
-   int by = (ch - bh) / 2;
-   int lx = bx + 14;
-   int ex = lx + 118;
-   int ew = bw - 14 - 118 - 14;
-   const int SPL_ROW_GAP = 36;
-
-   FecharPopupLimites();
-   g_popupView = SPL_VIEW_LIMITES;
-   g_popupLimitesAberto = true;
-
-   CriarFundoPopupLimites(bx, by, bw, bh);
-   CriarLabelPopup(SPL_TITLE, bx + 14, by + 10, "LIMITES DO DIA", 9);
-
-   int y = by + 36;
-   CriarLabelPopup("SPL_LBL_OPS", lx, y, "Max operacoes", 8);
-   CriarEditPopup(SPL_EDIT_OPS, ex, y - 2, IntegerToString(g_limMaxOperacoes), ew, 22);
-   y += SPL_ROW_GAP;
-   CriarLabelPopup("SPL_LBL_POS", lx, y, "Meta + (pts)", 8);
-   CriarEditPopup(SPL_EDIT_POS, ex, y - 2, DoubleToString(g_limPtsPos, 0), ew, 22);
-   y += SPL_ROW_GAP;
-   CriarLabelPopup("SPL_LBL_NEG", lx, y, "Meta - (pts)", 8);
-   CriarEditPopup(SPL_EDIT_NEG, ex, y - 2, DoubleToString(g_limPtsNeg, 0), ew, 22);
-   y += SPL_ROW_GAP;
-   MontarAgendaNoPopup(bx, by, lx, ex, ew, y);
-   y += 10;
-   CriarLabelPopup("SPL_LBL_PIN", lx, y, "PIN (6 digitos)", 8);
-   CriarEditPopup(SPL_EDIT_PIN, ex, y - 2, "", ew, 22);
-   y += 48;
-
-   int btnW = 78, gap = 10;
-   int btnX = bx + (bw - btnW * 2 - gap) / 2;
-   CriarBotaoPopup(SPL_BTN_OK, btnX, y, btnW, 24, "OK");
-   CriarBotaoPopup(SPL_BTN_CANCEL, btnX + btnW + gap, y, btnW, 24, "Cancelar");
-   y += 30;
-   CriarBotaoPopup(SPL_BTN_TROCAR_PIN, bx + 14, y, bw - 28, 22, "Trocar PIN");
-
-   ChartRedraw(0);
-}
-
-void DesbloquearOperacoesAposLimites()
-{
-   if(EA_EstaBloqueado() || g_limiteBloqueadoDia)
-      LimparBloqueioOperacoes(false);
-}
-
-void ConfirmarPopupLimites()
-{
-   if(PinBloqueadoPorTentativas())
-   {
-      Status(SP_MSG_PIN_BLOQ, C_STATUS_WARN, true);
-      return;
-   }
-
-   if(!PinJaCadastrado())
-   {
-      Status(SP_MSG_PIN_CAD, clrOrange, true);
-      AbrirPopupPin(true);
-      return;
-   }
-
-   string pin = "";
-   if(ObjectFind(0, SPL_EDIT_PIN) >= 0)
-      pin = ObjectGetString(0, SPL_EDIT_PIN, OBJPROP_TEXT);
-   pin = NormalizarPin(pin);
-
-   if(!ValidarPinEntrada(pin))
-      return;
-
-   int opsAnt = g_limMaxOperacoes;
-   double posAnt = g_limPtsPos, negAnt = g_limPtsNeg;
-
-   int ops = opsAnt;
-   double pos = posAnt, neg = negAnt;
-   if(ObjectFind(0, SPL_EDIT_OPS) >= 0)
-      ops = (int)StringToInteger(ObjectGetString(0, SPL_EDIT_OPS, OBJPROP_TEXT));
-   if(ObjectFind(0, SPL_EDIT_POS) >= 0)
-      pos = StringToDouble(ObjectGetString(0, SPL_EDIT_POS, OBJPROP_TEXT));
-   if(ObjectFind(0, SPL_EDIT_NEG) >= 0)
-      neg = StringToDouble(ObjectGetString(0, SPL_EDIT_NEG, OBJPROP_TEXT));
-
-   if(ops < 0) ops = 0;
-   if(pos < 0) pos = 0;
-   if(neg < 0) neg = 0;
-
-   g_limMaxOperacoes = ops;
-   g_limPtsPos = pos;
-   g_limPtsNeg = neg;
-   SalvarLimitesEfetivos();
-
-   if(g_schedEnabled && ObjectFind(0, SPL_EDIT_SCHED_HHMM) >= 0)
-   {
-      string hhmm = ObjectGetString(0, SPL_EDIT_SCHED_HHMM, OBJPROP_TEXT);
-      int h = 0, m = 0;
-      if(!ParseHorarioHHMM(hhmm, h, m))
-      {
-         Status(SP_MSG_HORARIO, C_STATUS_ERR, true);
-         return;
-      }
-      g_schedHour = h;
-      g_schedMin = m;
-   }
-   else
-      LerAgendaCamposPopup();
-
-   if(g_schedEnabled && g_schedDaysMask == 0)
-   {
-      Status(SP_MSG_DIAS, C_STATUS_WARN, true);
-      return;
-   }
-
-   SalvarAgendaFechamento();
-
-   DesbloquearOperacoesAposLimites();
-
-   g_ultimoOpsPainel = -1;
-   AtualizarPainelEstatisticas(true);
-
-   FecharPopupLimites();
-
-   int motivo = MotivoLimiteAtingidoAgora();
-   if(motivo > LIMIT_MOTIVO_NENHUM)
-   {
-      Status(SP_MSG_LIM_BLOQ, C_STATUS_WARN, true);
-      return;
-   }
-
-   StatusComAutoReset(SP_MSG_LIM_OK, C_STATUS_OK, true);
-   if(InpLogDetalhado)
-      PrintFormat("SP limites alterados: ops %d->%d pos %.0f->%.0f neg %.0f->%.0f",
-                  opsAnt, ops, posAnt, pos, negAnt, neg);
-}
-
-void SalvarPopupPin()
-{
-   if(PinBloqueadoPorTentativas())
-   {
-      Status(SP_MSG_PIN_BLOQ, C_STATUS_WARN, true);
-      return;
-   }
-
-   string pinNovo = "";
-   string pinConf = "";
-   if(ObjectFind(0, SPL_EDIT_PIN_NOVO) >= 0)
-      pinNovo = ObjectGetString(0, SPL_EDIT_PIN_NOVO, OBJPROP_TEXT);
-   if(ObjectFind(0, SPL_EDIT_PIN_CONF) >= 0)
-      pinConf = ObjectGetString(0, SPL_EDIT_PIN_CONF, OBJPROP_TEXT);
-
-   pinNovo = NormalizarPin(pinNovo);
-   pinConf = NormalizarPin(pinConf);
-
-   if(!PinFormatoValido(pinNovo))
-   {
-      Status(SP_MSG_PIN_6, C_STATUS_ERR, true);
-      return;
-   }
-   if(pinNovo != pinConf)
-   {
-      Status(SP_MSG_PIN_DIFF, C_STATUS_ERR, true);
-      return;
-   }
-
-   if(!g_popupPinCadastro)
-   {
-      string pinAtual = "";
-      if(ObjectFind(0, SPL_EDIT_PIN_ATUAL) >= 0)
-         pinAtual = ObjectGetString(0, SPL_EDIT_PIN_ATUAL, OBJPROP_TEXT);
-      pinAtual = NormalizarPin(pinAtual);
-
-      if(!ValidarPinEntrada(pinAtual))
-         return;
-   }
-
-   GravarPinHash(pinNovo);
-   g_pinFalhas = 0;
-   g_pinBloqueadoAte = 0;
-
-   StatusComAutoReset(SP_MSG_PIN_OK, C_STATUS_OK, true);
-   AbrirPopupLimites();
-}
-
-bool ResolverCliquePopupLimites(const string sparam, string &acao)
-{
-   acao = "";
-   if(!EhObjetoPopupLimites(sparam)) return false;
-
-   if(sparam == SPL_BTN_OK || StringFind(sparam, SPL_BTN_OK + "_") == 0)
-      acao = "ok";
-   else if(sparam == SPL_BTN_CANCEL || StringFind(sparam, SPL_BTN_CANCEL + "_") == 0)
-      acao = "cancel";
-   else if(sparam == SPL_BTN_TROCAR_PIN || StringFind(sparam, SPL_BTN_TROCAR_PIN + "_") == 0)
-      acao = "trocar_pin";
-   else if(sparam == SPL_BTN_PIN_SALVAR || StringFind(sparam, SPL_BTN_PIN_SALVAR + "_") == 0)
-      acao = "pin_salvar";
-   else if(sparam == SPL_BTN_VOLTAR || StringFind(sparam, SPL_BTN_VOLTAR + "_") == 0)
-      acao = "voltar";
-   else
-      return false;
-
-   return true;
-}
-
-bool EhObjetoDecorativoPainel(const string name)
-{
-   if(StringFind(name, "_SPF") > 0 || StringFind(name, "_SPL") > 0
-      || StringFind(name, "_SPU") > 0 || StringFind(name, "_SPD") > 0)
-      return true;
-   if(name == OBJ_BORDER || name == OBJ_BG || name == OBJ_HEADER || name == OBJ_HEADER_LINE)
-      return true;
-   if(name == OBJ_STATUS_STRIP || name == OBJ_METRICS_BG || name == OBJ_COPY_STRIP)
-      return true;
-   if(StringFind(name, "SP_MET_DIV") == 0)
-      return true;
-   if(name == "SP_D1" || name == "SP_D3")
-      return true;
-   return false;
-}
-
-void BloquearPainelUI(bool bloquear)
-{
-   g_painelBloqueado = bloquear;
-   if(bloquear)
-      CancelarEdicaoCampoAtiva();
-   int n = ObjectsTotal(0, 0, -1);
-
-   for(int i = 0; i < n; i++)
-   {
-      string name = ObjectName(0, i, 0, -1);
-      if(StringFind(name, "SP_") != 0) continue;
-      if(StringFind(name, "SPM_") == 0) continue;
-      if(StringFind(name, SPL_PREFIX) == 0) continue;
-      if(StringFind(name, "SP_PCT_SFX_") == 0) continue;
-
-      long tipo = ObjectGetInteger(0, name, OBJPROP_TYPE);
-
-      if(EhObjetoDecorativoPainel(name) || tipo == OBJ_LABEL)
-      {
-         ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
-         ObjectSetInteger(0, name, OBJPROP_BACK, false);
-         continue;
-      }
-
-      if((tipo == OBJ_EDIT || tipo == OBJ_BUTTON) && EhCampoEditavelPainel(name))
-      {
-         ConfigurarCampoEditavel(name);
-         continue;
-      }
-
-      if(tipo == OBJ_BUTTON && EhBotaoPainelSP(name))
-      {
-         ObjectSetInteger(0, name, OBJPROP_SELECTABLE, !bloquear);
-         AplicarEstiloBotao(name, false);
-      }
-   }
-
-   AtualizarEstadoLimitesUI();
-   ChartRedraw(0);
-}
-
 
 //+------------------------------------------------------------------+
 //| Quadro mensagem (OBJ_LABEL nao suporta \\n — uma linha por objeto)|
 //+------------------------------------------------------------------+
-void RemoverLinhasQuadroMensagem()
-{
-   ObjectDelete(0, OBJ_MSG_OVERLAY_TXT);
-   ObjectsDeleteAll(0, OBJ_MSG_OVERLAY_LINHA, 0, OBJ_LABEL);
-}
-
-void CriarFundoQuadroMensagem(int bx, int by, int bw, int bh)
-{
-   ObjectDelete(0, OBJ_MSG_OVERLAY_BG);
-   if(!ObjectCreate(0, OBJ_MSG_OVERLAY_BG, OBJ_RECTANGLE_LABEL, 0, 0, 0))
-      return;
-
-   ObjectSetInteger(0, OBJ_MSG_OVERLAY_BG, OBJPROP_CORNER, CORNER_LEFT_UPPER);
-   ObjectSetInteger(0, OBJ_MSG_OVERLAY_BG, OBJPROP_XDISTANCE, bx);
-   ObjectSetInteger(0, OBJ_MSG_OVERLAY_BG, OBJPROP_YDISTANCE, by);
-   ObjectSetInteger(0, OBJ_MSG_OVERLAY_BG, OBJPROP_XSIZE, bw);
-   ObjectSetInteger(0, OBJ_MSG_OVERLAY_BG, OBJPROP_YSIZE, bh);
-   ObjectSetInteger(0, OBJ_MSG_OVERLAY_BG, OBJPROP_BGCOLOR, C_HEADER_COLOR);
-   ObjectSetInteger(0, OBJ_MSG_OVERLAY_BG, OBJPROP_BORDER_COLOR, C_STATUS_ERR);
-   ObjectSetInteger(0, OBJ_MSG_OVERLAY_BG, OBJPROP_BORDER_TYPE, BORDER_FLAT);
-   // Texto vazio exibe "Label" no MT5 — usar espaco com cor igual ao fundo
-   ObjectSetString(0, OBJ_MSG_OVERLAY_BG, OBJPROP_TEXT, " ");
-   ObjectSetString(0, OBJ_MSG_OVERLAY_BG, OBJPROP_FONT, UI_FONT);
-   ObjectSetInteger(0, OBJ_MSG_OVERLAY_BG, OBJPROP_FONTSIZE, 1);
-   ObjectSetInteger(0, OBJ_MSG_OVERLAY_BG, OBJPROP_COLOR, C_HEADER_COLOR);
-   ObjectSetString(0, OBJ_MSG_OVERLAY_BG, OBJPROP_TOOLTIP, " ");
-   ObjectSetInteger(0, OBJ_MSG_OVERLAY_BG, OBJPROP_SELECTABLE, false);
-   ObjectSetInteger(0, OBJ_MSG_OVERLAY_BG, OBJPROP_HIDDEN, true);
-   ObjectSetInteger(0, OBJ_MSG_OVERLAY_BG, OBJPROP_ZORDER, 200);
-}
-
-void ObterLayoutQuadroMensagem(int cw, int ch, int &bx, int &by, int &bw, int &bh)
-{
-   int margem = 40;
-   bw = (InpMsgBoxLargura > 0) ? InpMsgBoxLargura : 620;
-   bh = (InpMsgBoxAltura > 0) ? InpMsgBoxAltura : 200;
-   bw = MathMin(bw, MathMax(120, cw - margem));
-   bh = MathMin(bh, MathMax(80, ch - margem));
-
-   bx = (InpMsgBoxPosX < 0) ? (cw - bw) / 2 : InpMsgBoxPosX;
-   by = (InpMsgBoxPosY < 0) ? (ch - bh) / 2 : InpMsgBoxPosY;
-
-   if(bx < 0) bx = 0;
-   if(by < 0) by = 0;
-   if(bx + bw > cw) bx = MathMax(0, cw - bw);
-   if(by + bh > ch) by = MathMax(0, ch - bh);
-}
-
-void MostrarQuadroMensagem(const string msg, int segundosRestantes)
-{
-   int cw = (int)ChartGetInteger(0, CHART_WIDTH_IN_PIXELS);
-   int ch = (int)ChartGetInteger(0, CHART_HEIGHT_IN_PIXELS);
-   if(cw < 200) cw = 800;
-   if(ch < 150) ch = 600;
-
-   int bw = 0, bh = 0, bx = 0, by = 0;
-   ObterLayoutQuadroMensagem(cw, ch, bx, by, bw, bh);
-
-   int cx = bx + bw / 2;
-   int fonteMsg = (InpMsgBoxFonte > 0) ? InpMsgBoxFonte : 10;
-
-   RemoverLinhasQuadroMensagem();
-   ObjectDelete(0, OBJ_MSG_OVERLAY_CNT);
-   CriarFundoQuadroMensagem(bx, by, bw, bh);
-
-   string texto = msg;
-   StringReplace(texto, "\r\n", "\n");
-   StringReplace(texto, "\r", "\n");
-
-   string linhas[];
-   int nLinhas = StringSplit(texto, '\n', linhas);
-   if(nLinhas <= 0)
-   {
-      ArrayResize(linhas, 1);
-      linhas[0] = texto;
-      nLinhas = 1;
-   }
-
-   int linhasVisiveis = 0;
-   for(int i = 0; i < nLinhas && i < MSG_OVERLAY_MAX_LINHAS; i++)
-   {
-      string linha = linhas[i];
-      StringTrimLeft(linha);
-      StringTrimRight(linha);
-      if(StringLen(linha) == 0) continue;
-
-      string nome = OBJ_MSG_OVERLAY_LINHA + IntegerToString(linhasVisiveis);
-      ObjectDelete(0, nome);
-      if(!ObjectCreate(0, nome, OBJ_LABEL, 0, 0, 0))
-         continue;
-
-      ObjectSetString(0, nome, OBJPROP_TEXT, linha);
-      ObjectSetInteger(0, nome, OBJPROP_CORNER, CORNER_LEFT_UPPER);
-      ObjectSetInteger(0, nome, OBJPROP_ANCHOR, ANCHOR_CENTER);
-      ObjectSetInteger(0, nome, OBJPROP_XDISTANCE, cx);
-      ObjectSetInteger(0, nome, OBJPROP_COLOR, C_NOME_COLOR);
-      ObjectSetInteger(0, nome, OBJPROP_FONTSIZE, fonteMsg);
-      ObjectSetString(0, nome, OBJPROP_FONT, UI_FONT_BOLD);
-      ObjectSetString(0, nome, OBJPROP_TOOLTIP, " ");
-      ObjectSetInteger(0, nome, OBJPROP_SELECTABLE, false);
-      ObjectSetInteger(0, nome, OBJPROP_HIDDEN, true);
-      ObjectSetInteger(0, nome, OBJPROP_ZORDER, 201);
-      linhasVisiveis++;
-   }
-
-   const int alturaLinha = 20;
-   int areaTopo = by + 28;
-   int areaBase = by + bh - (segundosRestantes >= 0 ? 44 : 28);
-   int blocoH  = linhasVisiveis * alturaLinha;
-   int ty0     = areaTopo + MathMax(0, (areaBase - areaTopo - blocoH) / 2);
-
-   for(int i = 0; i < linhasVisiveis; i++)
-   {
-      string nome = OBJ_MSG_OVERLAY_LINHA + IntegerToString(i);
-      ObjectSetInteger(0, nome, OBJPROP_YDISTANCE, ty0 + i * alturaLinha);
-   }
-
-   if(segundosRestantes >= 0 && ObjectCreate(0, OBJ_MSG_OVERLAY_CNT, OBJ_LABEL, 0, 0, 0))
-   {
-      ObjectSetInteger(0, OBJ_MSG_OVERLAY_CNT, OBJPROP_CORNER, CORNER_LEFT_UPPER);
-      ObjectSetInteger(0, OBJ_MSG_OVERLAY_CNT, OBJPROP_ANCHOR, ANCHOR_CENTER);
-      ObjectSetInteger(0, OBJ_MSG_OVERLAY_CNT, OBJPROP_XDISTANCE, cx);
-      ObjectSetInteger(0, OBJ_MSG_OVERLAY_CNT, OBJPROP_YDISTANCE, by + bh - 36);
-      ObjectSetInteger(0, OBJ_MSG_OVERLAY_CNT, OBJPROP_COLOR, C_STATUS_WARN);
-      ObjectSetInteger(0, OBJ_MSG_OVERLAY_CNT, OBJPROP_FONTSIZE, 9);
-      ObjectSetString(0, OBJ_MSG_OVERLAY_CNT, OBJPROP_FONT, UI_FONT);
-      ObjectSetString(0, OBJ_MSG_OVERLAY_CNT, OBJPROP_TOOLTIP, " ");
-      ObjectSetInteger(0, OBJ_MSG_OVERLAY_CNT, OBJPROP_SELECTABLE, false);
-      ObjectSetInteger(0, OBJ_MSG_OVERLAY_CNT, OBJPROP_HIDDEN, true);
-      ObjectSetInteger(0, OBJ_MSG_OVERLAY_CNT, OBJPROP_ZORDER, 201);
-   }
-
-   AtualizarQuadroMensagem(segundosRestantes);
-   ChartRedraw(0);
-}
-
-void AtualizarQuadroMensagem(int segundosRestantes)
-{
-   if(ObjectFind(0, OBJ_MSG_OVERLAY_CNT) < 0) return;
-
-   if(segundosRestantes < 0)
-      return;
-
-   if(ObjectFind(0, OBJ_MSG_OVERLAY_CNT) < 0)
-      return;
-
-   ObjectSetString(0, OBJ_MSG_OVERLAY_CNT, OBJPROP_TEXT,
-                   StringFormat("Fechando em %ds...", segundosRestantes));
-}
-
-void RemoverQuadroMensagem()
-{
-   ObjectDelete(0, OBJ_MSG_OVERLAY_BG);
-   RemoverLinhasQuadroMensagem();
-   ObjectDelete(0, OBJ_MSG_OVERLAY_CNT);
-}
-
-void IniciarFechamentoMT5(const string msg, const bool registrarBloqueioOperacoes)
-{
-   if(g_fechamentoAgendado) return;
-
-   string texto = msg;
-   if(StringLen(texto) == 0)
-      texto = "Fechando sistema.";
-
-   if(registrarBloqueioOperacoes)
-      AplicarBloqueioLimiteDia(LIMIT_MOTIVO_OPERACOES);
-
-   int delay = DelayFechamentoSegundos();
-   g_fechamentoAgendado = true;
-   g_fechamentoHora     = TimeCurrent() + delay;
-
-   BloquearPainelUI(true);
-   MostrarQuadroMensagem(texto, delay);
-   Status(SP_MSG_FECHANDO, C_STATUS_ERR, true, true);
-}
-
-void ProcessarFechamentoAgendado()
-{
-   if(!g_fechamentoAgendado) return;
-
-   int rest = (int)(g_fechamentoHora - TimeCurrent());
-   AtualizarQuadroMensagem(rest);
-
-   if(TimeCurrent() < g_fechamentoHora) return;
-
-   g_fechamentoAgendado = false;
-   ExpertRemove();
-   TerminalClose(0);
-}
-
-void VerificarLimitePontuacao()
-{
-   if(g_fechamentoAgendado || g_limiteBloqueadoDia) return;
-   if(!FechamentoPorPontosAtivo()) return;
-
-   double pts = 0;
-   int    motivo = LIMIT_MOTIVO_NENHUM;
-   if(!LimitePontuacaoAtingido(pts, motivo)) return;
-
-   AplicarBloqueioLimiteDia(motivo);
-
-   string msg = InpMsgFecharPontos;
-   if(StringLen(msg) == 0)
-      msg = "Meta de pontos atingida.";
-
-   IniciarFechamentoMT5(msg, false);
-}
-
-void BloquearPorLimite()
-{
-   AplicarBloqueioLimiteDia(LIMIT_MOTIVO_OPERACOES);
-
-   string msg = InpMsgFecharOper;
-   if(StringLen(msg) == 0)
-      msg = "Limite de operacoes atingido.";
-
-   IniciarFechamentoMT5(msg, false);
-}
-
-bool VerificarDesbloqueio()
-{
-   if(!EA_EstaBloqueado())
-      return true;
-
-   datetime diaBloqueio = GlobalVariableCheck(GV_OPS_LOCK_DAY)
-                        ? (datetime)GlobalVariableGet(GV_OPS_LOCK_DAY) : 0;
-   datetime diaAtual    = DiaCalendarioAtual();
-
-   if(diaBloqueio > 0 && diaAtual > diaBloqueio)
-   {
-      LimparBloqueioOperacoes(true);
-      return true;
-   }
-
-   return true;
-}
-
 bool TrailDinamicoAtivo()
 {
    return (g_modoTrail == TRAIL_DINAMICO);
@@ -3517,29 +1967,44 @@ double DistanciaTrailDinamico()
    return TrailingStart - TrailingStep;
 }
 
-void ToggleModoTrail()
+// Botao TS do painel: 0 = desligado, 1 = fixo, 2 = dinamico (clique: 0 -> 1 -> 2 -> 0)
+int ModoTSPainel()
+{
+   if(!g_tsLigado) return 0;
+   return TrailDinamicoAtivo() ? 2 : 1;
+}
+
+void CiclarModoTS()
 {
    if(g_campoEditAtivo != "")
       FinalizarEdicaoCampo(true);
    AtualizarCampos();
 
-   if(g_modoTrail == TRAIL_FIXO)
+   int novo = (ModoTSPainel() + 1) % 3;
+   bool semDinamico = false;
+   if(novo == 2 && (TrailingStart <= TrailingStep || DistanciaTrailDinamico() <= 0))
    {
-      if(TrailingStart <= TrailingStep || DistanciaTrailDinamico() <= 0)
-      {
-         Status(SP_MSG_TRAIL_DIST, C_STATUS_ERR, true);
-         return;
-      }
-      g_modoTrail = TRAIL_DINAMICO;
+      novo = 0;               // dinamico exige Trail > Step: pula para desligado
+      semDinamico = true;
    }
-   else
-      g_modoTrail = TRAIL_FIXO;
 
+   g_tsLigado = (novo != 0);
+   if(novo != 0)
+      g_modoTrail = (novo == 2) ? TRAIL_DINAMICO : TRAIL_FIXO;
+   GlobalVariableSet(GvCfgKey("TS_ON"), g_tsLigado ? 1.0 : 0.0);
    GlobalVariableSet(GvCfgKey("TRAIL_MODO"), (double)g_modoTrail);
-   AplicarEstiloRotuloParametro("SP_TR");
-   ReconciliarLinhasTrailing();
-   Status(TrailDinamicoAtivo() ? SP_MSG_TRAIL_DIN : SP_MSG_TRAIL_FIXO,
-          TrailDinamicoAtivo() ? C_STATUS_OK : C_STATUS_WARN, true);
+
+   AtualizarBotaoTS();
+   ReconciliarLinhasTrailing();   // 0: a linha do trailing some; 1/2: volta
+   AtualizarRotulosSLTP();
+   if(semDinamico)
+      Status("TS 0 desligado (dinamico exige Trail > Step)", C_STATUS_WARN, true);
+   else if(novo == 0)
+      Status("TS 0 desligado: o SL fica onde esta", C_STATUS_WARN, true);
+   else if(novo == 1)
+      Status("TS 1 " + SP_MSG_TRAIL_FIXO, C_STATUS_OK, true);
+   else
+      Status("TS 2 " + SP_MSG_TRAIL_DIN, C_STATUS_OK, true);
    ChartRedraw(0);
 }
 
@@ -3762,7 +2227,7 @@ void AplicarPerfilAoPainel()
    EscreverValorCampoEdit(OBJ_EDIT_SL);
    EscreverValorCampoEdit(OBJ_EDIT_TRAIL_START);
    EscreverValorCampoEdit(OBJ_EDIT_TRAIL_STEP);
-   AplicarEstiloRotuloParametro("SP_TR");
+   AtualizarBotaoTS();
    AtualizarBotaoSetup();
 }
 
@@ -3847,8 +2312,6 @@ void TentarContarOperacaoFechada(ulong ticketOuPosId)
 void RegistrarNovaOperacao()
 {
    Status(SP_MSG_FECHADO, C_ACCENT_COLOR, true);
-   if(g_limMaxOperacoes > 0 && LimiteOperacoesAtingido())
-      BloquearPorLimite();
 }
 
 void ReconciliarOperacoesAbertas()
@@ -3869,25 +2332,8 @@ void ReconciliarOperacoesAbertas()
 
 bool PodeOperarRapido()
 {
-   if(g_fechamentoAgendado || g_limiteBloqueadoDia || g_painelBloqueado)
-      return false;
-   if(Central_BloqueiaNovas())
-      return false;
-
-   if(g_limMaxOperacoes <= 0 && g_limPtsPos <= 0 && g_limPtsNeg <= 0)
-      return true;
-
-   static ulong s_limiteSeq = 0;
-   static bool  s_limiteOk  = true;
-   if(g_onTickSeq != s_limiteSeq)
-   {
-      s_limiteSeq = g_onTickSeq;
-      int motivo = MotivoLimiteAtingidoAgora();
-      s_limiteOk = (motivo <= LIMIT_MOTIVO_NENHUM);
-      if(!s_limiteOk)
-         AplicarBloqueioLimiteDia(motivo);
-   }
-   return s_limiteOk;
+   // limites do dia, horarios e trava ficam na Central de Controle
+   return !Central_BloqueiaNovas();
 }
 
 int MotivoTradeBloqueado()
@@ -5085,7 +3531,6 @@ bool EnviarPendenteBroker(bool compra, double precoLinha, bool cancelarAntes = t
 
 void ProcessarPendentesAberturaCandle()
 {
-   if(g_fechamentoAgendado) return;
    if(!PodeOperarRapido() || TemPosicaoNoSimbolo()) return;
 
    if(g_jLinhaArmada && g_jLinhaNoOpen)
@@ -5296,7 +3741,6 @@ void ExecutarEntradaPorLinha(bool compra)
 
 void ProcessarPendentesPorLinha()
 {
-   if(g_fechamentoAgendado) return;
    if(!TradingPermitido()) return;
    if(TemPosicaoNoSimbolo())
    {
@@ -5947,18 +4391,6 @@ bool ObterStatusImpedimento(string &texto, color &cor)
       cor = C_STATUS_ERR;
       return true;
    }
-   if(g_fechamentoAgendado)
-   {
-      texto = SP_MSG_FECHANDO;
-      cor = C_STATUS_ERR;
-      return true;
-   }
-   if(g_limiteBloqueadoDia || g_painelBloqueado)
-   {
-      texto = SP_MSG_BLOQUEADO;
-      cor = C_STATUS_ERR;
-      return true;
-   }
 
    int motTrade = MotivoTradeBloqueado();
    if(motTrade > 0)
@@ -6159,11 +4591,10 @@ void ConfigurarCampoEditavel(const string name)
    if(!EhCampoEditavelPainel(name)) return;
 
    long tipo = ObjectGetInteger(0, name, OBJPROP_TYPE);
-   bool bloq = g_painelBloqueado;
 
    if(tipo == OBJ_BUTTON)
    {
-      ObjectSetInteger(0, name, OBJPROP_SELECTABLE, !bloq);
+      ObjectSetInteger(0, name, OBJPROP_SELECTABLE, true);
       ObjectSetInteger(0, name, OBJPROP_BACK, false);
       ObjectSetInteger(0, name, OBJPROP_HIDDEN, false);
       ObjectSetInteger(0, name, OBJPROP_TIMEFRAMES, OBJ_ALL_PERIODS);
@@ -6174,16 +4605,8 @@ void ConfigurarCampoEditavel(const string name)
 
    if(tipo != OBJ_EDIT) return;
 
-   if(bloq)
-   {
-      ObjectSetInteger(0, name, OBJPROP_READONLY, true);
-      ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
-   }
-   else
-   {
-      ObjectSetInteger(0, name, OBJPROP_READONLY, false);
-      ObjectSetInteger(0, name, OBJPROP_SELECTABLE, true);
-   }
+   ObjectSetInteger(0, name, OBJPROP_READONLY, false);
+   ObjectSetInteger(0, name, OBJPROP_SELECTABLE, true);
    ObjectSetInteger(0, name, OBJPROP_BACK, false);
    ObjectSetInteger(0, name, OBJPROP_HIDDEN, false);
    ObjectSetInteger(0, name, OBJPROP_TIMEFRAMES, OBJ_ALL_PERIODS);
@@ -6322,7 +4745,7 @@ void CancelarEdicaoCampoAtiva()
 
 void IniciarEdicaoCampo(const string nomeCampo)
 {
-   if(!EhCampoEditavelPainel(nomeCampo) || g_painelBloqueado) return;
+   if(!EhCampoEditavelPainel(nomeCampo)) return;
    if(ObjectFind(0, nomeCampo) < 0) return;
 
    if(g_campoEditAtivo != "" && g_campoEditAtivo != nomeCampo)
@@ -6444,12 +4867,6 @@ void AplicarEstiloBotaoExec(const string name, const bool press)
       brd = bg;
       txt = C_EXEC_TEXT_ON;
    }
-   if(g_painelBloqueado)
-   {
-      bg  = C_BTN_BG_PRESS;
-      brd = C_BTN_BORDER;
-      txt = C_MUTED;
-   }
 
    ObjectSetString(0, name, OBJPROP_FONT, UI_FONT_BOLD);
    ObjectSetInteger(0, name, OBJPROP_FONTSIZE, BTN_EXEC_FONT_SIZE);
@@ -6470,7 +4887,7 @@ void AplicarEstiloBotaoAux(const string name, const bool press)
 
    RemoverDecorBotao(name);
 
-   if(name != OBJ_BTN_SETUP && name != OBJ_BTN_SYNC_HL && name != OBJ_BTN_LIMITS && name != OBJ_BTN_LINHAS
+   if(name != OBJ_BTN_SETUP && name != OBJ_BTN_SYNC_HL && name != OBJ_BTN_LINHAS
       && name != OBJ_BTN_ESPELHO)
       return;
 
@@ -6490,8 +4907,6 @@ void AplicarEstiloBotaoAux(const string name, const bool press)
       ObjectSetString(0, name, OBJPROP_TEXT, "LINHAS");
    else if(name == OBJ_BTN_ESPELHO)
       ObjectSetString(0, name, OBJPROP_TEXT, g_espelhoOculto ? "ESPELHO OFF" : "ESPELHO");
-   else
-      ObjectSetString(0, name, OBJPROP_TEXT, "LIMITES");
 
    ObjectSetString(0, name, OBJPROP_FONT, UI_FONT_BOLD);
    ObjectSetInteger(0, name, OBJPROP_FONTSIZE, 7);
@@ -6505,7 +4920,7 @@ void AplicarEstiloBotaoAux(const string name, const bool press)
 bool EhBotaoExecPainel(const string name)
 {
    return (name == OBJ_BTN_BUY || name == OBJ_BTN_SELL || name == OBJ_BTN_CLOSEALL
-           || name == OBJ_BTN_SYNC_HL || name == OBJ_BTN_LIMITS || name == OBJ_BTN_LINHAS
+           || name == OBJ_BTN_SYNC_HL || name == OBJ_BTN_LINHAS
            || name == OBJ_BTN_SETUP || name == OBJ_BTN_MINIMIZE || name == OBJ_BTN_CLOSE);
 }
 
@@ -6522,10 +4937,6 @@ void AplicarEstiloBotao(const string name, bool press)
    color bg  = press ? C_BTN_BG_PRESS : C_BTN_BG;
    color brd = press ? C_BTN_BORDER_PRESS : C_BTN_BORDER;
    color txt = C_BTN_TEXT;
-   if(g_painelBloqueado && EhBotaoExecPainel(name)
-      && name != OBJ_BTN_CLOSE && name != OBJ_BTN_LIMITS && name != OBJ_BTN_LINHAS
-      && name != OBJ_BTN_SETUP && name != OBJ_BTN_MINIMIZE)
-      txt = C_MUTED;
 
    ObjectSetInteger(0, name, OBJPROP_BGCOLOR, bg);
    ObjectSetInteger(0, name, OBJPROP_BORDER_COLOR, brd);
@@ -6539,7 +4950,7 @@ void AplicarEstiloBotao(const string name, bool press)
       return;
    }
 
-   if(name == OBJ_BTN_SETUP || name == OBJ_BTN_SYNC_HL || name == OBJ_BTN_LIMITS || name == OBJ_BTN_LINHAS)
+   if(name == OBJ_BTN_SETUP || name == OBJ_BTN_SYNC_HL || name == OBJ_BTN_LINHAS)
    {
       AplicarEstiloBotaoAux(name, press);
       return;
@@ -6554,7 +4965,7 @@ void AplicarEstiloBotao(const string name, bool press)
 
 void AtualizarEstadoLimitesUI()
 {
-   bool bloq = g_painelBloqueado || EA_EstaBloqueado();
+   bool bloq = (g_centralEstado != CENTRAL_LIVRE);   // estado da Central de Controle
 
    if(ObjectFind(0, OBJ_LIM_STATE) >= 0)
    {
@@ -6567,24 +4978,6 @@ void AtualizarEstadoLimitesUI()
       ObjectSetInteger(0, "SP_MET_STBG", OBJPROP_COLOR, bloq ? C_TINT_ERR_BG : C_TINT_OK_BG);
       ObjectSetInteger(0, "SP_MET_STBG", OBJPROP_BORDER_COLOR, bloq ? C_TINT_ERR_BG : C_TINT_OK_BG);
    }
-
-   if(ObjectFind(0, OBJ_BTN_LIMITS) >= 0)
-      AplicarEstiloBotaoAux(OBJ_BTN_LIMITS, false);
-}
-
-void GarantirBotaoLimites()
-{
-   if(ObjectFind(0, OBJ_BTN_LIMITS) < 0) return;
-
-   AplicarEstiloBotaoAux(OBJ_BTN_LIMITS, false);
-   ObjectSetInteger(0, OBJ_BTN_LIMITS, OBJPROP_YSIZE, SEC_AUX_BTN_H);
-   ObjectSetString(0, OBJ_BTN_LIMITS, OBJPROP_TOOLTIP, "Limites do dia (PIN)");
-   ObjectSetInteger(0, OBJ_BTN_LIMITS, OBJPROP_ZORDER, 6);
-
-   if(ObjectFind(0, OBJ_LIMITS_ICON) >= 0)
-      ObjectDelete(0, OBJ_LIMITS_ICON);
-
-   AtualizarEstadoLimitesUI();
 }
 
 bool EhCampoEditavelPainel(const string name)
@@ -6595,8 +4988,6 @@ bool EhCampoEditavelPainel(const string name)
 bool ObjetoPainelRestauravel(const string name)
 {
    if(StringFind(name, "SP_") != 0) return false;
-   if(StringFind(name, "SPM_") == 0) return false;
-   if(StringFind(name, SPL_PREFIX) == 0) return false;
    if(name == OBJ_CANDLE_TIMER) return false;
    if(EhObjetoLinhaSyncCopiada(name)) return false;
    if(EhObjetoLinhaSLTPGrafico(name)) return false;
@@ -6724,7 +5115,6 @@ void GarantirMetricasStatusNaFrente()
 
 color CorRotuloParametro(const string lblName)
 {
-   if(lblName == "SP_TR") return TrailDinamicoAtivo() ? C_STEP_ROTULO : C_TRAIL_FIXO_ACCENT;
    return C_LABEL_COLOR;
 }
 
@@ -6738,7 +5128,6 @@ string TextoRotuloParametro(const string lblName)
    if(lblName == "SP_LOTE") return "Lote";
    if(lblName == "SP_TP")   return "Take profit";
    if(lblName == "SP_SL")   return "Stop loss";
-   if(lblName == "SP_TR")   return TrailDinamicoAtivo() ? "DINAMICO" : "FIXO";   // etiqueta clicavel do modo
    if(lblName == "SP_ST")   return "Trail / Step";
    return "";
 }
@@ -6749,17 +5138,7 @@ void AplicarEstiloRotuloParametro(const string lblName)
    ObjectSetString(0, lblName, OBJPROP_TEXT, TextoRotuloParametro(lblName));
    ObjectSetInteger(0, lblName, OBJPROP_COLOR, CorRotuloParametro(lblName));
    ObjectSetInteger(0, lblName, OBJPROP_BACK, false);
-   if(lblName == "SP_TR")
-   {
-      ObjectSetInteger(0, lblName, OBJPROP_SELECTABLE, true);
-      ObjectSetInteger(0, lblName, OBJPROP_ZORDER, 10);
-      ObjectSetString(0, lblName, OBJPROP_TOOLTIP,
-                     TrailDinamicoAtivo()
-                     ? "Distancia = Trail - Step | avanca a cada Step pts (clique = fixo)"
-                     : "Trail fixo (clique = dinamico)");
-   }
-   else
-      ObjectSetInteger(0, lblName, OBJPROP_SELECTABLE, false);
+   ObjectSetInteger(0, lblName, OBJPROP_SELECTABLE, false);
 }
 
 void GarantirTextoBotaoSync()
@@ -6784,12 +5163,6 @@ void ProcessarCliqueBotaoPainel(const string btn)
    else if(g_campoEditAtivo != "")
       FinalizarEdicaoCampo(true);
 
-   if(g_painelBloqueado && btn != OBJ_BTN_MINIMIZE && btn != OBJ_BTN_CLOSE
-      && btn != OBJ_BTN_LIMITS && btn != OBJ_BTN_SETUP && btn != OBJ_BTN_LINHAS
-      && btn != OBJ_BTN_PERF_N && btn != OBJ_BTN_PERF_V
-      && btn != OBJ_BTN_TS && btn != OBJ_BTN_ESPELHO)
-      return;
-
    ulong agoraClique = GetTickCount64();
    if(agoraClique - ultimoCliqueMs < 250) return;
    ultimoCliqueMs = agoraClique;
@@ -6806,7 +5179,7 @@ void ProcessarCliqueBotaoPainel(const string btn)
    if(btn == OBJ_BTN_SYNC_HL) SincronizarLinhasHorizontais();
    else if(btn == OBJ_BTN_LINHAS) LinhasCarregar(true);
    else if(btn == OBJ_BTN_PARCIAIS) ToggleParciaisSistema();
-   else if(btn == OBJ_BTN_TS) ToggleTrailingStop();
+   else if(btn == OBJ_BTN_TS) CiclarModoTS();
    else if(btn == OBJ_BTN_ESPELHO) ToggleEspelho();
    else if(btn == OBJ_BTN_PERF_N) { if(SetupVolatilAtivo())  AlternarPerfilSetup(); }
    else if(btn == OBJ_BTN_PERF_V) { if(!SetupVolatilAtivo()) AlternarPerfilSetup(); }
@@ -6816,7 +5189,6 @@ void ProcessarCliqueBotaoPainel(const string btn)
    else if(btn == OBJ_BTN_TP_UP) AjustarPontosPasso(OBJ_EDIT_TP, 1);
    else if(btn == OBJ_BTN_SL_DN) AjustarPontosPasso(OBJ_EDIT_SL, -1);
    else if(btn == OBJ_BTN_SL_UP) AjustarPontosPasso(OBJ_EDIT_SL, 1);
-   else if(btn == OBJ_BTN_LIMITS) AbrirPopupLimites();
    else if(btn == OBJ_BTN_SETUP)    AlternarPerfilSetup();
    else if(btn == OBJ_BTN_MINIMIZE) ToggleMinimizarPainel();
    else if(btn == OBJ_BTN_CLOSE) ObjectsDeleteAll(0, "SP_");
@@ -6845,7 +5217,7 @@ void ProcessarBotaoPressionado()
 string ResolverCliqueBotaoPainel(const string sparam)
 {
    if(sparam == OBJ_BTN_BUY || sparam == OBJ_BTN_SELL || sparam == OBJ_BTN_CLOSEALL
-      || sparam == OBJ_BTN_SYNC_HL || sparam == OBJ_BTN_LIMITS || sparam == OBJ_BTN_LINHAS
+      || sparam == OBJ_BTN_SYNC_HL || sparam == OBJ_BTN_LINHAS
       || sparam == OBJ_BTN_PARCIAIS || sparam == OBJ_BTN_PERF_N || sparam == OBJ_BTN_PERF_V
       || sparam == OBJ_BTN_TS || sparam == OBJ_BTN_ESPELHO
       || sparam == OBJ_BTN_LOTE_DN || sparam == OBJ_BTN_LOTE_UP
@@ -6856,7 +5228,6 @@ string ResolverCliqueBotaoPainel(const string sparam)
    if(StringFind(sparam, OBJ_BTN_BUY + "_") == 0) return OBJ_BTN_BUY;
    if(StringFind(sparam, OBJ_BTN_SELL + "_") == 0) return OBJ_BTN_SELL;
    if(StringFind(sparam, OBJ_BTN_CLOSEALL + "_") == 0) return OBJ_BTN_CLOSEALL;
-   if(StringFind(sparam, OBJ_BTN_LIMITS + "_") == 0) return OBJ_BTN_LIMITS;
    if(StringFind(sparam, OBJ_BTN_LINHAS + "_") == 0) return OBJ_BTN_LINHAS;
    if(StringFind(sparam, OBJ_BTN_SETUP + "_") == 0) return OBJ_BTN_SETUP;
    if(StringFind(sparam, OBJ_BTN_MINIMIZE + "_") == 0) return OBJ_BTN_MINIMIZE;
@@ -6943,14 +5314,14 @@ void ReposicionarObjetoXY(const string name, const int x, const int y)
 
 void ReposicionarBotoesAux(const int lx, const int divW, const int yAux)
 {
-   string b[4];
-   b[0] = OBJ_BTN_SYNC_HL; b[1] = OBJ_BTN_LINHAS; b[2] = OBJ_BTN_ESPELHO; b[3] = OBJ_BTN_LIMITS;
-   int w = (divW - 18) / 4;
-   for(int i = 0; i < 4; i++)
+   string b[3];
+   b[0] = OBJ_BTN_SYNC_HL; b[1] = OBJ_BTN_LINHAS; b[2] = OBJ_BTN_ESPELHO;
+   int w = (divW - 12) / 3;
+   for(int i = 0; i < 3; i++)
    {
       if(ObjectFind(0, b[i]) < 0) continue;
       int x  = lx + i * (w + 6);
-      int wi = (i == 3) ? divW - 3 * (w + 6) : w;
+      int wi = (i == 2) ? divW - 2 * (w + 6) : w;
       ObjectSetInteger(0, b[i], OBJPROP_XDISTANCE, x);
       ObjectSetInteger(0, b[i], OBJPROP_YDISTANCE, yAux);
       ObjectSetInteger(0, b[i], OBJPROP_XSIZE, wi);
@@ -6963,7 +5334,7 @@ void ReposicionarBotoesAux(const int lx, const int divW, const int yAux)
    if(ObjectFind(0, OBJ_BTN_SYNC_HL) >= 0)
       ObjectSetString(0, OBJ_BTN_SYNC_HL, OBJPROP_TOOLTIP, "Copiar as linhas do grafico de estudo");
    AtualizarBotaoEspelho();
-   GarantirBotaoLimites();
+   AtualizarEstadoLimitesUI();
 }
 
 void RestaurarLayoutSecoesColapsaveis()
@@ -7216,8 +5587,6 @@ void ToggleMinimizarPainel()
 
 void CriarPainel()
 {
-   FecharPopupLimites();
-
    // Em reinits (ex.: troca de timeframe), preserva linhas de trabalho.
    for(int i = ObjectsTotal(0, -1, -1) - 1; i >= 0; i--)
    {
@@ -7282,7 +5651,7 @@ void CriarPainel()
    if(ObjectFind(0, "SP_D3") >= 0) ObjectDelete(0, "SP_D3");
    if(ObjectFind(0, "SP_SEC_STATUS") >= 0) ObjectDelete(0, "SP_SEC_STATUS");
 
-   GarantirBotaoLimites();
+   AtualizarEstadoLimitesUI();
 
    GarantirCamposEditaveisPainel();
    GarantirMetricasStatusNaFrente();
@@ -8642,6 +7011,7 @@ void Central_Processar()
       }
       g_centralEstadoAnt = g_centralEstado;
       SincronizarStatusImpedimento();
+      AtualizarEstadoLimitesUI();
    }
 
    if(g_centralEstado == CENTRAL_ZERAR && TemPosicaoNoSimbolo())
@@ -8676,17 +7046,12 @@ int OnInit()
    if(!CopyInit())
       return INIT_PARAMETERS_INCORRECT;
 
-   RemoverQuadroMensagem();
-
-   VerificarDesbloqueio();
+   RemoverRestosLimitesAntigos();
 
    ConfigurarGrafico();
    LimparGVsOrfas();
-   SincronizarEstadoSeguranca();
    ChartSetInteger(0, CHART_EVENT_MOUSE_MOVE, false);
    ChartSetInteger(0, CHART_EVENT_OBJECT_CREATE, true);
-   InicializarLimitesEfetivos();
-   InicializarAgendaFechamento();
    CancelarEdicaoCampoAtiva();
    CriarPainel();
    if(ObjectFind(0, "SP_VER") >= 0)
@@ -8716,10 +7081,7 @@ int OnInit()
       LinhasCarregar(false);
    ChartRedraw(0);
 
-   if(RestaurarBloqueioLimiteDia())
-      Status(SP_MSG_BLOQUEADO, C_STATUS_ERR, true, true);
-   else
-      SincronizarStatusImpedimento();
+   SincronizarStatusImpedimento();
    // Copiador ativo: timer em ms; as rotinas de 1 s continuam a cada 1 s (OnTimer).
    if(g_copyModoEf != COPY_DESLIGADO)
       EventSetMillisecondTimer(MathMax(10, InpCopyIntervaloMs));
@@ -8733,7 +7095,6 @@ void OnDeinit(const int reason)
 {
    EventKillTimer();
    CancelarEdicaoCampoAtiva();
-   FecharPopupLimites();
    if(reason == REASON_CHARTCHANGE || reason == REASON_RECOMPILE)
       SalvarConfigPainelPerfil(g_setupAtivo);
    RestaurarGrafico();
@@ -8745,8 +7106,6 @@ void OnDeinit(const int reason)
       // as linhas do dia (LIN_PREFIX) ficam no grafico: podem ter sido ajustadas a mao
    }
    ObjectDelete(0, OBJ_CANDLE_TIMER);
-   if(reason != REASON_INITFAILED)
-      RemoverQuadroMensagem();
 }
 
 void OnTick()
@@ -8788,12 +7147,6 @@ void OnTick()
    // --- P0: execucao (mercado, pendentes J/L, SL/TP no broker) ---
    ProcessarEntradaAgendada();
    ProcessarCancelamentoJLAgendado();
-
-   if(g_fechamentoAgendado)
-   {
-      ProcessarFechamentoAgendado();
-      return;
-   }
 
    if(g_jLinhaArmada || g_lLinhaArmada)
       ProcessarPendentesPorLinha();
@@ -8954,10 +7307,7 @@ void OnTimer()
    ProcessarResetPontosOperacaoAgendado();
    AtualizarPainelEstatisticas(false);
    AtualizarSpread();
-   VerificarFechamentoHorario();
-   VerificarIntegridadeEstadoSeguranca();
-   if(g_fechamentoAgendado)
-      ProcessarFechamentoAgendado();
+   ManterEstatisticasDia();
 }
 
 void OnChartEvent(const int id, const long &lparam,
@@ -8996,8 +7346,6 @@ void OnChartEvent(const int id, const long &lparam,
       return;
    }
 
-   if(g_fechamentoAgendado) return;
-
    // clique no grafico fora do painel com um campo em edicao: confirma o valor
    if(id == CHARTEVENT_CLICK)
    {
@@ -9013,41 +7361,11 @@ void OnChartEvent(const int id, const long &lparam,
 
    if(id == CHARTEVENT_OBJECT_CLICK)
    {
-      if(EhCliqueAgendaPopup(sparam))
-         return;
-
-      if(StringFind(sparam, SPL_PREFIX) == 0)
-      {
-         string acaoPopup = "";
-         if(ResolverCliquePopupLimites(sparam, acaoPopup))
-         {
-            ObjectSetInteger(0, sparam, OBJPROP_STATE, false);
-            if(acaoPopup == "ok") ConfirmarPopupLimites();
-            else if(acaoPopup == "cancel") FecharPopupLimites();
-            else if(acaoPopup == "trocar_pin") AbrirPopupPin(false);
-            else if(acaoPopup == "pin_salvar") SalvarPopupPin();
-            else if(acaoPopup == "voltar")
-            {
-               if(PinJaCadastrado()) AbrirPopupLimites();
-               else FecharPopupLimites();
-            }
-            ChartRedraw(0);
-         }
-         return;
-      }
-
       string btn = ResolverCliqueBotaoPainel(sparam);
       if(btn != "")
       {
          ObjectSetInteger(0, sparam, OBJPROP_STATE, false);
          ProcessarCliqueBotaoPainel(btn);
-         return;
-      }
-
-      if(sparam == "SP_TR")
-      {
-         if(!g_painelBloqueado)
-            ToggleModoTrail();
          return;
       }
 
@@ -9078,22 +7396,6 @@ void OnChartEvent(const int id, const long &lparam,
          return;
       }
 
-      if(sparam == SPL_EDIT_PIN || sparam == SPL_EDIT_PIN_ATUAL
-         || sparam == SPL_EDIT_PIN_NOVO || sparam == SPL_EDIT_PIN_CONF)
-         SanitizarEditPin(sparam);
-      else if(sparam == SPL_EDIT_SCHED_HHMM)
-      {
-         LerAgendaCamposPopup();
-         if(ObjectFind(0, SPL_EDIT_SCHED_HHMM) >= 0)
-            ObjectSetString(0, SPL_EDIT_SCHED_HHMM, OBJPROP_TEXT,
-                            FormatarHorarioHHMM(g_schedHour, g_schedMin));
-      }
-      else if(g_popupLimitesAberto && EhObjetoPopupLimites(sparam))
-      {
-         if(sparam == SPL_EDIT_OPS || sparam == SPL_EDIT_POS || sparam == SPL_EDIT_NEG)
-         { /* valores lidos no OK */ }
-      }
-      else
       {
          AtualizarCampos();
          ReconciliarLinhasTrailing();
@@ -10584,7 +8886,7 @@ void CriarSecaoParciais(const int lx, const int y, const int divW, const bool cr
    }
 }
 
-//--- Painel (opcao A): PARAMETROS (com o perfil) -> PARCIAIS -> COMPRA/FECHA/VENDA -> SYNC/LINHAS/LIMITES.
+//--- Painel (opcao A): PARAMETROS (com o perfil) -> PARCIAIS -> COMPRA/FECHA/VENDA -> SYNC/LINHAS/ESPELHO.
 //    Devolve o Y do bloco de estado do dia (metricas).
 int DigitosLote()
 {
@@ -10721,13 +9023,10 @@ int DesenharSecoesPainel(const int lx, const int divW, const bool criar)
    CreateButton(OBJ_BTN_SL_UP, c1 + colW - 26, f2, 26, PFLD_H, "+", 11);
 
    RotuloCampo("SP_ST", c2, l2);
-   CreateButton(OBJ_BTN_TS, c2 + 62, l2 - 2, 28, 15, g_tsLigado ? "ON" : "OFF", 7);
+   // botao TS no lugar do antigo rotulo FIXO/DINAMICO: 0 desligado, 1 fixo, 2 dinamico
+   if(ObjectFind(0, "SP_TR") >= 0) ObjectDelete(0, "SP_TR");
+   CreateButton(OBJ_BTN_TS, c2 + colW - 30, l2 - 2, 30, 15, IntegerToString(ModoTSPainel()), 8);
    AtualizarBotaoTS();
-   CreateLabel("SP_TR", c2 + colW, l2, TextoRotuloParametro("SP_TR"), CorRotuloParametro("SP_TR"), 7, true);
-   ObjectSetInteger(0, "SP_TR", OBJPROP_ANCHOR, ANCHOR_RIGHT_UPPER);
-   AplicarEstiloRotuloParametro("SP_TR");
-   ObjectSetString(0, "SP_TR", OBJPROP_FONT, UI_FONT_BOLD);
-   ObjectSetInteger(0, "SP_TR", OBJPROP_FONTSIZE, 7);
    int hw = (colW - 6) / 2;
    PosicionarCampo(OBJ_EDIT_TRAIL_START, c2, f2, hw, PFLD_H, criar, DoubleToString(TrailingStart, 0));
    PosicionarCampo(OBJ_EDIT_TRAIL_STEP, c2 + colW - hw, f2, hw, PFLD_H, criar, DoubleToString(TrailingStep, 0));
@@ -10748,7 +9047,6 @@ int DesenharSecoesPainel(const int lx, const int divW, const bool criar)
    CreateButton(OBJ_BTN_SYNC_HL, lx, ya, 10, SEC_AUX_BTN_H, "SYNC", 7);
    CreateButton(OBJ_BTN_LINHAS, lx, ya, 10, SEC_AUX_BTN_H, "LINHAS", 7);
    CreateButton(OBJ_BTN_ESPELHO, lx, ya, 10, SEC_AUX_BTN_H, "ESPELHO", 7);
-   CreateButton(OBJ_BTN_LIMITS, lx, ya, 10, SEC_AUX_BTN_H, "LIMITES", 7);
    ReposicionarBotoesAux(lx, divW, ya);
 
    return ya + SEC_AUX_BTN_H + GAP_AUX_MET;
@@ -10777,35 +9075,27 @@ void LerCamposParciais()
 }
 
 //+------------------------------------------------------------------+
-//| TS ON/OFF e indicador espelho do NT8 (v6.04)                     |
+//| Botao TS (0/1/2) e indicador espelho do NT8                      |
 //+------------------------------------------------------------------+
 void AtualizarBotaoTS()
 {
    if(ObjectFind(0, OBJ_BTN_TS) < 0) return;
+   int modo = ModoTSPainel();
+   color bg = (modo == 0) ? C_PARCIAIS_OFF_BG : (modo == 1 ? C_TRAIL_FIXO_ACCENT : C_STEP_ROTULO);
    RemoverDecorBotao(OBJ_BTN_TS);
-   ObjectSetString(0, OBJ_BTN_TS, OBJPROP_TEXT, g_tsLigado ? "ON" : "OFF");
+   ObjectSetString(0, OBJ_BTN_TS, OBJPROP_TEXT, IntegerToString(modo));
    ObjectSetString(0, OBJ_BTN_TS, OBJPROP_FONT, UI_FONT_BOLD);
-   ObjectSetInteger(0, OBJ_BTN_TS, OBJPROP_FONTSIZE, 7);
-   ObjectSetInteger(0, OBJ_BTN_TS, OBJPROP_COLOR, g_tsLigado ? C_EXEC_TEXT_ON : C_NOME_COLOR);
-   ObjectSetInteger(0, OBJ_BTN_TS, OBJPROP_BGCOLOR, g_tsLigado ? C_PARCIAIS_ON_BG : C_PARCIAIS_OFF_BG);
-   ObjectSetInteger(0, OBJ_BTN_TS, OBJPROP_BORDER_COLOR, g_tsLigado ? C_PARCIAIS_ON_BG : C_PARCIAIS_OFF_BG);
+   ObjectSetInteger(0, OBJ_BTN_TS, OBJPROP_FONTSIZE, 8);
+   ObjectSetInteger(0, OBJ_BTN_TS, OBJPROP_COLOR, modo == 0 ? C_NOME_COLOR : C_EXEC_TEXT_ON);
+   ObjectSetInteger(0, OBJ_BTN_TS, OBJPROP_BGCOLOR, bg);
+   ObjectSetInteger(0, OBJ_BTN_TS, OBJPROP_BORDER_COLOR, bg);
    ObjectSetInteger(0, OBJ_BTN_TS, OBJPROP_BORDER_TYPE, BORDER_FLAT);
    ObjectSetInteger(0, OBJ_BTN_TS, OBJPROP_STATE, false);
-   ObjectSetString(0, OBJ_BTN_TS, OBJPROP_TOOLTIP, g_tsLigado
-                   ? "Trailing stop LIGADO (clique para desligar: o SL fica onde esta)"
-                   : "Trailing stop DESLIGADO (clique para ligar)");
-}
-
-void ToggleTrailingStop()
-{
-   g_tsLigado = !g_tsLigado;
-   GlobalVariableSet(GvCfgKey("TS_ON"), g_tsLigado ? 1.0 : 0.0);
-   AtualizarBotaoTS();
-   ReconciliarLinhasTrailing();   // desligado: a linha do trailing some; ligado: volta
-   AtualizarRotulosSLTP();
-   Status(g_tsLigado ? "Trailing stop ligado" : "Trailing stop desligado: o SL fica onde esta",
-          g_tsLigado ? C_STATUS_OK : C_STATUS_WARN, true);
-   ChartRedraw(0);
+   ObjectSetInteger(0, OBJ_BTN_TS, OBJPROP_ZORDER, 10);
+   string dica = (modo == 0) ? "TS 0: desligado (o SL fica onde esta)"
+               : (modo == 1) ? "TS 1: trailing fixo"
+                             : "TS 2: trailing dinamico (distancia = Trail - Step, avanca a cada Step)";
+   ObjectSetString(0, OBJ_BTN_TS, OBJPROP_TOOLTIP, dica + " | clique: 0 > 1 > 2");
 }
 
 // Estado do espelho por grafico (GV fora do prefixo SP_, que e limpo como ticket)
