@@ -124,7 +124,7 @@ PROBLEMAS COMUNS
 | NT8: "already contains a definition" | Existem dois arquivos da estratégia na pasta (ex.: `SPCopyFilhaNT (1).cs`). Apague o antigo e deixe só um `SPCopyFilhaNT.cs`. |
 | Estratégia NT8 amarela | Há posição aberta na conta. Zere a conta ou mude "Start behavior" para "Immediately submit". |
 | EA não envia ordens | Ligue **Algo Trading** e marque "Permitir Algo Trading" nas propriedades do EA. |
-| Barra de status `CENTRAL: BLOQUEADO (central offline)` | A Central foi fechada. Abra o `SPCentral.exe`. |
+| Barra de status `CENTRAL: central offline` (v6.05; antes `CENTRAL: BLOQUEADO (central offline)`) | A Central foi fechada. Abra o `SPCentral.exe`. |
 | compilar.bat: "Compilador não encontrado" | Instale ou ative o **.NET Framework 4.8** no Windows ("Ativar ou desativar recursos do Windows"). |
 
 

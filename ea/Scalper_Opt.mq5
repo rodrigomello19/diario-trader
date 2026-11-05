@@ -4373,11 +4373,37 @@ color CorTemaClaro(const color c)
    return c;
 }
 
+// Texto completo da faixa de status (o objeto pode mostrar uma versao encurtada)
+string g_statusTextoCompleto = "";
+
+// Encurta o texto para caber na faixa de status do painel (o completo vai na dica do mouse)
+string AjustarTextoLarguraStatus(const string texto)
+{
+   int maxW = PANEL_W - PANEL_PAD * 2 - 16;
+   uint w = 0, h = 0;
+   if(!TextSetFont(UI_FONT_BOLD, -STAT_MSG_FS * 10) || !TextGetSize(texto, w, h) || w == 0)
+      return (StringLen(texto) > 40) ? StringSubstr(texto, 0, 38) + "..." : texto;
+   if((int)w <= maxW) return texto;
+   int n = StringLen(texto);
+   while(n > 4)
+   {
+      n--;
+      string t = StringSubstr(texto, 0, n);
+      StringTrimRight(t);
+      t += "...";
+      if(TextGetSize(t, w, h) && (int)w <= maxW) return t;
+   }
+   return StringSubstr(texto, 0, 4) + "...";
+}
+
 void AplicarTextoStatusUI(const string texto, const color cor)
 {
+   g_statusTextoCompleto = texto;
    if(ObjectFind(0, OBJ_TXT_STATUS) >= 0)
    {
-      ObjectSetString(0, OBJ_TXT_STATUS, OBJPROP_TEXT, texto);
+      string vis = AjustarTextoLarguraStatus(texto);
+      ObjectSetString(0, OBJ_TXT_STATUS, OBJPROP_TEXT, vis);
+      ObjectSetString(0, OBJ_TXT_STATUS, OBJPROP_TOOLTIP, vis != texto ? texto : "\n");
       ObjectSetInteger(0, OBJ_TXT_STATUS, OBJPROP_COLOR, CorTemaClaro(cor));
    }
    AplicarEstiloFaixaStatus(cor);
@@ -4459,7 +4485,7 @@ void SincronizarStatusImpedimento()
       string txtTrade = TextoMotivoTradeBloqueado(motTrade);
       string atualTrade = "";
       if(ObjectFind(0, OBJ_TXT_STATUS) >= 0)
-         atualTrade = ObjectGetString(0, OBJ_TXT_STATUS, OBJPROP_TEXT);
+         atualTrade = g_statusTextoCompleto;
       if(atualTrade != txtTrade)
          AplicarTextoStatusUI(txtTrade, C_STATUS_WARN);
       return;
@@ -4474,7 +4500,7 @@ void SincronizarStatusImpedimento()
 
    string atual = "";
    if(ObjectFind(0, OBJ_TXT_STATUS) >= 0)
-      atual = ObjectGetString(0, OBJ_TXT_STATUS, OBJPROP_TEXT);
+      atual = g_statusTextoCompleto;
 
    if(temImp)
    {
@@ -5506,6 +5532,7 @@ void CriarFaixaStatus(const int lx, const int y, const int divW)
    CreateLabelCentered(OBJ_TXT_STATUS, XCentroTextoStatusPainel(lx, divW), YTextoStatusPainel(y),
                        SP_STATUS_PRONTO, C_STATUS_OK, STAT_MSG_FS, true);
    AplicarLayoutTextoStatus(y, lx, divW);
+   g_statusTextoCompleto = SP_STATUS_PRONTO;
    AplicarEstiloFaixaStatus(C_STATUS_OK);
 }
 
@@ -6944,8 +6971,9 @@ bool Central_BloqueiaNovas()
 
 string Central_TextoStatus()
 {
-   if(g_centralEstado == CENTRAL_ZERAR) return "CENTRAL: ZERANDO (" + g_centralMotivo + ")";
-   return "CENTRAL: BLOQUEADO (" + g_centralMotivo + ")";
+   // o bloco LIBERADO/BLOQUEADO ja mostra o bloqueio: aqui so o motivo, curto
+   if(g_centralEstado == CENTRAL_ZERAR) return "ZERANDO: " + g_centralMotivo;
+   return "CENTRAL: " + g_centralMotivo;
 }
 
 // Uma linha por operacao encerrada; a central soma as do dia da conta mae.

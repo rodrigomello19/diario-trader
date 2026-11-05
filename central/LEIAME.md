@@ -51,7 +51,7 @@ A trava dura até o **reset diário** (ex.: 06:00 do dia seguinte). A **senha me
 - **Contas:** todas as contas que o Scalper Pro e a filha NT8 estão reportando, com papel (mãe ou filha), online, posições e flutuante.
 - **Eventos:** histórico das ações. Também fica gravado em `%LOCALAPPDATA%\SPCentral\log_AAAAMMDD.txt`.
 
-No MT5, a barra de status do Scalper Pro mostra `CENTRAL: BLOQUEADO (motivo)` ou `CENTRAL: ZERANDO (motivo)`. Na filha NT8, o motivo aparece no log.
+No MT5, o bloco de estado do Scalper Pro fica vermelho (BLOQUEADO) e a barra de status mostra `CENTRAL: <motivo>` ou `ZERANDO: <motivo>`. Se o motivo não couber na barra, ele termina em "..." e o texto completo aparece ao passar o mouse. Na filha NT8, o motivo aparece no log.
 
 ## Como os EAs obedecem
 
