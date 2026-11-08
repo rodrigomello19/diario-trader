@@ -48,7 +48,22 @@ DESTAQUE:  29361,12
 2. No gráfico de operação, clique em **SYNC**.
 
 O que o SYNC faz:
-- **Escolhe o gráfico de estudo:** procura outro gráfico do mesmo ativo. Se houver mais de um, prefere o que **não tem EA**, para não puxar de outro gráfico de operação. O nome e o tempo gráfico do gráfico usado aparecem na barra de status, por exemplo `SYNC: 12 linhas de US100 M5`.
+- **Escolhe o gráfico de estudo (v6.05):** procura os outros gráficos do mesmo ativo que tenham **pelo menos uma linha horizontal**.
+  - **Nenhum:** avisa na barra de status e **não apaga nada**.
+  - **Um:** copia direto.
+  - **Dois ou mais:** abre ao lado direito do painel a lista **"Copiar linhas de qual gráfico?"**, sem cobrir COMPRA, FECHA e VENDA:
+    ```
+    Copiar linhas de qual gráfico?
+    [ US100 M5  -  12 linhas  (ultimo) ]
+    [ US100 M15 -   7 linhas           ]
+    [ US100 H1  -   4 linhas           ]
+    [ cancelar                         ]
+    ```
+    - Clique no gráfico desejado. Só então as linhas do gráfico de operação são apagadas e as do escolhido são copiadas.
+    - O último gráfico usado aparece primeiro e em verde. Os outros seguem do menor para o maior tempo gráfico.
+    - Um gráfico com EA aparece com **(EA)**.
+    - **cancelar**, um novo clique em SYNC ou 30 s sem escolha fecham a lista sem mexer nas linhas.
+  - O gráfico usado aparece na barra de status, por exemplo `SYNC: 12 linhas de US100 M5`.
 - **Copia cor, espessura e estilo** de cada linha horizontal. Também copia linhas de tendência traçadas na horizontal.
 - **Antes de copiar, apaga todas as linhas horizontais do gráfico de operação** (v6.05). Isso inclui as que você traçou à mão, as de um SYNC anterior e as carregadas pelo botão LINHAS. Ficam só as linhas de operação do EA: SL/TP, trailing, pendentes J/L e P1/P2.
 - **Estudo em outro ativo:** se o estudo estiver em outro ativo, preencha o parâmetro "SYNC: ativo do gráfico de estudo".

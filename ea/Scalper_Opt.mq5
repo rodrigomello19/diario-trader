@@ -260,6 +260,14 @@ const string LIN_ARQ    = "SP_Linhas.txt";
 const string LIN_PREFIX = "SPDIA_";
 // Copias do SYNC: fora do prefixo "SP_" (o EA apaga "SP_*" ao fechar o MT5/grafico, e as linhas sumiam)
 const string SYNC_PREFIX = "SPSYNC_";
+// Lista "copiar de qual grafico?" do SYNC (fora do prefixo SP_ para nao entrar no layout do painel)
+const string SYNCSEL_PREFIX = "SPSEL_";
+const int    SYNCSEL_MAX    = 8;
+long     g_syncSelIds[];
+bool     g_syncSelAberta  = false;
+datetime g_syncSelAbertaEm = 0;
+long     g_syncUltimoChart = -1;
+int      g_syncSelY       = 0;     // altura da linha SYNC/LINHAS/BOLHAS no painel
 long   g_linArqData = -1;
 long   g_linArqTam  = -1;
 
@@ -719,6 +727,14 @@ void     LinhasCriarModelo();
 void     LinhasCarregar(const bool avisar);
 void     LinhasVerificarArquivo();
 void     SincronizarLinhasHorizontais();
+void     FecharListaSync();
+void     AbrirListaSync(const long &ids[], const int &nLin[], const int n);
+int      ContarLinhasOrigemSync(const long chartOrigem);
+bool     LinhaOrigemCopiavelSync(const long chartOrigem, const string nomeOrigem);
+string   NomeGraficoSync(const long cid);
+void     CopiarLinhasDeGrafico(const long chartOrigem);
+bool     ProcessarCliqueListaSync(const string nome);
+void     ProcessarListaSyncTimeout();
 
 string GVOpCounted(ulong dealTkt)  { return GV_PREFIX + "OC_" + IntegerToString(dealTkt); }
 string GVOpOpen(ulong posTkt)      { return GV_PREFIX + "OPO_" + IntegerToString(posTkt); }
@@ -3891,30 +3907,6 @@ string NormalizarAtivo(const string ativo)
 
 // Grafico de origem do SYNC: outro grafico do ativo indicado. Entre varios, prefere o que
 // NAO tem EA (o grafico de estudo), para nao puxar de outro grafico de operacao.
-long BuscarGraficoOrigemPorAtivo(const string ativoNormalizado, const long chartAtual)
-{
-   if(StringLen(ativoNormalizado) == 0) return -1;
-
-   long melhor = -1;
-   bool melhorSemEA = false;
-   for(long cid = ChartFirst(); cid >= 0; cid = ChartNext(cid))
-   {
-      if(cid == chartAtual) continue;
-
-      string sym = ChartSymbol(cid);
-      StringToUpper(sym);
-      if(sym != ativoNormalizado) continue;
-
-      bool semEA = (ChartGetString(cid, CHART_EXPERT_NAME) == "");
-      if(melhor < 0 || (semEA && !melhorSemEA))
-      {
-         melhor = cid;
-         melhorSemEA = semEA;
-      }
-   }
-   return melhor;
-}
-
 bool EhObjetoLinhaSLTPGrafico(const string nome)
 {
    if(StringFind(nome, "SP_POS_SL_") == 0) return true;
@@ -4017,12 +4009,77 @@ void SincronizarLinhasHorizontais()
       return;
    }
 
-   long chartOrigem = BuscarGraficoOrigemPorAtivo(ativo, chartAtual);
-   if(chartOrigem < 0)
+   // Clicar em SYNC com a lista aberta: fecha a lista
+   if(g_syncSelAberta) { FecharListaSync(); ChartRedraw(0); return; }
+
+   // Candidatos: outros graficos do ativo que tenham pelo menos uma linha horizontal
+   long ids[];
+   int  nLin[];
+   int  n = 0;
+   bool algumGrafico = false;
+   for(long cid = ChartFirst(); cid >= 0; cid = ChartNext(cid))
+   {
+      if(cid == chartAtual) continue;
+      string sym = ChartSymbol(cid);
+      StringToUpper(sym);
+      if(sym != ativo) continue;
+      algumGrafico = true;
+      int q = ContarLinhasOrigemSync(cid);
+      if(q <= 0) continue;
+      ArrayResize(ids, n + 1);
+      ArrayResize(nLin, n + 1);
+      ids[n] = cid; nLin[n] = q; n++;
+   }
+
+   if(n == 0)
+   {
+      Status(algumGrafico ? SP_MSG_SEM_LINHAS : SP_MSG_SYNC_GRAF, clrOrange, true);
+      return;   // nada e apagado
+   }
+   if(n == 1)
+   {
+      CopiarLinhasDeGrafico(ids[0]);
+      return;
+   }
+   AbrirListaSync(ids, nLin, n);
+}
+
+// Linhas horizontais do grafico de estudo que o SYNC copiaria
+int ContarLinhasOrigemSync(const long chartOrigem)
+{
+   int q = 0;
+   for(int i = ObjectsTotal(chartOrigem, -1, -1) - 1; i >= 0; i--)
+   {
+      string nome = ObjectName(chartOrigem, i, -1, -1);
+      if(nome == "" || !LinhaOrigemCopiavelSync(chartOrigem, nome)) continue;
+      q++;
+   }
+   return q;
+}
+
+bool LinhaOrigemCopiavelSync(const long chartOrigem, const string nomeOrigem)
+{
+   if(StringFind(nomeOrigem, "SP_") == 0) return false;          // objetos do Scalper Pro do outro grafico
+   if(EhObjetoLinhaSyncCopiada(nomeOrigem)) return false;        // copias de SYNC de outro grafico
+   if(EhHlineProtegidaDoEA(nomeOrigem)) return false;
+   // linha horizontal ou linha de tendencia horizontal (mesmo preco nas duas pontas)
+   return EhLinhaHorizontalNoGrafico(chartOrigem, nomeOrigem);
+}
+
+string NomeGraficoSync(const long cid)
+{
+   return ChartSymbol(cid) + " " + StringSubstr(EnumToString(ChartPeriod(cid)), 7);
+}
+
+void CopiarLinhasDeGrafico(const long chartOrigem)
+{
+   const long chartAtual = ChartID();
+   if(ChartSymbol(chartOrigem) == "")          // grafico fechado nesse meio tempo
    {
       Status(SP_MSG_SYNC_GRAF, clrOrange, true);
       return;
    }
+   g_syncUltimoChart = chartOrigem;
 
    // Antes de copiar: apaga TODAS as linhas horizontais deste grafico (manuais, do SYNC anterior
    // e do arquivo LINHAS). Ficam as linhas de operacao do EA (trailing, SL/TP, pendentes, P1/P2).
@@ -4033,12 +4090,7 @@ void SincronizarLinhasHorizontais()
    for(int i = 0; i < ObjectsTotal(chartOrigem, -1, -1); i++)
    {
       string nomeOrigem = ObjectName(chartOrigem, i, -1, -1);
-      if(nomeOrigem == "") continue;
-      if(StringFind(nomeOrigem, "SP_") == 0) continue;          // objetos do Scalper Pro do outro grafico
-      if(EhObjetoLinhaSyncCopiada(nomeOrigem)) continue;        // copias de SYNC de outro grafico
-      if(EhHlineProtegidaDoEA(nomeOrigem)) continue;
-      // linha horizontal ou linha de tendencia horizontal (mesmo preco nas duas pontas)
-      if(!EhLinhaHorizontalNoGrafico(chartOrigem, nomeOrigem)) continue;
+      if(nomeOrigem == "" || !LinhaOrigemCopiavelSync(chartOrigem, nomeOrigem)) continue;
 
       string nomeDestino = SYNC_PREFIX + IntegerToString(copiadas + 1);
       double preco = ObjectGetDouble(chartOrigem, nomeOrigem, OBJPROP_PRICE, 0);
@@ -4071,6 +4123,115 @@ void SincronizarLinhasHorizontais()
    }
    else
       Status(SP_MSG_SEM_LINHAS, clrOrange, true);
+}
+
+//+------------------------------------------------------------------+
+//| SYNC com mais de um grafico de estudo: lista para escolher       |
+//| (ao lado direito do painel; nao cobre COMPRA/FECHA/VENDA)        |
+//+------------------------------------------------------------------+
+void AbrirListaSync(const long &ids[], const int &nLin[], const int n)
+{
+   FecharListaSync();
+
+   // ultimo grafico usado primeiro; os outros na ordem do tempo grafico (menor primeiro)
+   int ordem[];
+   ArrayResize(ordem, n);
+   for(int i = 0; i < n; i++) ordem[i] = i;
+   for(int i = 0; i < n - 1; i++)
+      for(int j = i + 1; j < n; j++)
+      {
+         long a = ids[ordem[i]], b = ids[ordem[j]];
+         bool aUlt = (a == g_syncUltimoChart), bUlt = (b == g_syncUltimoChart);
+         bool trocar = (bUlt && !aUlt)
+                    || (aUlt == bUlt && PeriodSeconds(ChartPeriod(b)) < PeriodSeconds(ChartPeriod(a)));
+         if(trocar) { int t = ordem[i]; ordem[i] = ordem[j]; ordem[j] = t; }
+      }
+
+   int qtd = MathMin(n, SYNCSEL_MAX);
+   ArrayResize(g_syncSelIds, qtd);
+
+   const int w = 240, bh = 22, gap = 4, pad = 8, tituloH = 18;
+   int x = PANEL_X + PANEL_W + 6;
+   int h = pad + tituloH + qtd * (bh + gap) + bh + pad;
+   int y = MathMax(PANEL_Y, g_syncSelY - tituloH - pad);
+
+   CreateRect(SYNCSEL_PREFIX + "BG", x, y, w, h, C_GLASS_BG, C_BORDER_COLOR);
+   ObjectSetInteger(0, SYNCSEL_PREFIX + "BG", OBJPROP_ZORDER, 300);
+   CreateLabel(SYNCSEL_PREFIX + "TIT", x + pad, y + pad, "Copiar linhas de qual grafico?", C_NOME_COLOR, 8, true);
+   ObjectSetInteger(0, SYNCSEL_PREFIX + "TIT", OBJPROP_ZORDER, 301);
+   ObjectSetInteger(0, SYNCSEL_PREFIX + "TIT", OBJPROP_SELECTABLE, false);
+   ObjectSetInteger(0, SYNCSEL_PREFIX + "TIT", OBJPROP_HIDDEN, true);
+
+   int yb = y + pad + tituloH;
+   for(int k = 0; k < qtd; k++)
+   {
+      int i = ordem[k];
+      g_syncSelIds[k] = ids[i];
+      bool ult = (ids[i] == g_syncUltimoChart);
+      string txt = NomeGraficoSync(ids[i]) + "  -  " + IntegerToString(nLin[i]) + (nLin[i] == 1 ? " linha" : " linhas");
+      if(ChartGetString(ids[i], CHART_EXPERT_NAME) != "") txt += " (EA)";
+      if(ult) txt += "  (ultimo)";
+      string nm = SYNCSEL_PREFIX + "B" + IntegerToString(k);
+      CreateButton(nm, x + pad, yb, w - pad * 2, bh, txt, 8);
+      ObjectSetString(0, nm, OBJPROP_FONT, UI_FONT_BOLD);
+      ObjectSetInteger(0, nm, OBJPROP_BGCOLOR, ult ? C_TINT_OK_BG : C_BTN_BG);
+      ObjectSetInteger(0, nm, OBJPROP_BORDER_COLOR, ult ? C_STATUS_OK : C_GLASS_BORDER);
+      ObjectSetInteger(0, nm, OBJPROP_COLOR, ult ? C_STATUS_OK : C_NOME_COLOR);
+      ObjectSetInteger(0, nm, OBJPROP_ZORDER, 302);
+      ObjectSetString(0, nm, OBJPROP_TOOLTIP, "Apaga as linhas deste grafico e copia as de " + NomeGraficoSync(ids[i]));
+      yb += bh + gap;
+   }
+   string nc = SYNCSEL_PREFIX + "CANCEL";
+   CreateButton(nc, x + pad, yb, w - pad * 2, bh, "cancelar", 8);
+   ObjectSetInteger(0, nc, OBJPROP_COLOR, C_MUTED);
+   ObjectSetInteger(0, nc, OBJPROP_ZORDER, 302);
+   ObjectSetString(0, nc, OBJPROP_TOOLTIP, "Fecha a lista sem mexer nas linhas");
+
+   g_syncSelAberta   = true;
+   g_syncSelAbertaEm = TimeLocal();
+   Status("SYNC: escolha o grafico na lista", C_ACCENT_COLOR, false);
+   ChartRedraw(0);
+}
+
+void FecharListaSync()
+{
+   if(!g_syncSelAberta && ObjectFind(0, SYNCSEL_PREFIX + "BG") < 0) return;
+   ObjectsDeleteAll(0, SYNCSEL_PREFIX);
+   ArrayResize(g_syncSelIds, 0);
+   g_syncSelAberta = false;
+}
+
+// true = o clique era da lista (ja tratado)
+bool ProcessarCliqueListaSync(const string nome)
+{
+   if(StringFind(nome, SYNCSEL_PREFIX) != 0) return false;
+   ObjectSetInteger(0, nome, OBJPROP_STATE, false);
+   if(nome == SYNCSEL_PREFIX + "CANCEL")
+   {
+      FecharListaSync();
+      RestaurarStatusPronto();
+      ChartRedraw(0);
+      return true;
+   }
+   string pre = SYNCSEL_PREFIX + "B";
+   if(StringFind(nome, pre) != 0) return true;   // fundo/titulo
+   int k = (int)StringToInteger(StringSubstr(nome, StringLen(pre)));
+   if(k < 0 || k >= ArraySize(g_syncSelIds)) return true;
+   long cid = g_syncSelIds[k];
+   FecharListaSync();
+   CopiarLinhasDeGrafico(cid);
+   ChartRedraw(0);
+   return true;
+}
+
+// Lista esquecida aberta: fecha sozinha depois de 30 s
+void ProcessarListaSyncTimeout()
+{
+   if(!g_syncSelAberta) return;
+   if(TimeLocal() - g_syncSelAbertaEm < 30) return;
+   FecharListaSync();
+   RestaurarStatusPronto();
+   ChartRedraw(0);
 }
 
 void LimparTicketsPendentesInvalidos()
@@ -5203,7 +5364,7 @@ void ProcessarCliqueBotaoPainel(const string btn)
    else if(btn == OBJ_BTN_SL_UP) AjustarPontosPasso(OBJ_EDIT_SL, 1);
    else if(btn == OBJ_BTN_SETUP)    AlternarPerfilSetup();
    else if(btn == OBJ_BTN_MINIMIZE) ToggleMinimizarPainel();
-   else if(btn == OBJ_BTN_CLOSE) ObjectsDeleteAll(0, "SP_");
+   else if(btn == OBJ_BTN_CLOSE) { FecharListaSync(); ObjectsDeleteAll(0, "SP_"); }
 
    if(btn != OBJ_BTN_CLOSE)
    {
@@ -5326,6 +5487,7 @@ void ReposicionarObjetoXY(const string name, const int x, const int y)
 
 void ReposicionarBotoesAux(const int lx, const int divW, const int yAux)
 {
+   g_syncSelY = yAux;
    string b[3];
    b[0] = OBJ_BTN_SYNC_HL; b[1] = OBJ_BTN_LINHAS; b[2] = OBJ_BTN_ESPELHO;
    int w = (divW - 12) / 3;
@@ -5594,6 +5756,7 @@ void AplicarEstadoMinimizadoPainel()
 void ToggleMinimizarPainel()
 {
    g_painelMinimizado = !g_painelMinimizado;
+   FecharListaSync();
    AplicarEstadoMinimizadoPainel();
    ChartRedraw(0);
 }
@@ -7061,6 +7224,7 @@ int OnInit()
       return INIT_PARAMETERS_INCORRECT;
 
    RemoverRestosLimitesAntigos();
+   ObjectsDeleteAll(0, SYNCSEL_PREFIX);   // lista do SYNC que tenha ficado de uma execucao anterior
 
    ConfigurarGrafico();
    LimparGVsOrfas();
@@ -7108,6 +7272,7 @@ int OnInit()
 void OnDeinit(const int reason)
 {
    EventKillTimer();
+   FecharListaSync();
    CancelarEdicaoCampoAtiva();
    if(reason == REASON_CHARTCHANGE || reason == REASON_RECOMPILE)
       SalvarConfigPainelPerfil(g_setupAtivo);
@@ -7312,6 +7477,7 @@ void OnTimer()
    ProcessarEstatisticasPendentes();
    if(g_espelhoOculto && InpEspelhoPrefixoObj != "")
       EsconderObjetosEspelhoNovos();
+   ProcessarListaSyncTimeout();
 
    ProcessarResetStatusGeralAgendado();
    ProcessarResetStatusParciaisAgendado();
@@ -7375,6 +7541,9 @@ void OnChartEvent(const int id, const long &lparam,
 
    if(id == CHARTEVENT_OBJECT_CLICK)
    {
+      if(ProcessarCliqueListaSync(sparam))
+         return;
+
       string btn = ResolverCliqueBotaoPainel(sparam);
       if(btn != "")
       {
