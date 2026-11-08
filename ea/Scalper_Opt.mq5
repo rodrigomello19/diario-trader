@@ -80,14 +80,13 @@ input int    InpTentativasEnvio    = 3;      // Tentativas de envio por parcial
 input int    InpCooldownMs         = 100;    // Espera entre tentativas (ms)
 
 input group "=== Copiador NinjaTrader ==="
-input bool   InpCopyNT_Ativo = false;   // Ativar copiador p/ NinjaTrader
 // Simbolo NT8, mapeamento de contratos e conta ficam configurados na ponte (bridge),
 // nao aqui, para nao exigir recompilar o EA a cada rolagem de contrato futuro.
 
 input group "=== Copiador MT5 (contas na mesma maquina) ==="
 input ENUM_COPY_MODO InpCopyModo          = COPY_DESLIGADO;        // Modo do copiador
 input string         InpCopyCanal         = "SP1";                 // Canal (mesmo nome na mae e nas filhas)
-input int            InpCopyIntervaloMs   = 20;                    // Intervalo de envio/leitura (ms)
+input int            InpCopyIntervaloMs   = 10;                    // Intervalo de envio/leitura (ms)
 input ENUM_COPY_LOTE InpCopyLoteModo      = COPY_LOTE_BOLETA;      // Filha: calculo do lote
 input double         InpCopyLoteValor     = 1.0;                   // Filha: multiplicador / lote fixo / risco % (fora do modo boleta)
 input double         InpCopyLoteMax       = 0;                     // Filha: lote maximo (0 = sem limite)
@@ -231,7 +230,6 @@ string OBJ_BTN_BUY      = "SP_BUY";
 string OBJ_BTN_SELL     = "SP_SELL";
 string OBJ_BTN_CLOSEALL = "SP_CLOSEALL";
 string OBJ_BTN_SYNC_HL  = "SP_SYNC_HL";
-string OBJ_BTN_SETUP    = "SP_BTN_SETUP";
 string OBJ_BTN_LINHAS   = "SP_BTN_LINHAS";
 string OBJ_BTN_PERF_N   = "SP_PERF_N";      // seletor de perfil (cartao PARAMETROS)
 string OBJ_BTN_PERF_V   = "SP_PERF_V";
@@ -332,7 +330,6 @@ string OBJ_BTN_MINIMIZE = "SP_BTN_MINIMIZE";
 int      g_setupAtivo = PERFIL_NORMAL;
 ENUM_MODO_TRAIL g_modoTrail = TRAIL_FIXO;
 bool     g_painelMinimizado = false;
-int      g_statY_status = 0;
 int      g_statY_metrics = 0;
 
 string OBJ_TXT_STATUS   = "SP_STATUS";
@@ -355,7 +352,6 @@ const string SP_MSG_SYM_TRADE   = "Ativo sem trade";
 const string SP_MSG_PENDENTE    = "Pendente";
 const string SP_MSG_TRAIL_FIXO  = "Trail fixo";
 const string SP_MSG_TRAIL_DIN   = "Trail dinamico";
-const string SP_MSG_TRAIL_DIST  = "Trail > Step";
 const string SP_MSG_SEM_LINHAS  = "Sem linhas";
 const string SP_MSG_SYNC_ATIVO  = "Ativo invalido";
 const string SP_MSG_SYNC_GRAF   = "Grafico N/A";
@@ -382,10 +378,8 @@ ulong g_pendBuyJ       = 0;
 ulong g_pendSellL      = 0;
 bool  g_jLinhaArmada   = false;
 double g_jLinhaPreco   = 0;
-double g_jBidNaArmacao = 0;
 bool  g_lLinhaArmada   = false;
 double g_lLinhaPreco   = 0;
-double g_lBidNaArmacao = 0;
 bool  g_jProximoNoHigh = false;
 bool  g_lProximoNoLow  = false;
 bool  g_jLinhaNoOpen   = false;
@@ -494,7 +488,6 @@ long           g_copyMaeSeqLida    = -1;
 long           g_copyMaeLogin      = 0;
 string         g_copyMaeSimbolo    = "";
 double         g_copyMaeBid        = 0;
-double         g_copyMaeAsk        = 0;
 double         g_copyMaeContrato   = 0;
 SCopyTentativa g_copyTent[];
 SCopyModify    g_copyMod[];
@@ -557,7 +550,6 @@ void     AtualizarCampos();
 void     CiclarModoTS();
 bool     TrailDinamicoAtivo();
 double   DistanciaTrailDinamico();
-void     AtualizarBotaoSetup();
 void     AlternarPerfilSetup();
 void     AplicarPerfilAoPainel();
 string   GvCfgKey(const string sufixo);
@@ -697,9 +689,7 @@ void     GravarTicketPosicao(ulong posTkt);
 void     ZerarEstatisticasSeNovoDia();
 ulong    ResolverPositionId(ulong ticketOuPosId);
 bool     PosicaoFechadaPorId(ulong posId);
-bool     SelecionarHistoricoDia();
 bool     DealDoSimboloAtivo(ulong dealTkt);
-double   PontosPosicaoHistorico(ulong positionId);
 double   ObterPontoPreco();
 double   PontosPorPrecosOperacao(double precoEntrada, double precoSaida, long direcao);
 double   PontosPorEntradaSalva(ulong posId, ulong dealFechamento = 0);
@@ -721,13 +711,15 @@ datetime DiaCalendarioAtual();
 void     LimparGVsOrfas();
 double   LucroPontosPosicao(ulong posTkt);
 bool     EhLinhaHorizontalNoGrafico(const long chartId, const string nome);
-bool     EhLinhaVerticalNoGrafico(const long chartId, const string nome);
 void     LimparLinhasAntesDeCarregar();
 void     LinhasCriarModelo();
 void     LinhasCarregar(const bool avisar);
 void     LinhasVerificarArquivo();
 void     SincronizarLinhasHorizontais();
 void     FecharListaSync();
+void     AgendarFechamentoPosicao(const ulong posId, const ulong posTkt, const ulong posTktTrans,
+                                  const ulong idStats, const ulong deal);
+void     ProcessarFechamentosPendentes();
 void     AbrirListaSync(const long &ids[], const int &nLin[], const int n);
 int      ContarLinhasOrigemSync(const long chartOrigem);
 bool     LinhaOrigemCopiavelSync(const long chartOrigem, const string nomeOrigem);
@@ -1000,11 +992,21 @@ void ProcessarNiveisManuaisGrafico()
    }
 }
 
+// Estado aplicado ao grafico (-1 = desconhecido). So consulta o grafico 1x por segundo.
+int   g_arrasteEstado    = -1;
+ulong g_arrasteChecadoMs = 0;
+
 void AtualizarArrasteSLNoGrafico(bool temPosicao)
 {
+   int   desejado = temPosicao ? 1 : 0;
+   ulong agora    = GetTickCount64();
+   if(g_arrasteEstado == desejado && agora - g_arrasteChecadoMs < 1000) return;
+   g_arrasteChecadoMs = agora;
+
    long cid = ChartID();
    if((bool)ChartGetInteger(cid, CHART_DRAG_TRADE_LEVELS) != temPosicao)
       ChartSetInteger(cid, CHART_DRAG_TRADE_LEVELS, temPosicao);
+   g_arrasteEstado = desejado;
 }
 
 void ConfigurarGrafico()
@@ -1019,6 +1021,7 @@ void ConfigurarGrafico()
    }
    ChartSetInteger(cid, CHART_SHOW_ONE_CLICK, false);
    ChartSetInteger(cid, CHART_FOREGROUND, false);
+   g_arrasteEstado = -1;
    AtualizarArrasteSLNoGrafico(TemPosicaoNoSimbolo());
    ChartRedraw(cid);
 }
@@ -1639,30 +1642,11 @@ bool PosicaoFechadaPorId(ulong posId)
    return (posId > 0 && !PosicaoIdAindaAberta(posId));
 }
 
-bool SelecionarHistoricoDia()
-{
-   if(!HistorySelect(0, TimeCurrent()))
-      return false;
-   return true;
-}
-
 bool PosicaoIdNaLista(const ulong &ids[], int n, ulong posId)
 {
    for(int i = 0; i < n; i++)
       if(ids[i] == posId) return true;
    return false;
-}
-
-double PontosPosicaoHistorico(ulong positionId)
-{
-   if(positionId == 0) return 0;
-
-   double precoIn = 0, precoOut = 0;
-   long   dir = -1;
-   if(!ObterPrecosOperacao(positionId, precoIn, precoOut, dir, 0, 0))
-      return 0;
-
-   return PontosPorPrecosOperacao(precoIn, precoOut, dir);
 }
 
 double CalcularPontuacaoSessao()
@@ -1775,18 +1759,6 @@ void ReconstruirEstatisticasDia(bool forcar = false)
    g_ultimoOpsPainel = -1;
    g_ultimoPtsPainel = -999999.0;
    g_ultimaReconStats = TimeCurrent();
-}
-
-double PontosFechamentoRapido(ulong posId, ulong dealFechamento)
-{
-   if(posId == 0) return 0;
-
-   double precoIn = 0, precoOut = 0;
-   long   dir = -1;
-   if(!ObterPrecosOperacao(posId, precoIn, precoOut, dir, dealFechamento, 0))
-      return 0;
-
-   return PontosPorPrecosOperacao(precoIn, precoOut, dir);
 }
 
 void RegistrarFechamentoCompleto(ulong posId, ulong dealFechamento = 0, double ptsCapturados = 0)
@@ -2246,18 +2218,7 @@ void AplicarPerfilAoPainel()
    EscreverValorCampoEdit(OBJ_EDIT_TRAIL_START);
    EscreverValorCampoEdit(OBJ_EDIT_TRAIL_STEP);
    AtualizarBotaoTS();
-   AtualizarBotaoSetup();
-}
-
-void AtualizarBotaoSetup()
-{
    AtualizarSegmentoPerfil();
-   if(ObjectFind(0, OBJ_BTN_SETUP) < 0) return;
-
-   AplicarEstiloBotaoAux(OBJ_BTN_SETUP, false);
-   ObjectSetString(0, OBJ_BTN_SETUP, OBJPROP_TOOLTIP,
-                   SetupVolatilAtivo() ? "Perfil VOLATIL (clique p/ NORMAL)"
-                                       : "Perfil NORMAL (clique p/ VOLATIL)");
 }
 
 void AlternarPerfilSetup()
@@ -3398,7 +3359,6 @@ void CancelarPendenteLinhaBroker(const bool compra)
       CancelarPendentesPorComentario("SP_PendBuy", g_pendBuyJ);
       g_jLinhaArmada = false;
       g_jLinhaPreco = 0;
-      g_jBidNaArmacao = 0;
       g_jLinhaNoOpen = false;
    }
    else
@@ -3406,7 +3366,6 @@ void CancelarPendenteLinhaBroker(const bool compra)
       CancelarPendentesPorComentario("SP_PendSell", g_pendSellL);
       g_lLinhaArmada = false;
       g_lLinhaPreco = 0;
-      g_lBidNaArmacao = 0;
       g_lLinhaNoOpen = false;
    }
 }
@@ -3681,8 +3640,6 @@ void FinalizarEntradaPosicao(ulong posTkt, bool compra, bool cancelarPendenteJl,
 
    lastOrderBar = iTime(_Symbol, PERIOD_CURRENT, 0);
 
-   CopyNT_EnviarAbertura(posId, compra, PositionGetDouble(POSITION_VOLUME), PositionGetDouble(POSITION_PRICE_OPEN));
-
    AplicarSLTPPrecoEntrada(t, false, niveisJaEnviados);
    RegistrarVolumeInicial(t);
 
@@ -3792,13 +3749,11 @@ bool ArmarPendentePorLinha(bool compra, double preco)
    {
       g_jLinhaArmada = true;
       g_jLinhaPreco = preco;
-      g_jBidNaArmacao = bid;
    }
    else
    {
       g_lLinhaArmada = true;
       g_lLinhaPreco = preco;
-      g_lBidNaArmacao = bid;
    }
 
    if((compra && g_jLinhaNoOpen) || (!compra && g_lLinhaNoOpen))
@@ -3925,33 +3880,6 @@ bool EhHlineProtegidaDoEA(const string nome)
    if(StringFind(nome, LIN_PREFIX) == 0) return true;   // linhas do dia (arquivo)
    if(StringFind(nome, "SP_TRAIL_") == 0) return true;
    if(EhObjetoLinhaSLTPGrafico(nome)) return true;
-   return false;
-}
-
-bool EhLinhaVerticalNoGrafico(const long chartId, const string nome)
-{
-   ENUM_OBJECT tipo = (ENUM_OBJECT)ObjectGetInteger(chartId, nome, OBJPROP_TYPE);
-   if(tipo == OBJ_VLINE)
-      return true;
-
-   if(tipo == OBJ_TREND)
-   {
-      datetime t0 = (datetime)ObjectGetInteger(chartId, nome, OBJPROP_TIME, 0);
-      datetime t1 = (datetime)ObjectGetInteger(chartId, nome, OBJPROP_TIME, 1);
-      double   p0 = ObjectGetDouble(chartId, nome, OBJPROP_PRICE, 0);
-      double   p1 = ObjectGetDouble(chartId, nome, OBJPROP_PRICE, 1);
-      double   tolPreco = ObterPontoPreco() * 2.0;
-
-      if(MathAbs(p0 - p1) <= tolPreco)
-         return false;
-
-      if(t0 == t1)
-         return true;
-
-      if(MathAbs((long)(t1 - t0)) <= 1)
-         return true;
-   }
-
    return false;
 }
 
@@ -4443,14 +4371,11 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
       return;
    }
 
-   CopyNT_EnviarFechamento(posId);
-
    ulong posTktTrans = (trans.position > 0) ? (ulong)trans.position : 0;
    ulong posTkt = ResolverTicketPosicao(posId);
    if(posTkt == 0) posTkt = posTktTrans;
    if(posTkt == 0) posTkt = posId;
 
-   LimparGraficoPosicaoFechada(posId, posTkt, posTktTrans);
    ulong posTktParc = ResolverTicketParciais(posId);
    FinalizarParciaisPorFechamentoTotal(posTktParc);
    if(posTktParc != posTkt) LimparGVsParciais(posTktParc);
@@ -4459,7 +4384,43 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
    ulong idStats = posId;
    if(idStats == 0 && trans.position > 0)
       idStats = (ulong)trans.position;
-   RegistrarFechamentoCompleto(idStats, dealTkt, 0);
+   // Linhas, rotulos, estatistica, painel e registro na Central: no proximo tick/timer.
+   // Assim o evento termina logo e a filha volta a ler a mae sem esperar a parte visual.
+   AgendarFechamentoPosicao(posId, posTkt, posTktTrans, idStats, dealTkt);
+}
+
+// Fechamentos aguardando a parte visual/estatistica (fila curta)
+struct SFechPend
+{
+   ulong posId, posTkt, posTktTrans, idStats, deal;
+};
+SFechPend g_fechPend[];
+
+void AgendarFechamentoPosicao(const ulong posId, const ulong posTkt, const ulong posTktTrans,
+                              const ulong idStats, const ulong deal)
+{
+   int n = ArraySize(g_fechPend);
+   ArrayResize(g_fechPend, n + 1);
+   g_fechPend[n].posId       = posId;
+   g_fechPend[n].posTkt      = posTkt;
+   g_fechPend[n].posTktTrans = posTktTrans;
+   g_fechPend[n].idStats     = idStats;
+   g_fechPend[n].deal        = deal;
+}
+
+void ProcessarFechamentosPendentes()
+{
+   int n = ArraySize(g_fechPend);
+   if(n == 0) return;
+   SFechPend fila[];
+   ArrayResize(fila, n);
+   for(int i = 0; i < n; i++) fila[i] = g_fechPend[i];
+   ArrayResize(g_fechPend, 0);
+   for(int i = 0; i < n; i++)
+   {
+      LimparGraficoPosicaoFechada(fila[i].posId, fila[i].posTkt, fila[i].posTktTrans);
+      RegistrarFechamentoCompleto(fila[i].idStats, fila[i].deal, 0);
+   }
    AtualizarRotulosSLTP(0);
 }
 
@@ -4630,9 +4591,7 @@ void SincronizarStatusImpedimento()
    {
       g_statusResetEm = 0;
       string txtTrade = TextoMotivoTradeBloqueado(motTrade);
-      string atualTrade = "";
-      if(ObjectFind(0, OBJ_TXT_STATUS) >= 0)
-         atualTrade = g_statusTextoCompleto;
+      string atualTrade = g_statusTextoCompleto;
       if(atualTrade != txtTrade)
          AplicarTextoStatusUI(txtTrade, C_STATUS_WARN);
       return;
@@ -4645,9 +4604,7 @@ void SincronizarStatusImpedimento()
    color  impCor;
    bool   temImp = ObterStatusImpedimento(impTxt, impCor);
 
-   string atual = "";
-   if(ObjectFind(0, OBJ_TXT_STATUS) >= 0)
-      atual = g_statusTextoCompleto;
+   string atual = g_statusTextoCompleto;
 
    if(temImp)
    {
@@ -5060,21 +5017,14 @@ void AplicarEstiloBotaoAux(const string name, const bool press)
 
    RemoverDecorBotao(name);
 
-   if(name != OBJ_BTN_SETUP && name != OBJ_BTN_SYNC_HL && name != OBJ_BTN_LINHAS
-      && name != OBJ_BTN_ESPELHO)
+   if(name != OBJ_BTN_SYNC_HL && name != OBJ_BTN_LINHAS && name != OBJ_BTN_ESPELHO)
       return;
 
    color bg  = press ? C_AUX_LIMITS_PRESS : C_AUX_LIMITS_BG;
    color brd = C_AUX_LIMITS_BRD;
    color txt = C_NOME_COLOR;
 
-   if(name == OBJ_BTN_SETUP)
-   {
-      if(SetupVolatilAtivo())
-         txt = C_SETUP_VOL_BG;
-      ObjectSetString(0, name, OBJPROP_TEXT, NomeSetupAtivo());
-   }
-   else if(name == OBJ_BTN_SYNC_HL)
+   if(name == OBJ_BTN_SYNC_HL)
       ObjectSetString(0, name, OBJPROP_TEXT, "SYNC");
    else if(name == OBJ_BTN_LINHAS)
       ObjectSetString(0, name, OBJPROP_TEXT, "LINHAS");
@@ -5088,13 +5038,6 @@ void AplicarEstiloBotaoAux(const string name, const bool press)
    ObjectSetInteger(0, name, OBJPROP_BORDER_TYPE, BORDER_FLAT);
    ObjectSetInteger(0, name, OBJPROP_COLOR, txt);
    ObjectSetInteger(0, name, OBJPROP_STATE, false);
-}
-
-bool EhBotaoExecPainel(const string name)
-{
-   return (name == OBJ_BTN_BUY || name == OBJ_BTN_SELL || name == OBJ_BTN_CLOSEALL
-           || name == OBJ_BTN_SYNC_HL || name == OBJ_BTN_LINHAS
-           || name == OBJ_BTN_SETUP || name == OBJ_BTN_MINIMIZE || name == OBJ_BTN_CLOSE);
 }
 
 void AplicarEstiloBotao(const string name, bool press)
@@ -5123,7 +5066,7 @@ void AplicarEstiloBotao(const string name, bool press)
       return;
    }
 
-   if(name == OBJ_BTN_SETUP || name == OBJ_BTN_SYNC_HL || name == OBJ_BTN_LINHAS)
+   if(name == OBJ_BTN_SYNC_HL || name == OBJ_BTN_LINHAS)
    {
       AplicarEstiloBotaoAux(name, press);
       return;
@@ -5362,7 +5305,6 @@ void ProcessarCliqueBotaoPainel(const string btn)
    else if(btn == OBJ_BTN_TP_UP) AjustarPontosPasso(OBJ_EDIT_TP, 1);
    else if(btn == OBJ_BTN_SL_DN) AjustarPontosPasso(OBJ_EDIT_SL, -1);
    else if(btn == OBJ_BTN_SL_UP) AjustarPontosPasso(OBJ_EDIT_SL, 1);
-   else if(btn == OBJ_BTN_SETUP)    AlternarPerfilSetup();
    else if(btn == OBJ_BTN_MINIMIZE) ToggleMinimizarPainel();
    else if(btn == OBJ_BTN_CLOSE) { FecharListaSync(); ObjectsDeleteAll(0, "SP_"); }
 
@@ -5395,14 +5337,13 @@ string ResolverCliqueBotaoPainel(const string sparam)
       || sparam == OBJ_BTN_TS || sparam == OBJ_BTN_ESPELHO
       || sparam == OBJ_BTN_LOTE_DN || sparam == OBJ_BTN_LOTE_UP
       || sparam == OBJ_BTN_TP_DN || sparam == OBJ_BTN_TP_UP || sparam == OBJ_BTN_SL_DN || sparam == OBJ_BTN_SL_UP
-      || sparam == OBJ_BTN_SETUP || sparam == OBJ_BTN_MINIMIZE || sparam == OBJ_BTN_CLOSE)
+      || sparam == OBJ_BTN_MINIMIZE || sparam == OBJ_BTN_CLOSE)
       return sparam;
 
    if(StringFind(sparam, OBJ_BTN_BUY + "_") == 0) return OBJ_BTN_BUY;
    if(StringFind(sparam, OBJ_BTN_SELL + "_") == 0) return OBJ_BTN_SELL;
    if(StringFind(sparam, OBJ_BTN_CLOSEALL + "_") == 0) return OBJ_BTN_CLOSEALL;
    if(StringFind(sparam, OBJ_BTN_LINHAS + "_") == 0) return OBJ_BTN_LINHAS;
-   if(StringFind(sparam, OBJ_BTN_SETUP + "_") == 0) return OBJ_BTN_SETUP;
    if(StringFind(sparam, OBJ_BTN_MINIMIZE + "_") == 0) return OBJ_BTN_MINIMIZE;
    if(StringFind(sparam, OBJ_BTN_CLOSE + "_") == 0) return OBJ_BTN_CLOSE;
 
@@ -5413,11 +5354,6 @@ string ResolverCliqueBotaoPainel(const string sparam)
    }
 
    return "";
-}
-
-bool EhBotaoPainelSP(const string name)
-{
-   return (ResolverCliqueBotaoPainel(name) != "");
 }
 
 void EstiloBotaoNormal(const string name)
@@ -5821,7 +5757,6 @@ void CriarPainel()
 
    // --- BARRA DE STATUS (abaixo das metricas) ---
    int statY = metY + METRICS_H + GAP_MET_STAT;
-   g_statY_status = statY;
    CriarFaixaStatus(lx, statY, divW);
    CriarFaixaCopia(lx, statY + STAT_ROW_H + STAT_STATUS_GAP, divW);
    if(ObjectFind(0, "SP_D3") >= 0) ObjectDelete(0, "SP_D3");
@@ -5905,41 +5840,6 @@ void AtualizarSpread()
 //| a ponte (bridge) externa ler e replicar no NT8 via ATI.          |
 //| Formato da linha: ACAO|TICKET|DIRECAO|VOLUME|PRECO|TIMESTAMP_GMT |
 //+------------------------------------------------------------------+
-const string SP_COPY_NT_ARQUIVO = "SP_NT_Copy_Signal.txt";
-
-string CopyNT_MontarLinha(const string acao, const ulong ticket, const string direcao,
-                          const double volume, const double preco)
-{
-   return acao + "|" + IntegerToString((long)ticket) + "|" + direcao + "|"
-        + DoubleToString(volume, 2) + "|" + DoubleToString(preco, _Digits) + "|"
-        + IntegerToString((long)TimeGMT());
-}
-
-void CopyNT_GravarSinal(const string linha)
-{
-   int h = FileOpen(SP_COPY_NT_ARQUIVO, FILE_READ|FILE_WRITE|FILE_TXT|FILE_COMMON|FILE_SHARE_READ|FILE_ANSI);
-   if(h == INVALID_HANDLE)
-   {
-      if(InpLogDetalhado)
-         PrintFormat("Scalper Pro: CopyNT falha ao abrir arquivo de sinal, err=%d", GetLastError());
-      return;
-   }
-   FileSeek(h, 0, SEEK_END);
-   FileWriteString(h, linha + "\r\n");
-   FileClose(h);
-}
-
-void CopyNT_EnviarAbertura(const ulong posId, const bool compra, const double volume, const double preco)
-{
-   if(!InpCopyNT_Ativo || posId == 0) return;
-   CopyNT_GravarSinal(CopyNT_MontarLinha("OPEN", posId, compra ? "BUY" : "SELL", volume, preco));
-}
-
-void CopyNT_EnviarFechamento(const ulong posId)
-{
-   if(!InpCopyNT_Ativo || posId == 0) return;
-   CopyNT_GravarSinal(CopyNT_MontarLinha("CLOSE", posId, "", 0, 0));
-}
 
 void BuyOrder()
 {
@@ -6086,6 +5986,12 @@ string CopyGvOF(const ulong tkt)  { return g_copyGv + "OF_" + IntegerToString((l
 string CopyComentario(const ulong idMae) { return "SPC|" + IntegerToString((long)idMae); }
 
 
+// Recusa por preco (requote / preco mudou / sem cotacao): vale tentar de novo na hora
+bool CopyRecusaPorPreco(const uint rc)
+{
+   return rc == TRADE_RETCODE_REQUOTE || rc == TRADE_RETCODE_PRICE_CHANGED || rc == TRADE_RETCODE_PRICE_OFF;
+}
+
 double CopyArredondarVol(const double vol)
 {
    double step = LotStep();
@@ -6121,7 +6027,7 @@ bool CopyFilha_GerenciaDeal(const ulong dealTkt)
 //+------------------------------------------------------------------+
 //| Mae                                                              |
 //+------------------------------------------------------------------+
-string CopyMae_EstadoPosicoes(int &n, string &resumo)
+string CopyMae_EstadoPosicoes(int &n, string &resumo, const bool comResumo = false)
 {
    string s = "";
    n = 0;
@@ -6139,7 +6045,8 @@ string CopyMae_EstadoPosicoes(int &n, string &resumo)
          + DoubleToString(PositionGetDouble(POSITION_SL), _Digits) + "|"
          + DoubleToString(PositionGetDouble(POSITION_TP), _Digits) + "|"
          + IntegerToString((long)PositionGetInteger(POSITION_TIME)) + "\r\n";
-      resumo += (resumo == "" ? "" : "; ") + (compra ? "BUY " : "SELL ")
+      if(comResumo)
+         resumo += (resumo == "" ? "" : "; ") + (compra ? "BUY " : "SELL ")
               + DoubleToString(PositionGetDouble(POSITION_VOLUME), 2)
               + " #" + IntegerToString(PositionGetInteger(POSITION_IDENTIFIER))
               + " SL=" + DoubleToString(PositionGetDouble(POSITION_SL), _Digits)
@@ -6190,9 +6097,14 @@ void CopyMae_Publicar(const bool forcar)
 
    // O horario desta linha no log e o instante da gravacao: compare com
    // "desde gravacao da mae" no log da filha para medir a cadeia completa.
+   // (o resumo do log so e montado aqui, depois da gravacao e quando o estado mudou)
    if(estado != g_copyMaeUltEstado)
+   {
+      int nr = 0;
+      CopyMae_EstadoPosicoes(nr, resumo, true);
       PrintFormat("Scalper Pro copiador MAE: publicado seq=%s | %d posicao(oes)%s | filhas prontas %d/%d",
                   seq, n, (n > 0 ? " | " + resumo : ""), g_copyFilhasProntas, g_copyFilhasN);
+   }
    g_copyMaeErroGrav = false;
 
    g_copyMaeUltEstado  = estado;
@@ -6379,7 +6291,6 @@ bool CopyFilha_LerArquivo()
    g_copyMaeLogin    = StringToInteger(c[5]);
    g_copyMaeSimbolo  = c[6];
    g_copyMaeBid      = StringToDouble(c[7]);
-   g_copyMaeAsk      = StringToDouble(c[8]);
    g_copyMaeContrato = StringToDouble(c[9]);
    g_copyMaeValida   = true;
    return true;
@@ -6562,6 +6473,11 @@ void CopyFilha_Fechar(const ulong tkt, const string motivo)
    ulong t0 = GetTickCount64();
    bool ok = g_copyTrade.PositionClose(tkt);
    uint rc = g_copyTrade.ResultRetcode();
+   if(!ok && CopyRecusaPorPreco(rc))   // uma nova tentativa na hora, com o preco novo
+   {
+      ok = g_copyTrade.PositionClose(tkt);
+      rc = g_copyTrade.ResultRetcode();
+   }
    if(ok || rc == TRADE_RETCODE_POSITION_CLOSED)
       CopyFilha_RegistrarFechada(tkt);
    if(ok)
@@ -6627,7 +6543,10 @@ void CopyFilha_Sincronizar(const ulong t, const SCopyPosMae &m)
          else if(!CopyFilha_FalhaRecente(t))
          {
             ulong tp0 = GetTickCount64();
-            if(g_copyTrade.PositionClosePartial(t, fechar))
+            bool okP = g_copyTrade.PositionClosePartial(t, fechar);
+            if(!okP && CopyRecusaPorPreco(g_copyTrade.ResultRetcode()))
+               okP = g_copyTrade.PositionClosePartial(t, fechar);   // uma nova tentativa na hora
+            if(okP)
                PrintFormat("Scalper Pro copiador FILHA: parcial #%I64u -%.2f (mae %.2f/%.2f) | execucao %I64u ms | desde gravacao da mae %I64u ms",
                            t, fechar, m.vol, mv0, GetTickCount64() - tp0, CopyFilha_MsDesdeMae());
             else
@@ -6729,6 +6648,12 @@ void CopyFilha_Abrir(const SCopyPosMae &m)
    bool ok = compraF ? g_copyTrade.Buy(lote, _Symbol, 0, sl, tp, cm)
                      : g_copyTrade.Sell(lote, _Symbol, 0, sl, tp, cm);
    uint rc = g_copyTrade.ResultRetcode();
+   if(!ok && CopyRecusaPorPreco(rc))   // uma nova tentativa na hora, com o preco novo
+   {
+      ok = compraF ? g_copyTrade.Buy(lote, _Symbol, 0, sl, tp, cm)
+                   : g_copyTrade.Sell(lote, _Symbol, 0, sl, tp, cm);
+      rc = g_copyTrade.ResultRetcode();
+   }
    ulong t1 = GetTickCount64();
 
    if(!ok || (rc != TRADE_RETCODE_DONE && rc != TRADE_RETCODE_DONE_PARTIAL && rc != TRADE_RETCODE_PLACED))
@@ -6784,9 +6709,12 @@ void CopyFilha_LimparGVs()
          ArrayRemove(g_copyMod, i, 1);
 }
 
+ulong g_copyFilhaUltMs = 0;   // ultima leitura da mae (timer ou tick)
+
 void CopyFilha_Processar()
 {
    if(g_copyModoEf != COPY_FILHA) return;
+   g_copyFilhaUltMs = GetTickCount64();
 
    bool leu = CopyFilha_LerArquivo();
    if(!g_copyMaeValida)
@@ -7006,7 +6934,12 @@ void CopyStatusCalcular(string &txt, color &cor, string &dica)
 
 void CopyAtualizarStatusPainel()
 {
-   if(g_copyModoEf == COPY_DESLIGADO || ObjectFind(0, OBJ_COPY_STATUS) < 0) return;
+   if(g_copyModoEf == COPY_DESLIGADO) return;
+   static ulong s_ms = 0;
+   ulong agora = GetTickCount64();
+   if(s_ms > 0 && agora - s_ms < 250) return;   // faixa visual: 4x por segundo basta
+   s_ms = agora;
+   if(ObjectFind(0, OBJ_COPY_STATUS) < 0) return;
    string txt = "", dica = "";
    color  cor = C_LABEL_COLOR;
    CopyStatusCalcular(txt, cor, dica);
@@ -7272,6 +7205,7 @@ int OnInit()
 void OnDeinit(const int reason)
 {
    EventKillTimer();
+   ProcessarFechamentosPendentes();
    FecharListaSync();
    CancelarEdicaoCampoAtiva();
    if(reason == REASON_CHARTCHANGE || reason == REASON_RECOMPILE)
@@ -7313,13 +7247,9 @@ void OnTick()
       CopyMae_Publicar(false);
    else if(g_copyModoEf == COPY_FILHA)
    {
-      static ulong s_copyTickMs = 0;
-      ulong agoraCp = GetTickCount64();
-      if(agoraCp - s_copyTickMs >= 5)   // alem do timer: le a mae tambem nos ticks (no maximo a cada 5 ms)
-      {
-         s_copyTickMs = agoraCp;
+      // alem do timer: le a mae tambem nos ticks (no maximo a cada 5 ms, contando o timer)
+      if(GetTickCount64() - g_copyFilhaUltMs >= 5)
          CopyFilha_Processar();
-      }
    }
    Central_Processar();
 
@@ -7371,6 +7301,7 @@ void OnTick()
    }
 
    // --- P1: pos-exec agendada (grafico, nao bloqueia broker) ---
+   ProcessarFechamentosPendentes();
    ProcessarLinhaTrailingAgendada();
    ProcessarRemoverVisuaisPendenteJLAgendados();
    ProcessarVisuaisPendenteJLAgendados();
@@ -7466,6 +7397,7 @@ void OnTimer()
    if(g_copyModoEf != COPY_DESLIGADO)
       CopyTimer();
    Central_Processar();
+   ProcessarFechamentosPendentes();
    ProcessarBotaoPressionado();
    if(g_copyModoEf != COPY_DESLIGADO)
    {
@@ -8105,24 +8037,43 @@ color PartialStatusColor(int partialId)
    return C_LABEL_BRIGHT;
 }
 
+// Ultimo texto/cor de cada caixa de status das parciais (indice 1..PARTIAL_COUNT).
+// Evita consultar o grafico a cada tick (ObjectFind/ObjectGet* esperam a fila do grafico).
+string g_parcLblTxt[3];   // indice 1..PARTIAL_COUNT (2)
+color  g_parcLblCor[3];
+bool   g_parcLblOk[3];
+
+void ParcialLabelCacheDefinir(const int partialId, const string txt, const color c)
+{
+   if(partialId < 1 || partialId > PARTIAL_COUNT) return;
+   g_parcLblTxt[partialId] = txt;
+   g_parcLblCor[partialId] = c;
+   g_parcLblOk[partialId]  = true;
+}
+
+string ParcialLabelTexto(const int partialId)
+{
+   if(partialId < 1 || partialId > PARTIAL_COUNT || !g_parcLblOk[partialId]) return "";
+   return g_parcLblTxt[partialId];
+}
+
 void SetParcialLabel(int partialId, string txt, color c)
 {
    c = CorTemaClaro(c);
-   string obj = PartialStatusObject(partialId);
-   if(obj == "" || ObjectFind(0, obj) < 0) return;
+   if(partialId < 1 || partialId > PARTIAL_COUNT) return;
+   if(g_parcLblOk[partialId] && g_parcLblTxt[partialId] == txt && g_parcLblCor[partialId] == c)
+      return;   // nada mudou: nao mexe no grafico
 
+   string obj = PartialStatusObject(partialId);
    string box = PartialStatusBox(partialId);
-   if(box != "" && ObjectFind(0, box) >= 0)
+   if(box != "")
    {
       ObjectSetInteger(0, box, OBJPROP_BORDER_COLOR, c);
       ObjectSetInteger(0, box, OBJPROP_COLOR, c);
    }
-
-   if(ObjectGetString(0, obj, OBJPROP_TEXT) == txt
-      && (color)ObjectGetInteger(0, obj, OBJPROP_COLOR) == c)
-      return;
    ObjectSetString(0, obj, OBJPROP_TEXT, txt);
    ObjectSetInteger(0, obj, OBJPROP_COLOR, c);
+   ParcialLabelCacheDefinir(partialId, txt, c);
 }
 
 void AtualizarStatusParcialUI(ulong posTkt, int partialId)
@@ -8663,29 +8614,25 @@ bool FecharVolumePorDeal(ulong posTkt, double volume, bool &fechouTotal, string 
 // (OnTradeTransaction) ou pela verificacao do proximo tick.
 bool ConfirmarVolumeReduzido(ulong posTkt, double volAntes, int partialId)
 {
-   for(int i = 0; i < 1; i++)
+   double dv = 0;
+   ulong  dt = 0;
+   if(BuscarDealSaidaRecente(posTkt, volAntes, dv, dt))
    {
-      double dv = 0;
-      ulong  dt = 0;
-      if(BuscarDealSaidaRecente(posTkt, volAntes, dv, dt))
-      {
-         ConfirmarFechamentoParcial(posTkt, partialId, dv, dt);
-         return true;
-      }
+      ConfirmarFechamentoParcial(posTkt, partialId, dv, dt);
+      return true;
+   }
 
-      if(!PositionSelectByTicket(posTkt))
-      {
-         ConfirmarFechamentoParcial(posTkt, partialId, volAntes, 0);
-         return true;
-      }
+   if(!PositionSelectByTicket(posTkt))
+   {
+      ConfirmarFechamentoParcial(posTkt, partialId, volAntes, 0);
+      return true;
+   }
 
-      double volAgora = PositionGetDouble(POSITION_VOLUME);
-      if(volAgora < volAntes - VolTolerance())
-      {
-         ConfirmarFechamentoParcial(posTkt, partialId, NormalizeVol(volAntes - volAgora), 0);
-         return true;
-      }
-
+   double volAgora = PositionGetDouble(POSITION_VOLUME);
+   if(volAgora < volAntes - VolTolerance())
+   {
+      ConfirmarFechamentoParcial(posTkt, partialId, NormalizeVol(volAntes - volAgora), 0);
+      return true;
    }
    return false;
 }
@@ -8768,7 +8715,7 @@ bool EnviarParcial(ulong posTkt, int partialId)
    {
       GlobalVariableSet(GVFalhasParcial(posTkt, partialId), (double)(falhas + 1));
       GlobalVariableSet(gvSt, (double)PARTIAL_WAITING);
-      if(ObjectGetString(0, PartialStatusObject(partialId), OBJPROP_TEXT) == "Enviando...")
+      if(ParcialLabelTexto(partialId) == "Enviando...")
          SetParcialLabel(partialId, "Falhou", clrRed);
       return false;
    }
@@ -8868,9 +8815,18 @@ void ExecutarParciais(ulong posTkt)
 //--- linhas finas pontilhadas no preco de P1 e P2 (somem quando a parcial sai)
 string NomeLinhaParcial(const int p) { return PARC_LINHA_PREFIX + "P" + IntegerToString(p); }
 
+// Preco desenhado de cada linha P1/P2 (-1 = sem linha) e % da dica. Revalida no grafico 1x por segundo.
+double g_parcLinhaPreco[3] = {-1, -1, -1};   // indice 1..PARTIAL_COUNT (2)
+double g_parcLinhaPct[3];
+bool   g_parcLinhasTalvez = true;    // pode haver linhas no grafico (inicio ou ja desenhadas)
+ulong  g_parcLinhaChecadoMs = 0;
+
 void RemoverLinhasParciais()
 {
+   if(!g_parcLinhasTalvez) return;   // nada desenhado: nao percorre os objetos a cada tick
    ObjectsDeleteAll(0, PARC_LINHA_PREFIX);
+   for(int p = 0; p <= PARTIAL_COUNT; p++) g_parcLinhaPreco[p] = -1;
+   g_parcLinhasTalvez = false;
 }
 
 void AtualizarLinhasParciais(const ulong posTkt)
@@ -8884,6 +8840,12 @@ void AtualizarLinhasParciais(const ulong posTkt)
    double open = PositionGetDouble(POSITION_PRICE_OPEN);
    double pt   = ObterPontoPreco();
 
+   // 1x por segundo confere no grafico (linha apagada a mao, troca de grafico...); nos outros ticks
+   // so mexe no grafico se o preco ou o % mudou
+   ulong agora = GetTickCount64();
+   bool conferir = (agora - g_parcLinhaChecadoMs >= 1000);
+   if(conferir) g_parcLinhaChecadoMs = agora;
+
    for(int p = 1; p <= PARTIAL_COUNT; p++)
    {
       string nome = NomeLinhaParcial(p);
@@ -8894,26 +8856,39 @@ void AtualizarLinhasParciais(const ulong posTkt)
                    || pts <= 0 || GlobalVariableGet(GVTarget(posTkt, p)) <= 0;
       if(feita)
       {
-         if(ObjectFind(0, nome) >= 0) ObjectDelete(0, nome);
+         if(g_parcLinhaPreco[p] >= 0 || conferir)
+         {
+            ObjectDelete(0, nome);
+            g_parcLinhaPreco[p] = -1;
+         }
          continue;
       }
       double preco = NormalizeDouble(tipo == POSITION_TYPE_BUY ? open + pts * pt : open - pts * pt, _Digits);
-      if(ObjectFind(0, nome) < 0)
+      bool desenhada = (g_parcLinhaPreco[p] >= 0);
+      if(desenhada && !conferir && MathAbs(g_parcLinhaPreco[p] - preco) <= pt * 0.5 && g_parcLinhaPct[p] == pct)
+         continue;   // nada mudou
+
+      if(!desenhada || conferir)
       {
-         if(!ObjectCreate(0, nome, OBJ_HLINE, 0, 0, preco)) continue;
-         ObjectSetInteger(0, nome, OBJPROP_WIDTH, 1);
-         ObjectSetInteger(0, nome, OBJPROP_BACK, true);
-         ObjectSetInteger(0, nome, OBJPROP_SELECTABLE, false);
-         ObjectSetInteger(0, nome, OBJPROP_HIDDEN, true);
-         ObjectSetInteger(0, nome, OBJPROP_TIMEFRAMES, OBJ_ALL_PERIODS);
-         ObjectSetString(0, nome, OBJPROP_TEXT, "P" + IntegerToString(p));
+         if(ObjectFind(0, nome) < 0)
+         {
+            if(!ObjectCreate(0, nome, OBJ_HLINE, 0, 0, preco)) continue;
+            ObjectSetInteger(0, nome, OBJPROP_WIDTH, 1);
+            ObjectSetInteger(0, nome, OBJPROP_BACK, true);
+            ObjectSetInteger(0, nome, OBJPROP_SELECTABLE, false);
+            ObjectSetInteger(0, nome, OBJPROP_HIDDEN, true);
+            ObjectSetInteger(0, nome, OBJPROP_TIMEFRAMES, OBJ_ALL_PERIODS);
+            ObjectSetString(0, nome, OBJPROP_TEXT, "P" + IntegerToString(p));
+         }
+         ObjectSetInteger(0, nome, OBJPROP_COLOR, C_PARC_LINHA);
+         ObjectSetInteger(0, nome, OBJPROP_STYLE, STYLE_DOT);
       }
-      ObjectSetInteger(0, nome, OBJPROP_COLOR, C_PARC_LINHA);
-      ObjectSetInteger(0, nome, OBJPROP_STYLE, STYLE_DOT);
-      if(MathAbs(ObjectGetDouble(0, nome, OBJPROP_PRICE) - preco) > pt * 0.5)
-         ObjectSetDouble(0, nome, OBJPROP_PRICE, preco);
+      ObjectSetDouble(0, nome, OBJPROP_PRICE, preco);
       ObjectSetString(0, nome, OBJPROP_TOOLTIP,
                       StringFormat("P%d: %.0f pts, %.0f%% do lote", p, pts, pct));
+      g_parcLinhaPreco[p] = preco;
+      g_parcLinhaPct[p]   = pct;
+      g_parcLinhasTalvez  = true;
    }
 }
 
@@ -9018,6 +8993,8 @@ void CriarCaixaStatusParcial(const string boxName, const string lblName, const i
    CreateLabelCentered(lblName, x + w / 2, y + PARC_ROW_H / 2, t, cc, 8, true);
    ObjectSetInteger(0, lblName, OBJPROP_ZORDER, 6);
    ObjectSetInteger(0, lblName, OBJPROP_SELECTABLE, false);
+   if(lblName == OBJ_P1_STATUS) ParcialLabelCacheDefinir(1, t, cc);
+   else if(lblName == OBJ_P2_STATUS) ParcialLabelCacheDefinir(2, t, cc);
 }
 
 string EditPontosParcial(const int p) { return (p == 1) ? OBJ_EDIT_P1_PTS : OBJ_EDIT_P2_PTS; }

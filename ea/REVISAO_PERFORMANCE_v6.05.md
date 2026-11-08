@@ -100,3 +100,23 @@ O código morto não deixa o EA mais lento, mas confunde a manutenção.
   - deixar só o gráfico do ativo com o EA, sem indicadores pesados;
   - indicadores como o RM_NT8Espelho no mesmo gráfico do EA dividem a fila desse gráfico, então o item A1 também reduz essa disputa.
 - **Configuração do MT5:** "Máx. barras no gráfico" baixo (ex.: 5.000) nos terminais das filhas.
+
+## Implementado (08/11/2026)
+
+Nenhuma funcionalidade mudou. A versão continua v6.05.
+
+| Item | O que mudou |
+|---|---|
+| A1 | O status e a cor das parciais, as linhas P1/P2 e o arraste do SL ficam guardados em memória. O gráfico só é alterado quando algo muda. A cada 1 s, o EA confere as linhas P1/P2 e o arraste no gráfico (ex.: linha apagada à mão). Com posição aberta, o tick deixa de fazer cerca de 13 consultas que esperam o gráfico. |
+| A2 | Abertura, fechamento e parcial da cópia repetem na hora, uma vez, em recusa por preço (10004/10020/10021). As outras recusas continuam esperando 500 ms. |
+| A3 | No fechamento, o evento só cuida do estado das parciais e das GVs. Linhas, rótulos, estatística, painel e registro na Central vão para o próximo tick ou timer (`ProcessarFechamentosPendentes`). Se o EA for removido antes disso, o `OnDeinit` também processa. |
+| A4 | A faixa do copiador é atualizada a cada 250 ms (antes: a cada 20 ms). |
+| A5 | O status do painel não usa mais `ObjectFind`. As referências ao botão `SETUP`, que não existe mais, foram removidas. |
+| A6 | `InpCopyIntervaloMs` passa a 10 ms por padrão. Um `.set` antigo continua usando o valor gravado nele (ex.: 20). |
+| A7 | A leitura da mãe tem um único controle de intervalo (5 ms) para o timer e o tick. |
+| A8 | O texto do log da mãe só é montado quando o estado muda, depois da gravação. |
+| C | Removidas as 6 funções sem uso, a constante, as 4 variáveis nunca lidas, o laço que sobrou em `ConfirmarVolumeReduzido` e o copiador NT antigo (`InpCopyNT_Ativo` e as 4 funções `CopyNT_*`). |
+
+**Ficou de fora:**
+- **Pular a conferência da filha quando o arquivo não muda (parte do A7):** as tentativas de abertura dependem do tempo, então a conferência precisa rodar mesmo sem mudança.
+- **A9:** filha NT8, em outro arquivo (`SPCopyFilhaNT.cs`).

@@ -10,7 +10,7 @@ A comunicação é feita por um arquivo em `Terminal\Common\Files`, uma pasta qu
 3. Em ambos, deixe o AutoTrading ligado.
 
 O mapeamento de símbolo é automático: cada lado usa o símbolo do próprio gráfico.
-A mãe grava `Common\Files\SP_Copy_<canal>.txt`, e a filha lê esse arquivo a cada `Intervalo` ms (padrão 20 ms).
+A mãe grava `Common\Files\SP_Copy_<canal>.txt`, e a filha lê esse arquivo a cada `Intervalo` ms (padrão 10 ms desde a v6.05; antes 20 ms).
 
 ## Como funciona
 
@@ -82,7 +82,9 @@ Nos modos que copiam o SL/TP da mãe, se o nível já estiver atingido no preço
 
 A mesma mãe também pode ser copiada para contas no **NinjaTrader 8** (ex.: Tradovate, contratos MNQ/NQ/MGC/GC) com a estratégia `nt8/SPCopyFilhaNT.cs`. Ela lê o mesmo arquivo do canal, e nada muda no MT5. A filha NT8 aparece na contagem de filhas da faixa da mãe. Instalação e parâmetros em [`nt8/LEIAME.md`](../nt8/LEIAME.md).
 
-O antigo `Copiador NinjaTrader` (`InpCopyNT_Ativo`, arquivo de sinais `SP_NT_Copy_Signal.txt`) não é necessário para a filha NT8 e pode ficar desligado.
+O antigo `Copiador NinjaTrader` (`InpCopyNT_Ativo`, arquivo de sinais `SP_NT_Copy_Signal.txt`) foi removido na v6.05. A filha NT8 lê o mesmo arquivo das filhas MT5. O arquivo antigo pode ser apagado de `Common\Files`.
+
+**Recusa por preço (v6.05):** se a corretora recusar a abertura, o fechamento ou a parcial da cópia por variação de preço (requote 10004, preço mudou 10020, sem cotação 10021), a filha tenta de novo **na hora**, uma vez. As outras recusas continuam esperando 500 ms.
 
 ## Limitações
 
