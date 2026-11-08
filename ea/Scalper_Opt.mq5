@@ -258,6 +258,8 @@ const double PASSO_PONTOS_PAINEL = 100;
 // (fora do "SP_" do painel, para nao serem tratados como objetos do painel nem apagados pelo SYNC).
 const string LIN_ARQ    = "SP_Linhas.txt";
 const string LIN_PREFIX = "SPDIA_";
+// Copias do SYNC: fora do prefixo "SP_" (o EA apaga "SP_*" ao fechar o MT5/grafico, e as linhas sumiam)
+const string SYNC_PREFIX = "SPSYNC_";
 long   g_linArqData = -1;
 long   g_linArqTam  = -1;
 
@@ -712,7 +714,7 @@ void     LimparGVsOrfas();
 double   LucroPontosPosicao(ulong posTkt);
 bool     EhLinhaHorizontalNoGrafico(const long chartId, const string nome);
 bool     EhLinhaVerticalNoGrafico(const long chartId, const string nome);
-void     LimparLinhasHorizontaisAntesSync(const long chartId);
+void     LimparLinhasAntesDeCarregar();
 void     LinhasCriarModelo();
 void     LinhasCarregar(const bool avisar);
 void     LinhasVerificarArquivo();
@@ -3977,12 +3979,17 @@ bool EhLinhaHorizontalNoGrafico(const long chartId, const string nome)
    return false;
 }
 
-// Linhas HLINE copiadas pelo SYNC (SP_SYNC_HL_1, SP_SYNC_HL_2, ...) — nao confundir com SP_SYNC_HL_LBL / _BG do botao.
+// Linhas copiadas pelo SYNC: SPSYNC_1, SPSYNC_2, ... (v6.05) e o nome antigo SP_SYNC_HL_1, ...
+// (nao confundir com SP_SYNC_HL_LBL / _BG do botao).
 bool EhObjetoLinhaSyncCopiada(const string nome)
 {
-   const string prefix = "SP_SYNC_HL_";
+   string prefix = SYNC_PREFIX;
    if(StringFind(nome, prefix) != 0)
-      return false;
+   {
+      prefix = "SP_SYNC_HL_";
+      if(StringFind(nome, prefix) != 0)
+         return false;
+   }
 
    string suf = StringSubstr(nome, StringLen(prefix));
    int n = StringLen(suf);
@@ -3996,30 +4003,6 @@ bool EhObjetoLinhaSyncCopiada(const string nome)
          return false;
    }
    return true;
-}
-
-void LimparLinhasHorizontaisAntesSync(const long chartId)
-{
-   for(int i = ObjectsTotal(chartId, -1, -1) - 1; i >= 0; i--)
-   {
-      string nome = ObjectName(chartId, i, -1, -1);
-      if(nome == "") continue;
-
-      if(EhObjetoLinhaSyncCopiada(nome))
-      {
-         ObjectDelete(chartId, nome);
-         continue;
-      }
-
-      if(EhHlineProtegidaDoEA(nome))
-         continue;
-
-      if(EhLinhaVerticalNoGrafico(chartId, nome))
-         continue;
-
-      if(EhLinhaHorizontalNoGrafico(chartId, nome))
-         ObjectDelete(chartId, nome);
-   }
 }
 
 void SincronizarLinhasHorizontais()
@@ -4041,7 +4024,9 @@ void SincronizarLinhasHorizontais()
       return;
    }
 
-   LimparLinhasHorizontaisAntesSync(chartAtual);
+   // Antes de copiar: apaga TODAS as linhas horizontais deste grafico (manuais, do SYNC anterior
+   // e do arquivo LINHAS). Ficam as linhas de operacao do EA (trailing, SL/TP, pendentes, P1/P2).
+   LimparLinhasAntesDeCarregar();
    ChartRedraw(chartAtual);
 
    int copiadas = 0;
@@ -4050,11 +4035,12 @@ void SincronizarLinhasHorizontais()
       string nomeOrigem = ObjectName(chartOrigem, i, -1, -1);
       if(nomeOrigem == "") continue;
       if(StringFind(nomeOrigem, "SP_") == 0) continue;          // objetos do Scalper Pro do outro grafico
+      if(EhObjetoLinhaSyncCopiada(nomeOrigem)) continue;        // copias de SYNC de outro grafico
       if(EhHlineProtegidaDoEA(nomeOrigem)) continue;
       // linha horizontal ou linha de tendencia horizontal (mesmo preco nas duas pontas)
       if(!EhLinhaHorizontalNoGrafico(chartOrigem, nomeOrigem)) continue;
 
-      string nomeDestino = "SP_SYNC_HL_" + IntegerToString(copiadas + 1);
+      string nomeDestino = SYNC_PREFIX + IntegerToString(copiadas + 1);
       double preco = ObjectGetDouble(chartOrigem, nomeOrigem, OBJPROP_PRICE, 0);
       color cor = (color)ObjectGetInteger(chartOrigem, nomeOrigem, OBJPROP_COLOR);
       int estilo = (int)ObjectGetInteger(chartOrigem, nomeOrigem, OBJPROP_STYLE);
@@ -7617,7 +7603,7 @@ void LimparLinhasAntesDeCarregar()
          apagadas++;
    }
    if(apagadas > 0)
-      PrintFormat("SP LINHAS: %d linha(s) horizontal(is) apagada(s) antes de carregar o arquivo", apagadas);
+      PrintFormat("SP LINHAS/SYNC: %d linha(s) horizontal(is) apagada(s) antes de carregar", apagadas);
 }
 
 // Confere a data/tamanho do arquivo (1x por segundo) e redesenha quando ele for salvo.

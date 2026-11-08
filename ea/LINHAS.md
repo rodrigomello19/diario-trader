@@ -50,10 +50,10 @@ DESTAQUE:  29361,12
 O que o SYNC faz:
 - **Escolhe o gráfico de estudo:** procura outro gráfico do mesmo ativo. Se houver mais de um, prefere o que **não tem EA**, para não puxar de outro gráfico de operação. O nome e o tempo gráfico do gráfico usado aparecem na barra de status, por exemplo `SYNC: 12 linhas de US100 M5`.
 - **Copia cor, espessura e estilo** de cada linha horizontal. Também copia linhas de tendência traçadas na horizontal.
-- **Substitui as linhas horizontais do gráfico de operação** pelas do estudo, inclusive as que você traçou à mão nele. As linhas do arquivo, as do SL/TP e as do trailing não são apagadas.
+- **Antes de copiar, apaga todas as linhas horizontais do gráfico de operação** (v6.05). Isso inclui as que você traçou à mão, as de um SYNC anterior e as carregadas pelo botão LINHAS. Ficam só as linhas de operação do EA: SL/TP, trailing, pendentes J/L e P1/P2.
 - **Estudo em outro ativo:** se o estudo estiver em outro ativo, preencha o parâmetro "SYNC: ativo do gráfico de estudo".
 
-Ao fechar o MT5 ou remover o EA, as linhas copiadas pelo SYNC são apagadas. As do arquivo continuam no gráfico. Para guardar as linhas do estudo de um dia para o outro, passe os preços para o `SP_Linhas.txt`.
+**As linhas copiadas pelo SYNC ficam no gráfico** depois de fechar e abrir o MT5 (v6.05). Antes elas usavam o prefixo `SP_`, que o EA apaga ao sair. Agora se chamam `SPSYNC_1`, `SPSYNC_2`, ...
 
 ## Parâmetros novos
 
