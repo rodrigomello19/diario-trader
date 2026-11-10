@@ -19,8 +19,8 @@
 //     traz a janela, recria os atalhos e o inicio com o Windows a cada minuto, e
 //     protege contra exclusao o .exe, a pasta de dados e a marca da central
 //     (o botao Desinstalar, com a senha mestra, retira tudo);
-//   - fora do horario de operacao (antes do inicio e depois do limite) fecha as janelas
-//     de navegador com TradingView / NinjaTrader / Tradovate no titulo.
+//   - sempre que os EAs estao bloqueados (qualquer motivo) e fora do horario de operacao,
+//     fecha as janelas de navegador com TradingView / NinjaTrader / Tradovate no titulo.
 //
 //  Comunicacao: arquivos em %APPDATA%\MetaQuotes\Terminal\Common\Files
 //   SP_Central_Ativa.txt            marca: EAs passam a obedecer a central
@@ -47,7 +47,7 @@ using System.Windows.Forms;
 using Microsoft.Win32;
 
 [assembly: System.Reflection.AssemblyTitle("SPCentral")]
-[assembly: System.Reflection.AssemblyVersion("1.3.0.0")]
+[assembly: System.Reflection.AssemblyVersion("1.4.0.0")]
 
 namespace SPCentral
 {
@@ -476,7 +476,7 @@ namespace SPCentral
     // ------------------------------------------------------------------------
     internal class FormCentral : Form
     {
-        public const string VERSAO = "1.3";   // aparece no titulo da janela e no log
+        public const string VERSAO = "1.4";   // aparece no titulo da janela e no log
         [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsProc cb, IntPtr lParam);
         [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr hWnd);
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(IntPtr hWnd, StringBuilder s, int max);
@@ -798,7 +798,9 @@ namespace SPCentral
             TimeSpan hIni, hLim;
             foraHorario = (Util.ParseHora(cfg.HoraInicio, out hIni) && agora < MomentoNoDia(iniDia, hIni))
                        || (Util.ParseHora(cfg.HoraFim, out hLim) && agora >= MomentoNoDia(iniDia, hLim) && agora >= est.HorarioIgnoradoAte);
-            if (cfg.FecharNavegadoresForaHorario && (foraHorario || est.Travado) && (agora - ultimoFechNavegador).TotalSeconds >= 2)
+            // navegadores: fecha sempre que os EAs estao bloqueados (qualquer motivo: limite de pontos, perda,
+            // operacoes, perdas seguidas, protecao do lucro, pausa, horario, central alterada) e fora do horario
+            if (cfg.FecharNavegadoresForaHorario && (estadoCmd != "LIVRE" || foraHorario) && (agora - ultimoFechNavegador).TotalSeconds >= 2)
             {
                 ultimoFechNavegador = agora;
                 FecharJanelasNavegador();
@@ -1065,7 +1067,7 @@ namespace SPCentral
                 return true;
             }, IntPtr.Zero);
             foreach (string t in fechadas)
-                Evento("Navegador fechado " + (est.Travado ? "(central travada)" : "(fora do horario)") + ": " + t);
+                Evento("Navegador fechado (" + (estadoCmd != "LIVRE" && motivoCmd != "" ? motivoCmd : "fora do horario") + "): " + t);
         }
 
         private void FecharPlataformas()
@@ -1194,7 +1196,7 @@ namespace SPCentral
             txProc    = CampoTexto(gPlat, "Processos a fechar ao travar (separados por virgula)", ref gy, "terminal64 = MT5; NinjaTrader; TradingView = app desktop");
             txTitulos = CampoTexto(gPlat, "Palavras no titulo das janelas a fechar", ref gy,
                 "Qualquer janela com uma dessas palavras no titulo (maiusculas/minusculas tanto faz). Ex.: TradingView, NinjaTrader, Tradovate");
-            ckNavs    = CampoCheck(gPlat, "Fechar navegadores com essas palavras no titulo fora do horario (antes do inicio e depois do limite)", ref gy);
+            ckNavs    = CampoCheck(gPlat, "Fechar navegadores com essas palavras no titulo sempre que os EAs estiverem bloqueados e fora do horario", ref gy);
             txNavs    = CampoTexto(gPlat, "Navegadores (processos)", ref gy, "chrome, msedge (Edge), firefox, opera, brave, vivaldi");
             y = FecharBloco(gPlat, gy);
 
@@ -1356,8 +1358,8 @@ namespace SPCentral
             string hor = (cfg.HoraInicio == "" ? "" : "de " + cfg.HoraInicio + " ") + (cfg.HoraFim == "" ? "sem horario limite" : "ate " + cfg.HoraFim);
             p.Add(hor + (cfg.ZerarNoHorarioFim && cfg.HoraFim != "" ? " (zera)" : ""));
             p.Add("reset " + cfg.HoraReset);
-            if (cfg.FecharNavegadoresForaHorario && (cfg.HoraInicio != "" || cfg.HoraFim != ""))
-                p.Add("fecha navegador com " + cfg.TitulosJanelas + " fora do horario");
+            if (cfg.FecharNavegadoresForaHorario)
+                p.Add("fecha navegador com " + cfg.TitulosJanelas + " quando bloqueado");
             return "Plano salvo: " + string.Join("  |  ", p.ToArray());
         }
 

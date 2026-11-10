@@ -22,10 +22,19 @@ Os três limites novos ficam desligados com 0.
 
 Enquanto estiver travada, a central **fecha de novo** qualquer MT5, NinjaTrader ou TradingView que for aberto (processos `terminal64`, `NinjaTrader`, `TradingView` e janelas com "TradingView" no título, como abas do navegador). As listas podem ser editadas.
 
-**Navegadores fora do horário (v1.3):** antes do horário de início, depois do horário limite (até o reset) e enquanto estiver travada, a central fecha a cada 2 s toda janela de **navegador** com uma destas palavras no título: **TradingView, NinjaTrader, Tradovate**. Maiúsculas e minúsculas tanto faz.
+**Navegadores bloqueados (v1.4):** a central fecha a cada 2 s toda janela de **navegador** com uma destas palavras no título: **TradingView, NinjaTrader, Tradovate**. Maiúsculas e minúsculas tanto faz. Isso vale:
+- **sempre que os EAs estiverem bloqueados, seja qual for o motivo:**
+  - meta de pontos, limite de perda ou máximo de operações;
+  - perdas seguidas ou proteção do lucro;
+  - pausa após perda;
+  - antes do horário de início ou depois do horário limite;
+  - central alterada;
+- **fora do horário de operação:** antes do início e depois do limite, até o reset.
+
+Quando os EAs voltam a ser liberados (fim da pausa, reset diário ou senha mestra), os navegadores deixam de ser fechados.
 - **Navegadores:** Chrome, Edge, Firefox, Opera, Brave e Vivaldi.
 - **Configurar:** a lista de palavras e a de navegadores ficam no bloco "Ao travar e fora do horário". Esse fechamento pode ser desligado pela caixa de marcar do mesmo bloco.
-- **Fica de fora:** fora do horário só os navegadores são fechados. O MT5 e o NinjaTrader instalados continuam abertos para o próximo pregão. Eles só são fechados quando a central **trava**.
+- **Fica de fora:** quando os EAs só estão bloqueados (pausa, antes do início...), apenas os navegadores são fechados. O MT5 e o NinjaTrader instalados continuam abertos para o próximo pregão. Eles só são fechados quando a central **trava**.
 - **Limite do Windows:** o título de uma janela de navegador é o da **aba ativa**. Uma aba do TradingView escondida atrás de outra só é detectada quando ficar ativa, e aí a **janela inteira** do navegador é fechada, com todas as abas. Use uma janela separada para o TradingView.
 - **Registro:** cada janela fechada aparece em Eventos.
 
