@@ -56,6 +56,15 @@ Copiador
   - **Bolhas atrás do painel:** as bolhas, os números (PCR, 2x, X2) e os pontos de absorção são desenhados **no fundo**, então o painel do Scalper Pro fica por cima. Se um ponto de absorção cair dentro do corpo de um candle, ele fica atrás do candle. Para voltar como era, use o parâmetro do indicador "DesenharNoFundo" = false.
   - **Linha de status discreta** (canto inferior esquerdo, cinza e pequena): mostra só `NT8 <contrato> | <hora da última leitura>` e o que pede atenção, em laranja (sem conexão, cópias repetidas do indicador, avisos). O texto completo aparece ao passar o mouse. Para a linha longa de antes, use "StatusDetalhado" = true.
   - **Cópias repetidas:** se a linha mostrar "2 copias do indicador (Ctrl+I)", há o indicador duas vezes no gráfico. Abra a lista com Ctrl+I e remova a cópia extra. Duas cópias desenham tudo em dobro.
+- **Outro EA no mesmo ativo (v6.07):** a cada 2 s, o Scalper confere os outros gráficos do mesmo ativo neste MT5.
+  - **Quando avisa:**
+    - se algum gráfico tiver um EA ligado (ex.: DGX);
+    - se existir posição ou ordem do ativo aberta por outro robô (magic diferente de 0 e do magic das cópias).
+  - **Como avisa:** a barra de status fica **vermelha**, com `OUTRO EA: DGX (M5)`, e toca um **alerta** do MT5.
+  - **Para fechar o gráfico do outro EA:** clique na barra de status. Ela pede confirmação: **clique de novo em até 4 s**.
+  - **Antes de fechar,** o Scalper salva o gráfico como modelo `SP_salvo_<EA>_<ativo>`. Para reabrir: botão direito no gráfico > Modelos.
+  - **Posições já abertas pelo outro EA continuam abertas.** Feche-as à mão, se for o caso.
+  - **Por que não desligar só o Algo Trading do outro EA:** o MT5 não permite que um EA desligue o Algo Trading de outro. O botão geral "Algo Trading" desligaria também o Scalper Pro e o copiador.
 - **COMPRA / FECHA / VENDA:** mostram a tecla de atalho configurada nos parâmetros.
 - **Bloco de estado do dia:** segue a **Central de Controle**. Fica verde com LIBERADO e vermelho com BLOQUEADO quando a Central bloqueia, zera ou está offline.
 - **Oper:** mostra só a quantidade de operações do dia. O máximo fica na Central.
