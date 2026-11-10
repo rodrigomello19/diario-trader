@@ -242,6 +242,8 @@ bool   g_espelhoOculto  = false;
 ulong  g_espelhoVerificarMs = 0;   // quando conferir se o indicador respondeu ao botao BOLHAS
 // outro EA no mesmo ativo (v6.07)
 string g_outroEATxt        = "";   // o que aparece na barra de status ("" = nenhum)
+string g_outroEAGraficos   = "";   // EAs vistos nos outros graficos do ativo (lista atual)
+string g_outroEACiente     = "";   // lista marcada como "ciente" com um clique na barra
 const int ESPELHO_EVENTO = 7101;             // evento enviado ao indicador: CHARTEVENT_CUSTOM + 7101
 string g_btnPressNome   = "";               // botao com destaque de clique (volta ao normal no timer/tick)
 ulong  g_btnPressMs     = 0;
@@ -733,6 +735,7 @@ void     CopiarLinhasDeGrafico(const long chartOrigem);
 bool     ProcessarCliqueListaSync(const string nome);
 void     ProcessarListaSyncTimeout();
 void     VerificarOutrosEAs(const bool forcar = false);
+bool     ProcessarCliqueOutroEA(const string nome);
 
 string GVOpCounted(ulong dealTkt)  { return GV_PREFIX + "OC_" + IntegerToString(dealTkt); }
 string GVOpOpen(ulong posTkt)      { return GV_PREFIX + "OPO_" + IntegerToString(posTkt); }
@@ -7491,6 +7494,8 @@ void OnChartEvent(const int id, const long &lparam,
    {
       if(ProcessarCliqueListaSync(sparam))
          return;
+      if(ProcessarCliqueOutroEA(sparam))
+         return;
 
       string btn = ResolverCliqueBotaoPainel(sparam);
       if(btn != "")
@@ -9398,15 +9403,20 @@ void VerificarOutrosEAs(const bool forcar = false)
    if(!forcar && s_ms > 0 && agora - s_ms < 2000) return;
    s_ms = agora;
 
-   // 1) outros graficos do mesmo ativo com EA
-   string txt = "";
+   // 1) outros graficos do mesmo ativo com EA. O MQL5 nao informa se o Algo Trading DELE esta
+   //    ligado: depois de desligar o outro EA, um clique na barra marca "ciente" e o aviso some
+   //    (volta se a lista de EAs mudar).
+   string graficos = "";
    for(long cid = ChartFirst(); cid >= 0; cid = ChartNext(cid))
    {
       if(cid == ChartID() || ChartSymbol(cid) != _Symbol) continue;
       string ea = ChartGetString(cid, CHART_EXPERT_NAME);
       if(ea == "") continue;
-      txt += (txt == "" ? "" : ", ") + ea + " (" + StringSubstr(EnumToString(ChartPeriod(cid)), 7) + ")";
+      graficos += (graficos == "" ? "" : ", ") + ea + " (" + StringSubstr(EnumToString(ChartPeriod(cid)), 7) + ")";
    }
+   g_outroEAGraficos = graficos;
+   if(graficos == "") g_outroEACiente = "";
+   string txt = (graficos != "" && graficos != g_outroEACiente) ? graficos : "";
 
    // 2) posicao ou ordem deste ativo com magic de outro robo (o Scalper usa 0; copias usam InpCopyMagic)
    string magics = "";
@@ -9441,7 +9451,21 @@ void VerificarOutrosEAs(const bool forcar = false)
       Print("SP OUTRO EA: nenhum outro EA neste ativo agora");
    if(ObjectFind(0, OBJ_STATUS_STRIP) >= 0)
       ObjectSetString(0, OBJ_STATUS_STRIP, OBJPROP_TOOLTIP, txt == "" ? "\n"
-                      : "Outro EA neste ativo: " + txt + "\nEle pode interferir na sua operacao. Remova-o do grafico se nao for usar.");
+                      : "Outro EA neste ativo: " + txt + "\nEle pode interferir na sua operacao."
+                        + "\nDepois de desligar o Algo Trading dele (F7 no grafico dele), clique aqui: ciente.");
    SincronizarStatusImpedimento();
    ChartRedraw(0);
+}
+
+// Clique na barra de status com o aviso de outro EA: marca "ciente" (o aviso dos graficos some
+// ate a lista de EAs mudar). O aviso de ordem/posicao de outro robo continua.
+bool ProcessarCliqueOutroEA(const string nome)
+{
+   if(nome != OBJ_STATUS_STRIP && nome != OBJ_TXT_STATUS) return false;
+   if(g_outroEAGraficos == "" || g_outroEAGraficos == g_outroEACiente) return false;
+   g_outroEACiente = g_outroEAGraficos;
+   PrintFormat("SP OUTRO EA: ciente de %s (o aviso volta se outro EA for ligado neste ativo)", g_outroEACiente);
+   VerificarOutrosEAs(true);
+   Status("Ciente: " + g_outroEACiente, C_STATUS_OK, false);
+   return true;
 }

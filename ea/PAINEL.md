@@ -61,6 +61,9 @@ Copiador
     - se algum gráfico tiver um EA ligado (ex.: DGX);
     - se existir posição ou ordem do ativo aberta por outro robô (magic diferente de 0 e do magic das cópias).
   - **Como avisa:** a barra de status fica **vermelha**, com `OUTRO EA LIGADO: DGX (M5)`, e toca um **alerta** do MT5. A barra volta ao normal quando o outro EA sair do gráfico.
+  - **Ciente:** o MT5 não deixa o Scalper saber se o Algo Trading **do outro EA** está ligado. Depois de desligar o DGX (F7 no gráfico dele > desmarcar "Permitir Algo Trading"), **clique uma vez na barra de status vermelha**. O aviso some e o gráfico do DGX continua aberto.
+    - O aviso volta se outro EA for ligado no ativo, ou se o EA for removido e colocado de novo.
+    - O aviso de **ordem ou posição de outro robô** não é silenciado.
   - **É só um aviso:** o Scalper não mexe no outro EA. O MT5 não permite que um EA desligue o Algo Trading de outro. Para parar o outro EA, remova-o do gráfico (botão direito > Experts > Remover) ou desmarque "Permitir Algo Trading" nas propriedades dele (F7).
   - **Limite:** só os gráficos do mesmo MT5 são vistos. Um EA em outro terminal na mesma conta só é percebido quando abrir posição ou ordem neste ativo.
 - **COMPRA / FECHA / VENDA:** mostram a tecla de atalho configurada nos parâmetros.
