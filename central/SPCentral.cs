@@ -18,7 +18,9 @@
 //   - fica sempre na barra de tarefas (fechar = minimizar), abrir o .exe de novo so
 //     traz a janela, recria os atalhos e o inicio com o Windows a cada minuto, e
 //     protege contra exclusao o .exe, a pasta de dados e a marca da central
-//     (o botao Desinstalar, com a senha mestra, retira tudo).
+//     (o botao Desinstalar, com a senha mestra, retira tudo);
+//   - fora do horario de operacao (antes do inicio e depois do limite) fecha as janelas
+//     de navegador com TradingView / NinjaTrader / Tradovate no titulo.
 //
 //  Comunicacao: arquivos em %APPDATA%\MetaQuotes\Terminal\Common\Files
 //   SP_Central_Ativa.txt            marca: EAs passam a obedecer a central
@@ -45,7 +47,7 @@ using System.Windows.Forms;
 using Microsoft.Win32;
 
 [assembly: System.Reflection.AssemblyTitle("SPCentral")]
-[assembly: System.Reflection.AssemblyVersion("1.2.0.0")]
+[assembly: System.Reflection.AssemblyVersion("1.3.0.0")]
 
 namespace SPCentral
 {
@@ -325,7 +327,9 @@ namespace SPCentral
         public double ProtecaoAtivaPts = 300;    // protecao do lucro vale depois de fechar este resultado
         public bool   FecharPlataformas = true;
         public string Processos = "terminal64,terminal,NinjaTrader,TradingView";
-        public string TitulosJanelas = "TradingView";
+        public string TitulosJanelas = "TradingView,NinjaTrader,Tradovate";
+        public bool   FecharNavegadoresForaHorario = true;
+        public string Navegadores = "chrome,msedge,firefox,opera,brave,vivaldi,iexplore";
 
         public static string Caminho { get { return Path.Combine(Util.PastaApp, "config.txt"); } }
 
@@ -351,6 +355,8 @@ namespace SPCentral
             a.Set("FecharPlataformas", FecharPlataformas ? "1" : "0");
             a.Set("Processos", Processos);
             a.Set("TitulosJanelas", TitulosJanelas);
+            a.Set("FecharNavegadoresForaHorario", FecharNavegadoresForaHorario ? "1" : "0");
+            a.Set("Navegadores", Navegadores);
             a.Salvar(Caminho);
         }
 
@@ -378,6 +384,9 @@ namespace SPCentral
             FecharPlataformas = a.Get("FecharPlataformas", "1") == "1";
             Processos         = a.Get("Processos", Processos);
             TitulosJanelas    = a.Get("TitulosJanelas", TitulosJanelas);
+            if (TitulosJanelas.Trim() == "TradingView") TitulosJanelas = "TradingView,NinjaTrader,Tradovate";   // padrao antigo -> novo
+            FecharNavegadoresForaHorario = a.Get("FecharNavegadoresForaHorario", "1") == "1";
+            Navegadores       = a.Get("Navegadores", Navegadores);
             return r;
         }
 
@@ -488,6 +497,8 @@ namespace SPCentral
         private DateTime ultimoFechamento = DateTime.MinValue;
         private DateTime ultimaManutencao = DateTime.MinValue;
         private DateTime ultimaProtecao = DateTime.MinValue;
+        private DateTime ultimoFechNavegador = DateTime.MinValue;
+        private bool     foraHorario;
 
         private const string NOME_ATALHO = "Central de Controle.lnk";
         private static string AtalhoAreaTrabalho { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), NOME_ATALHO); } }
@@ -510,10 +521,10 @@ namespace SPCentral
         private Label lblEstado, lblMotivo, lblOps, lblPts, lblHorario, lblEdicao;
         private ListView lvContas;
         private ListBox lbEventos;
-        private TextBox txContaMae, txFilhas, txProc, txTitulos;
+        private TextBox txContaMae, txFilhas, txProc, txTitulos, txNavs;
         private DateTimePicker dtInicio, dtFim, dtReset, dtEdBloq, dtEdLib;
         private NumericUpDown nuOps, nuMeta, nuPerda, nuDiv, nuPerdasSeg, nuPausa, nuDevolver, nuProtAtiva;
-        private CheckBox ckZerarFim, ckFechar;
+        private CheckBox ckZerarFim, ckFechar, ckNavs;
         private Label lblResumo;
 
         public FormCentral()
@@ -782,6 +793,16 @@ namespace SPCentral
             }
             else                             { estadoCmd = "LIVRE"; motivoCmd = ""; }
 
+            // fora do horario de operacao: antes do inicio ou depois do limite (ate o reset)
+            TimeSpan hIni, hLim;
+            foraHorario = (Util.ParseHora(cfg.HoraInicio, out hIni) && agora < MomentoNoDia(iniDia, hIni))
+                       || (Util.ParseHora(cfg.HoraFim, out hLim) && agora >= MomentoNoDia(iniDia, hLim) && agora >= est.HorarioIgnoradoAte);
+            if (cfg.FecharNavegadoresForaHorario && (foraHorario || est.Travado) && (agora - ultimoFechNavegador).TotalSeconds >= 2)
+            {
+                ultimoFechNavegador = agora;
+                FecharJanelasNavegador();
+            }
+
             VerificarDivergencia(agora, mae);
             GravarComando();
 
@@ -989,6 +1010,63 @@ namespace SPCentral
         // --------------------------------------------------------------------
         //  Fechar plataformas
         // --------------------------------------------------------------------
+        private List<string> ListaCsv(string csv)
+        {
+            List<string> l = new List<string>();
+            foreach (string t in (csv ?? "").Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string x = t.Trim();
+                if (x.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) x = x.Substring(0, x.Length - 4);
+                if (x.Length > 0) l.Add(x);
+            }
+            return l;
+        }
+
+        // Janelas de NAVEGADOR com uma das palavras no titulo (o titulo e o da aba ativa).
+        // So navegadores: o MT5 e o NinjaTrader instalados nao sao fechados fora do horario.
+        private void FecharJanelasNavegador()
+        {
+            List<string> titulos = ListaCsv(cfg.TitulosJanelas);
+            List<string> navs = ListaCsv(cfg.Navegadores);
+            if (titulos.Count == 0 || navs.Count == 0) return;
+            Dictionary<uint, bool> ehNav = new Dictionary<uint, bool>();
+            List<string> fechadas = new List<string>();
+            EnumWindows(delegate (IntPtr h, IntPtr l)
+            {
+                if (!IsWindowVisible(h)) return true;
+                StringBuilder sb = new StringBuilder(512);
+                GetWindowText(h, sb, sb.Capacity);
+                string titulo = sb.ToString();
+                if (titulo.Length == 0) return true;
+                bool bate = false;
+                foreach (string t in titulos)
+                    if (titulo.IndexOf(t, StringComparison.OrdinalIgnoreCase) >= 0) { bate = true; break; }
+                if (!bate) return true;
+
+                uint pid;
+                GetWindowThreadProcessId(h, out pid);
+                bool nav;
+                if (!ehNav.TryGetValue(pid, out nav))
+                {
+                    nav = false;
+                    try
+                    {
+                        using (Process p = Process.GetProcessById((int)pid))
+                            foreach (string n in navs)
+                                if (string.Equals(p.ProcessName, n, StringComparison.OrdinalIgnoreCase)) { nav = true; break; }
+                    }
+                    catch (Exception) { }
+                    ehNav[pid] = nav;
+                }
+                if (!nav) return true;
+                PostMessage(h, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+                fechadas.Add(titulo);
+                return true;
+            }, IntPtr.Zero);
+            foreach (string t in fechadas)
+                Evento("Navegador fechado " + (est.Travado ? "(central travada)" : "(fora do horario)") + ": " + t);
+        }
+
         private void FecharPlataformas()
         {
             int mortos = 0;
@@ -1110,10 +1188,13 @@ namespace SPCentral
             nuDiv      = CampoNumero(gCont, "Zerar filha divergente apos (s)", ref gy, 0, 3600, "Filha posicionada com a mae zerada por mais desse tempo: zera so essa filha.");
             y = FecharBloco(gCont, gy);
 
-            GroupBox gPlat = Bloco(tpCfg, "Ao travar", y, out gy);
+            GroupBox gPlat = Bloco(tpCfg, "Ao travar e fora do horario", y, out gy);
             ckFechar  = CampoCheck(gPlat, "Fechar MT5 / NinjaTrader / TradingView quando travar", ref gy);
-            txProc    = CampoTexto(gPlat, "Processos a fechar (separados por virgula)", ref gy, "terminal64 = MT5; NinjaTrader; TradingView = app desktop");
-            txTitulos = CampoTexto(gPlat, "Janelas a fechar pelo titulo", ref gy, "Ex.: TradingView (fecha abas/janelas do navegador com esse titulo)");
+            txProc    = CampoTexto(gPlat, "Processos a fechar ao travar (separados por virgula)", ref gy, "terminal64 = MT5; NinjaTrader; TradingView = app desktop");
+            txTitulos = CampoTexto(gPlat, "Palavras no titulo das janelas a fechar", ref gy,
+                "Qualquer janela com uma dessas palavras no titulo (maiusculas/minusculas tanto faz). Ex.: TradingView, NinjaTrader, Tradovate");
+            ckNavs    = CampoCheck(gPlat, "Fechar navegadores com essas palavras no titulo fora do horario (antes do inicio e depois do limite)", ref gy);
+            txNavs    = CampoTexto(gPlat, "Navegadores (processos)", ref gy, "chrome, msedge (Edge), firefox, opera, brave, vivaldi");
             y = FecharBloco(gPlat, gy);
 
             Button btSalvar = new Button { Text = "Salvar configuracao", Left = 300, Top = y + 4, Width = 180, Height = 30 };
@@ -1274,6 +1355,8 @@ namespace SPCentral
             string hor = (cfg.HoraInicio == "" ? "" : "de " + cfg.HoraInicio + " ") + (cfg.HoraFim == "" ? "sem horario limite" : "ate " + cfg.HoraFim);
             p.Add(hor + (cfg.ZerarNoHorarioFim && cfg.HoraFim != "" ? " (zera)" : ""));
             p.Add("reset " + cfg.HoraReset);
+            if (cfg.FecharNavegadoresForaHorario && (cfg.HoraInicio != "" || cfg.HoraFim != ""))
+                p.Add("fecha navegador com " + cfg.TitulosJanelas + " fora do horario");
             return "Plano salvo: " + string.Join("  |  ", p.ToArray());
         }
 
@@ -1298,6 +1381,8 @@ namespace SPCentral
             ckFechar.Checked = cfg.FecharPlataformas;
             txProc.Text     = cfg.Processos;
             txTitulos.Text  = cfg.TitulosJanelas;
+            ckNavs.Checked  = cfg.FecharNavegadoresForaHorario;
+            txNavs.Text     = cfg.Navegadores;
             lblResumo.Text  = ResumoPlano();
         }
 
@@ -1331,6 +1416,8 @@ namespace SPCentral
             cfg.FecharPlataformas = ckFechar.Checked;
             cfg.Processos         = txProc.Text.Trim();
             cfg.TitulosJanelas    = txTitulos.Text.Trim();
+            cfg.FecharNavegadoresForaHorario = ckNavs.Checked;
+            cfg.Navegadores       = txNavs.Text.Trim();
             cfg.Salvar();
             lblResumo.Text = ResumoPlano();
             Evento(string.Format(CultureInfo.InvariantCulture,
@@ -1358,7 +1445,7 @@ namespace SPCentral
             }
             else if (estadoCmd == "BLOQ")
             {
-                lblEstado.Text = emPausa ? "PAUSA APOS PERDA" : "AGUARDANDO HORARIO";
+                lblEstado.Text = emPausa ? "PAUSA APOS PERDA" : "AGUARDANDO HORARIO";   // navegadores tambem fecham aqui
                 lblEstado.ForeColor = Color.DarkOrange;
                 lblMotivo.Text = motivoCmd;
             }
