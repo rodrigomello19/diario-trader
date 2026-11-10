@@ -14,6 +14,11 @@ Todos os limites são contados **pela conta mãe**. Uma operação copiada para 
 | Horário limite | 10:30 | A partir desse horário: sem novas entradas. A operação aberta termina e depois as plataformas fecham. Também dá para marcar "zerar no horário limite". |
 | Horário de início (opcional) | 09:00 | Antes desse horário as entradas ficam bloqueadas. As plataformas não são fechadas. |
 | Divergência de sinal | 20 s | Uma filha posicionada com a mãe zerada há mais de 20 s (perda de sinal do copiador) tem **só aquela filha** zerada. |
+| **Perdas seguidas** (v1.1) | 2 | Ao fechar a 2ª operação perdedora em sequência: trava. A operação aberta termina, e as plataformas fecham. Um ganho zera a sequência. Uma saída no zero a zero não muda a sequência. |
+| **Pausa após perda** (v1.1) | 15 min | Depois de cada operação perdedora: **sem novas entradas** por 15 min. **Não trava e não fecha as plataformas.** O painel mostra "PAUSA APOS PERDA" e até que horas. |
+| **Proteção do lucro** (v1.1) | devolver 400, a partir de +600 | Depois de o resultado **fechado** do dia chegar a +600, o total (fechado + flutuante) não pode cair mais de 400 abaixo do melhor resultado fechado. Ex.: melhor fechado +800 → trava em +400. Ao atingir: **ZERA tudo** e fecha as plataformas. |
+
+Os três limites novos ficam desligados com 0.
 
 Enquanto estiver travada, a central **fecha de novo** qualquer MT5, NinjaTrader ou TradingView que for aberto (processos `terminal64`, `NinjaTrader`, `TradingView` e janelas com "TradingView" no título, como abas do navegador). As listas podem ser editadas.
 
@@ -37,7 +42,20 @@ A trava dura até o **reset diário** (ex.: 06:00 do dia seguinte). A **senha me
 4. Na aba **Configuração**, preencha:
    - **Conta mãe:** o login MT5 da mãe (ex.: `510087363`). Se ficar vazio, a central usa o Scalper Pro em modo Mãe que estiver rodando.
    - **Contas filhas:** separe por vírgula. MT5 pelo login (ex.: `1514567645`); NT8 como `NT-<conta>` (ex.: `NT-APEX2209540000056`). Os IDs aparecem na lista de contas do Painel.
-   - Limites, horários, reset e janela de edição. Depois clique em **Salvar configuração**.
+   - Limites, proteção extra, horários, reset e janela de edição. Depois clique em **Salvar configuração**.
+
+   A aba **Configuração** (v1.1) é dividida em blocos:
+   - Limites do dia
+   - Proteção extra
+   - Horários
+   - Janela de edição
+   - Contas
+   - Ao travar
+
+   Detalhes da tela:
+   - **Horários:** são escolhidos nas setas do seletor HH:mm. O horário de início e o horário limite têm uma caixa de marcar: desmarcada = sem horário.
+   - **Resumo:** o topo da aba mostra o **plano salvo** em uma linha.
+   - **Ajuda:** cada campo explica o que faz, à direita ou ao passar o mouse.
 5. Atualize os EAs e a estratégia:
    - **Scalper Pro v5.87 ou mais nova** (atual: v6.06) em todos os terminais MT5 (mãe e filhas);
    - **SPCopyFilhaNT v1.2 ou mais nova** (atual: v1.3) no NinjaTrader 8.
@@ -47,7 +65,8 @@ A trava dura até o **reset diário** (ex.: 06:00 do dia seguinte). A **senha me
 ## Painel
 
 - **Estado**, com a cor correspondente: LIBERADA (verde), AGUARDANDO HORÁRIO (laranja) ou TRAVADA (vermelho, com o motivo e o horário até quando).
-- **Contadores:** operações x/máximo e pontos (realizado, flutuante e total), comparados com a meta e o limite de perda.
+- **Contadores:** operações x/máximo e pontos (realizado, flutuante e total), comparados com a meta e o limite de perda. Com as proteções ligadas, mostra também as perdas seguidas (x/máximo), o melhor resultado fechado e o nível em que a proteção do lucro trava.
+- **Estado PAUSA APOS PERDA** (laranja): sem novas entradas até o horário indicado. Depois disso, a central volta a LIBERADA sozinha.
 - **Contas:** todas as contas que o Scalper Pro e a filha NT8 estão reportando, com papel (mãe ou filha), online, posições e flutuante.
 - **Eventos:** histórico das ações. Também fica gravado em `%LOCALAPPDATA%\SPCentral\log_AAAAMMDD.txt`.
 
