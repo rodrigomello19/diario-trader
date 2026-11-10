@@ -20,7 +20,8 @@
 //     protege contra exclusao o .exe, a pasta de dados e a marca da central
 //     (o botao Desinstalar, com a senha mestra, retira tudo);
 //   - sempre que os EAs estao bloqueados (qualquer motivo) e fora do horario de operacao,
-//     fecha as janelas de navegador com TradingView / NinjaTrader / Tradovate no titulo.
+//     fecha as janelas de navegador com TradingView / NinjaTrader / Tradovate no titulo
+//     ou no endereco da aba ativa (lido pela Automacao da Interface do Windows).
 //
 //  Comunicacao: arquivos em %APPDATA%\MetaQuotes\Terminal\Common\Files
 //   SP_Central_Ativa.txt            marca: EAs passam a obedecer a central
@@ -43,11 +44,12 @@ using System.Security.Principal;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
+using System.Windows.Automation;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
 [assembly: System.Reflection.AssemblyTitle("SPCentral")]
-[assembly: System.Reflection.AssemblyVersion("1.5.0.0")]
+[assembly: System.Reflection.AssemblyVersion("1.6.0.0")]
 
 namespace SPCentral
 {
@@ -476,7 +478,7 @@ namespace SPCentral
     // ------------------------------------------------------------------------
     internal class FormCentral : Form
     {
-        public const string VERSAO = "1.5";   // aparece no titulo da janela e no log
+        public const string VERSAO = "1.6";   // aparece no titulo da janela e no log
         [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsProc cb, IntPtr lParam);
         [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr hWnd);
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(IntPtr hWnd, StringBuilder s, int max);
@@ -498,9 +500,13 @@ namespace SPCentral
         private DateTime ultimoFechamento = DateTime.MinValue;
         private DateTime ultimaManutencao = DateTime.MinValue;
         private DateTime ultimaProtecao = DateTime.MinValue;
-        private DateTime ultimoFechNavegador = DateTime.MinValue;
         private bool     foraHorario;
         private readonly Dictionary<IntPtr, DateTime> pedidoFechar = new Dictionary<IntPtr, DateTime>();
+        // dados para a varredura dos navegadores (thread em segundo plano)
+        private volatile bool     navAtivo;
+        private volatile string   navMotivo = "";
+        private volatile string[] navTitulos = new string[0];
+        private volatile string[] navProcs = new string[0];
         private const int ESPERA_NAVEGADOR_S = 5;   // janela que nao fecha em 5 s: o navegador e encerrado
 
         private const string NOME_ATALHO = "Central de Controle.lnk";
@@ -554,6 +560,8 @@ namespace SPCentral
             timer.Interval = 500;
             timer.Tick += delegate { Ciclo(); };
             timer.Start();
+            Thread tNav = new Thread(LoopNavegadores) { IsBackground = true, Name = "SPCentral navegadores" };
+            tNav.Start();
             Ciclo();
         }
 
@@ -802,11 +810,11 @@ namespace SPCentral
                        || (Util.ParseHora(cfg.HoraFim, out hLim) && agora >= MomentoNoDia(iniDia, hLim) && agora >= est.HorarioIgnoradoAte);
             // navegadores: fecha sempre que os EAs estao bloqueados (qualquer motivo: limite de pontos, perda,
             // operacoes, perdas seguidas, protecao do lucro, pausa, horario, central alterada) e fora do horario
-            if (cfg.FecharNavegadoresForaHorario && (estadoCmd != "LIVRE" || foraHorario) && (agora - ultimoFechNavegador).TotalSeconds >= 2)
-            {
-                ultimoFechNavegador = agora;
-                FecharJanelasNavegador();
-            }
+            // a varredura roda em segundo plano (ler o endereco do navegador pode levar alguns decimos de segundo)
+            navMotivo  = estadoCmd != "LIVRE" && motivoCmd != "" ? motivoCmd : "fora do horario";
+            navTitulos = ListaCsv(cfg.TitulosJanelas).ToArray();
+            navProcs   = ListaCsv(cfg.Navegadores).ToArray();
+            navAtivo   = cfg.FecharNavegadoresForaHorario && (estadoCmd != "LIVRE" || foraHorario);
 
             VerificarDivergencia(agora, mae);
             GravarComando();
@@ -1027,18 +1035,66 @@ namespace SPCentral
             return l;
         }
 
-        // Janelas de NAVEGADOR com uma das palavras no titulo (o titulo e o da aba ativa).
-        // So navegadores: o MT5 e o NinjaTrader instalados nao sao fechados fora do horario.
+        // Segundo plano: a cada 2 s, enquanto os EAs estiverem bloqueados ou fora do horario.
+        private void LoopNavegadores()
+        {
+            while (true)
+            {
+                Thread.Sleep(2000);
+                if (sairAutorizado) return;
+                if (!navAtivo) { pedidoFechar.Clear(); continue; }
+                try { FecharJanelasNavegador(); }
+                catch (Exception ex) { Util.Log("ERRO na varredura dos navegadores: " + ex.Message); }
+            }
+        }
+
+        private void EventoDaThread(string msg)
+        {
+            try { if (IsHandleCreated) BeginInvoke(new MethodInvoker(delegate { Evento(msg); })); else Util.Log(msg); }
+            catch (Exception) { Util.Log(msg); }
+        }
+
+        // Endereco da aba ativa: a 1a caixa de texto da janela do navegador e a barra de endereco
+        // (Edge, Chrome, Brave, Opera, Vivaldi e Firefox). "" se nao der para ler.
+        private static string EnderecoNavegador(IntPtr h)
+        {
+            try
+            {
+                AutomationElement raiz = AutomationElement.FromHandle(h);
+                if (raiz == null) return "";
+                AutomationElement ed = raiz.FindFirst(TreeScope.Descendants,
+                    new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Edit));
+                if (ed == null) return "";
+                object vp;
+                if (ed.TryGetCurrentPattern(ValuePattern.Pattern, out vp))
+                    return ((ValuePattern)vp).Current.Value ?? "";
+            }
+            catch (Exception) { }
+            return "";
+        }
+
+        private static bool Contem(string texto, string[] palavras)
+        {
+            if (string.IsNullOrEmpty(texto)) return false;
+            foreach (string t in palavras)
+                if (texto.IndexOf(t, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            return false;
+        }
+
+        // Janelas de NAVEGADOR com uma das palavras no TITULO ou no ENDERECO da aba ativa.
+        // So navegadores: o MT5 e o NinjaTrader instalados nao sao fechados aqui.
+        // Se a janela nao fechar em 5 s (ex.: Edge pergunta "Fechar todas as guias?"), encerra o navegador.
         private void FecharJanelasNavegador()
         {
-            List<string> titulos = ListaCsv(cfg.TitulosJanelas);
-            List<string> navs = ListaCsv(cfg.Navegadores);
-            if (titulos.Count == 0 || navs.Count == 0) return;
+            string[] titulos = navTitulos;
+            string[] navs = navProcs;
+            if (titulos.Length == 0 || navs.Length == 0) return;
+
+            // 1) janelas visiveis de navegador
             Dictionary<uint, bool> ehNav = new Dictionary<uint, bool>();
-            List<string> fechadas = new List<string>();
-            List<string> encerrados = new List<string>();
-            HashSet<IntPtr> vistas = new HashSet<IntPtr>();
-            HashSet<uint> forcados = new HashSet<uint>();
+            List<IntPtr> janelas = new List<IntPtr>();
+            List<string> titulosJan = new List<string>();
+            List<uint> pids = new List<uint>();
             EnumWindows(delegate (IntPtr h, IntPtr l)
             {
                 if (!IsWindowVisible(h)) return true;
@@ -1046,11 +1102,6 @@ namespace SPCentral
                 GetWindowText(h, sb, sb.Capacity);
                 string titulo = sb.ToString();
                 if (titulo.Length == 0) return true;
-                bool bate = false;
-                foreach (string t in titulos)
-                    if (titulo.IndexOf(t, StringComparison.OrdinalIgnoreCase) >= 0) { bate = true; break; }
-                if (!bate) return true;
-
                 uint pid;
                 GetWindowThreadProcessId(h, out pid);
                 bool nav;
@@ -1066,45 +1117,54 @@ namespace SPCentral
                     catch (Exception) { }
                     ehNav[pid] = nav;
                 }
-                if (!nav) return true;
+                if (nav) { janelas.Add(h); titulosJan.Add(titulo); pids.Add(pid); }
+                return true;
+            }, IntPtr.Zero);
 
-                vistas.Add(h);
-                DateTime pedido;
-                if (!pedidoFechar.TryGetValue(h, out pedido))
+            // 2) titulo ou endereco com uma das palavras: fecha (e encerra se nao fechar)
+            HashSet<IntPtr> vistas = new HashSet<IntPtr>();
+            HashSet<uint> forcados = new HashSet<uint>();
+            string motivo = navMotivo;
+            for (int i = 0; i < janelas.Count; i++)
+            {
+                IntPtr hj = janelas[i];
+                string onde = "";
+                if (Contem(titulosJan[i], titulos)) onde = titulosJan[i];
+                else
                 {
-                    // 1o: pede para a janela fechar (como clicar no X)
-                    pedidoFechar[h] = DateTime.Now;
-                    PostMessage(h, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
-                    fechadas.Add(titulo);
+                    string end = EnderecoNavegador(hj);
+                    if (Contem(end, titulos)) onde = end;
                 }
-                else if ((DateTime.Now - pedido).TotalSeconds >= ESPERA_NAVEGADOR_S && !forcados.Contains(pid))
+                if (onde == "") continue;
+
+                vistas.Add(hj);
+                DateTime pedido;
+                if (!pedidoFechar.TryGetValue(hj, out pedido))
                 {
-                    // a janela nao fechou (ex.: Edge pergunta "Fechar todas as guias?"): encerra o navegador
-                    forcados.Add(pid);
+                    pedidoFechar[hj] = DateTime.Now;
+                    PostMessage(hj, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+                    EventoDaThread("Navegador fechado (" + motivo + "): " + onde);
+                }
+                else if ((DateTime.Now - pedido).TotalSeconds >= ESPERA_NAVEGADOR_S && !forcados.Contains(pids[i]))
+                {
+                    forcados.Add(pids[i]);
                     try
                     {
-                        using (Process pk = Process.GetProcessById((int)pid))
+                        using (Process pk = Process.GetProcessById((int)pids[i]))
                         {
                             string nome = pk.ProcessName;
                             pk.Kill();
-                            encerrados.Add(nome + ": " + titulo);
+                            EventoDaThread("Navegador ENCERRADO porque a janela nao fechou (" + motivo + "): " + nome + " - " + onde);
                         }
                     }
-                    catch (Exception ex) { Util.Log("nao consegui encerrar o navegador (pid " + pid + "): " + ex.Message); }
+                    catch (Exception ex) { Util.Log("nao consegui encerrar o navegador (pid " + pids[i] + "): " + ex.Message); }
                 }
-                return true;
-            }, IntPtr.Zero);
+            }
 
             // esquece as janelas que ja fecharam
             List<IntPtr> velhas = new List<IntPtr>();
             foreach (IntPtr hw in pedidoFechar.Keys) if (!vistas.Contains(hw)) velhas.Add(hw);
             foreach (IntPtr hw in velhas) pedidoFechar.Remove(hw);
-
-            string motivo = estadoCmd != "LIVRE" && motivoCmd != "" ? motivoCmd : "fora do horario";
-            foreach (string t in fechadas)
-                Evento("Navegador fechado (" + motivo + "): " + t);
-            foreach (string t in encerrados)
-                Evento("Navegador ENCERRADO porque a janela nao fechou (" + motivo + "): " + t);
         }
 
         private void FecharPlataformas()
@@ -1233,7 +1293,7 @@ namespace SPCentral
             txProc    = CampoTexto(gPlat, "Processos a fechar ao travar (separados por virgula)", ref gy, "terminal64 = MT5; NinjaTrader; TradingView = app desktop");
             txTitulos = CampoTexto(gPlat, "Palavras no titulo das janelas a fechar", ref gy,
                 "Qualquer janela com uma dessas palavras no titulo (maiusculas/minusculas tanto faz). Ex.: TradingView, NinjaTrader, Tradovate");
-            ckNavs    = CampoCheck(gPlat, "Fechar navegadores com essas palavras no titulo sempre que os EAs estiverem bloqueados e fora do horario", ref gy);
+            ckNavs    = CampoCheck(gPlat, "Fechar navegadores com essas palavras no titulo ou no endereco sempre que os EAs estiverem bloqueados e fora do horario", ref gy);
             txNavs    = CampoTexto(gPlat, "Navegadores (processos)", ref gy, "chrome, msedge (Edge), firefox, opera, brave, vivaldi");
             y = FecharBloco(gPlat, gy);
 

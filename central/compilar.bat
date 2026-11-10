@@ -17,7 +17,9 @@ if not errorlevel 1 (
 )
 echo Compilando %~dp0SPCentral.cs
 findstr /C:"VERSAO = " "%~dp0SPCentral.cs"
-"%CSC%" /nologo /target:winexe /optimize+ /out:"%~dp0SPCentral.exe" /r:System.dll /r:System.Core.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll "%~dp0SPCentral.cs"
+rem a leitura do endereco do navegador usa a Automacao da Interface do Windows (pasta WPF do .NET)
+for %%I in ("%CSC%") do set NETDIR=%%~dpI
+"%CSC%" /nologo /target:winexe /optimize+ /out:"%~dp0SPCentral.exe" /lib:"%NETDIR%WPF" /r:System.dll /r:System.Core.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:UIAutomationClient.dll /r:UIAutomationTypes.dll /r:WindowsBase.dll "%~dp0SPCentral.cs"
 if errorlevel 1 (
   echo.
   echo ERRO na compilacao. Envie as mensagens acima para correcao.
