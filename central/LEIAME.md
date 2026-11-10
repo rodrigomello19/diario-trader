@@ -32,6 +32,10 @@ Enquanto estiver travada, a central **fecha de novo** qualquer MT5, NinjaTrader 
 - **fora do horário de operação:** antes do início e depois do limite, até o reset.
 
 Quando os EAs voltam a ser liberados (fim da pausa, reset diário ou senha mestra), os navegadores deixam de ser fechados.
+
+**Janela que não fecha (v1.5):** a central primeiro pede para a janela fechar, como um clique no X. O Edge, com várias abas abertas, costuma perguntar "Fechar todas as guias?" e não fechar. Se a janela continuar aberta depois de **5 s**, a central **encerra o navegador** inteiro, com todas as janelas dele, e registra em Eventos "Navegador ENCERRADO".
+
+**Inicialização turbo do Edge:** se ela estiver ligada, o Edge reabre muito rápido. Vale desligar em edge://settings/system > "Inicialização turbo".
 - **Navegadores:** Chrome, Edge, Firefox, Opera, Brave e Vivaldi.
 - **Configurar:** a lista de palavras e a de navegadores ficam no bloco "Ao travar e fora do horário". Esse fechamento pode ser desligado pela caixa de marcar do mesmo bloco.
 - **Fica de fora:** quando os EAs só estão bloqueados (pausa, antes do início...), apenas os navegadores são fechados. O MT5 e o NinjaTrader instalados continuam abertos para o próximo pregão. Eles só são fechados quando a central **trava**.

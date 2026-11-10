@@ -47,7 +47,7 @@ using System.Windows.Forms;
 using Microsoft.Win32;
 
 [assembly: System.Reflection.AssemblyTitle("SPCentral")]
-[assembly: System.Reflection.AssemblyVersion("1.4.0.0")]
+[assembly: System.Reflection.AssemblyVersion("1.5.0.0")]
 
 namespace SPCentral
 {
@@ -476,7 +476,7 @@ namespace SPCentral
     // ------------------------------------------------------------------------
     internal class FormCentral : Form
     {
-        public const string VERSAO = "1.4";   // aparece no titulo da janela e no log
+        public const string VERSAO = "1.5";   // aparece no titulo da janela e no log
         [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsProc cb, IntPtr lParam);
         [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr hWnd);
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(IntPtr hWnd, StringBuilder s, int max);
@@ -500,6 +500,8 @@ namespace SPCentral
         private DateTime ultimaProtecao = DateTime.MinValue;
         private DateTime ultimoFechNavegador = DateTime.MinValue;
         private bool     foraHorario;
+        private readonly Dictionary<IntPtr, DateTime> pedidoFechar = new Dictionary<IntPtr, DateTime>();
+        private const int ESPERA_NAVEGADOR_S = 5;   // janela que nao fecha em 5 s: o navegador e encerrado
 
         private const string NOME_ATALHO = "Central de Controle.lnk";
         private static string AtalhoAreaTrabalho { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), NOME_ATALHO); } }
@@ -1034,6 +1036,9 @@ namespace SPCentral
             if (titulos.Count == 0 || navs.Count == 0) return;
             Dictionary<uint, bool> ehNav = new Dictionary<uint, bool>();
             List<string> fechadas = new List<string>();
+            List<string> encerrados = new List<string>();
+            HashSet<IntPtr> vistas = new HashSet<IntPtr>();
+            HashSet<uint> forcados = new HashSet<uint>();
             EnumWindows(delegate (IntPtr h, IntPtr l)
             {
                 if (!IsWindowVisible(h)) return true;
@@ -1062,12 +1067,44 @@ namespace SPCentral
                     ehNav[pid] = nav;
                 }
                 if (!nav) return true;
-                PostMessage(h, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
-                fechadas.Add(titulo);
+
+                vistas.Add(h);
+                DateTime pedido;
+                if (!pedidoFechar.TryGetValue(h, out pedido))
+                {
+                    // 1o: pede para a janela fechar (como clicar no X)
+                    pedidoFechar[h] = DateTime.Now;
+                    PostMessage(h, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+                    fechadas.Add(titulo);
+                }
+                else if ((DateTime.Now - pedido).TotalSeconds >= ESPERA_NAVEGADOR_S && !forcados.Contains(pid))
+                {
+                    // a janela nao fechou (ex.: Edge pergunta "Fechar todas as guias?"): encerra o navegador
+                    forcados.Add(pid);
+                    try
+                    {
+                        using (Process pk = Process.GetProcessById((int)pid))
+                        {
+                            string nome = pk.ProcessName;
+                            pk.Kill();
+                            encerrados.Add(nome + ": " + titulo);
+                        }
+                    }
+                    catch (Exception ex) { Util.Log("nao consegui encerrar o navegador (pid " + pid + "): " + ex.Message); }
+                }
                 return true;
             }, IntPtr.Zero);
+
+            // esquece as janelas que ja fecharam
+            List<IntPtr> velhas = new List<IntPtr>();
+            foreach (IntPtr hw in pedidoFechar.Keys) if (!vistas.Contains(hw)) velhas.Add(hw);
+            foreach (IntPtr hw in velhas) pedidoFechar.Remove(hw);
+
+            string motivo = estadoCmd != "LIVRE" && motivoCmd != "" ? motivoCmd : "fora do horario";
             foreach (string t in fechadas)
-                Evento("Navegador fechado (" + (estadoCmd != "LIVRE" && motivoCmd != "" ? motivoCmd : "fora do horario") + "): " + t);
+                Evento("Navegador fechado (" + motivo + "): " + t);
+            foreach (string t in encerrados)
+                Evento("Navegador ENCERRADO porque a janela nao fechou (" + motivo + "): " + t);
         }
 
         private void FecharPlataformas()
