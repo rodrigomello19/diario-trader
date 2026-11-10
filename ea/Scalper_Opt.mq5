@@ -242,8 +242,6 @@ bool   g_espelhoOculto  = false;
 ulong  g_espelhoVerificarMs = 0;   // quando conferir se o indicador respondeu ao botao BOLHAS
 // outro EA no mesmo ativo (v6.07)
 string g_outroEATxt        = "";   // o que aparece na barra de status ("" = nenhum)
-long   g_outroEACharts[];          // graficos com outro EA neste ativo
-ulong  g_outroEAConfirmaMs = 0;    // 1o clique na barra: aguarda o 2o por 4 s
 const int ESPELHO_EVENTO = 7101;             // evento enviado ao indicador: CHARTEVENT_CUSTOM + 7101
 string g_btnPressNome   = "";               // botao com destaque de clique (volta ao normal no timer/tick)
 ulong  g_btnPressMs     = 0;
@@ -735,7 +733,6 @@ void     CopiarLinhasDeGrafico(const long chartOrigem);
 bool     ProcessarCliqueListaSync(const string nome);
 void     ProcessarListaSyncTimeout();
 void     VerificarOutrosEAs(const bool forcar = false);
-bool     ProcessarCliqueOutroEA(const string nome);
 
 string GVOpCounted(ulong dealTkt)  { return GV_PREFIX + "OC_" + IntegerToString(dealTkt); }
 string GVOpOpen(ulong posTkt)      { return GV_PREFIX + "OPO_" + IntegerToString(posTkt); }
@@ -4536,7 +4533,7 @@ bool ObterStatusImpedimento(string &texto, color &cor)
    }
    if(g_outroEATxt != "")
    {
-      texto = (g_outroEAConfirmaMs > 0) ? "CLIQUE DE NOVO PARA FECHAR O GRAFICO DO OUTRO EA" : "OUTRO EA: " + g_outroEATxt;
+      texto = "OUTRO EA LIGADO: " + g_outroEATxt;
       cor = C_STATUS_ERR;
       return true;
    }
@@ -7494,8 +7491,6 @@ void OnChartEvent(const int id, const long &lparam,
    {
       if(ProcessarCliqueListaSync(sparam))
          return;
-      if(ProcessarCliqueOutroEA(sparam))
-         return;
 
       string btn = ResolverCliqueBotaoPainel(sparam);
       if(btn != "")
@@ -9393,8 +9388,7 @@ void EsconderObjetosEspelhoNovos()
 //| A cada 2 s confere os outros graficos deste ativo: se algum tem   |
 //| um EA (ex.: DGX), ou se ha posicao/ordem de outro EA (magic de    |
 //| outro robo), a barra de status fica vermelha e toca um alerta.    |
-//| O MQL5 nao permite desligar o Algo Trading de outro EA; clicar 2x |
-//| na barra de status fecha o grafico dele (o modelo e salvo antes). |
+//| So avisa: o MQL5 nao permite desligar o Algo Trading de outro EA. |
 //+------------------------------------------------------------------+
 
 void VerificarOutrosEAs(const bool forcar = false)
@@ -9403,19 +9397,14 @@ void VerificarOutrosEAs(const bool forcar = false)
    ulong agora = GetTickCount64();
    if(!forcar && s_ms > 0 && agora - s_ms < 2000) return;
    s_ms = agora;
-   if(g_outroEAConfirmaMs > 0 && agora - g_outroEAConfirmaMs > 4000) g_outroEAConfirmaMs = 0;
 
    // 1) outros graficos do mesmo ativo com EA
    string txt = "";
-   ArrayResize(g_outroEACharts, 0);
    for(long cid = ChartFirst(); cid >= 0; cid = ChartNext(cid))
    {
       if(cid == ChartID() || ChartSymbol(cid) != _Symbol) continue;
       string ea = ChartGetString(cid, CHART_EXPERT_NAME);
       if(ea == "") continue;
-      int n = ArraySize(g_outroEACharts);
-      ArrayResize(g_outroEACharts, n + 1);
-      g_outroEACharts[n] = cid;
       txt += (txt == "" ? "" : ", ") + ea + " (" + StringSubstr(EnumToString(ChartPeriod(cid)), 7) + ")";
    }
 
@@ -9446,51 +9435,13 @@ void VerificarOutrosEAs(const bool forcar = false)
    if(novo)
    {
       Alert("Scalper Pro " + _Symbol + ": OUTRO EA LIGADO - " + txt + ". Ele pode interferir na sua operacao.");
-      PrintFormat("SP OUTRO EA: %s | clique 2x na barra de status do painel para fechar o grafico dele", txt);
+      PrintFormat("SP OUTRO EA: %s | ele pode interferir na operacao deste grafico", txt);
    }
    else if(txt == "")
       Print("SP OUTRO EA: nenhum outro EA neste ativo agora");
    if(ObjectFind(0, OBJ_STATUS_STRIP) >= 0)
       ObjectSetString(0, OBJ_STATUS_STRIP, OBJPROP_TOOLTIP, txt == "" ? "\n"
-                      : "Outro EA neste ativo: " + txt + "\nClique 2x aqui para fechar o grafico dele (o modelo e salvo antes)");
+                      : "Outro EA neste ativo: " + txt + "\nEle pode interferir na sua operacao. Remova-o do grafico se nao for usar.");
    SincronizarStatusImpedimento();
    ChartRedraw(0);
-}
-
-// 1o clique na barra de status: pede confirmacao; 2o clique (em ate 4 s): fecha os graficos dos outros EAs.
-// Sem MessageBox: uma janela de confirmacao travaria o EA (e o copiador) enquanto estivesse aberta.
-bool ProcessarCliqueOutroEA(const string nome)
-{
-   if(nome != OBJ_STATUS_STRIP && nome != OBJ_TXT_STATUS) return false;
-   if(ArraySize(g_outroEACharts) == 0) return false;
-   ulong agora = GetTickCount64();
-   if(g_outroEAConfirmaMs == 0 || agora - g_outroEAConfirmaMs > 4000)
-   {
-      g_outroEAConfirmaMs = agora;
-      SincronizarStatusImpedimento();
-      ChartRedraw(0);
-      return true;
-   }
-   g_outroEAConfirmaMs = 0;
-   int fechados = 0;
-   for(int i = 0; i < ArraySize(g_outroEACharts); i++)
-   {
-      long cid = g_outroEACharts[i];
-      string ea = ChartGetString(cid, CHART_EXPERT_NAME);
-      if(ea == "") continue;
-      string modelo = "SP_salvo_" + ea + "_" + ChartSymbol(cid);
-      StringReplace(modelo, " ", "_");
-      StringReplace(modelo, ".", "_");
-      bool salvo = ChartSaveTemplate(cid, modelo);
-      if(ChartClose(cid))
-      {
-         fechados++;
-         PrintFormat("SP OUTRO EA: grafico de %s (%s) fechado%s", ea, ChartSymbol(cid),
-                     salvo ? " | modelo salvo como " + modelo + " (botao direito no grafico > Modelos)" : "");
-      }
-   }
-   Status(fechados > 0 ? "Grafico do outro EA fechado (modelo salvo)" : "Nao consegui fechar o grafico do outro EA",
-          fechados > 0 ? C_STATUS_OK : C_STATUS_ERR, true);
-   VerificarOutrosEAs(true);
-   return true;
 }

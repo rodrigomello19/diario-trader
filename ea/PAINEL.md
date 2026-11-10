@@ -60,11 +60,9 @@ Copiador
   - **Quando avisa:**
     - se algum gráfico tiver um EA ligado (ex.: DGX);
     - se existir posição ou ordem do ativo aberta por outro robô (magic diferente de 0 e do magic das cópias).
-  - **Como avisa:** a barra de status fica **vermelha**, com `OUTRO EA: DGX (M5)`, e toca um **alerta** do MT5.
-  - **Para fechar o gráfico do outro EA:** clique na barra de status. Ela pede confirmação: **clique de novo em até 4 s**.
-  - **Antes de fechar,** o Scalper salva o gráfico como modelo `SP_salvo_<EA>_<ativo>`. Para reabrir: botão direito no gráfico > Modelos.
-  - **Posições já abertas pelo outro EA continuam abertas.** Feche-as à mão, se for o caso.
-  - **Por que não desligar só o Algo Trading do outro EA:** o MT5 não permite que um EA desligue o Algo Trading de outro. O botão geral "Algo Trading" desligaria também o Scalper Pro e o copiador.
+  - **Como avisa:** a barra de status fica **vermelha**, com `OUTRO EA LIGADO: DGX (M5)`, e toca um **alerta** do MT5. A barra volta ao normal quando o outro EA sair do gráfico.
+  - **É só um aviso:** o Scalper não mexe no outro EA. O MT5 não permite que um EA desligue o Algo Trading de outro. Para parar o outro EA, remova-o do gráfico (botão direito > Experts > Remover) ou desmarque "Permitir Algo Trading" nas propriedades dele (F7).
+  - **Limite:** só os gráficos do mesmo MT5 são vistos. Um EA em outro terminal na mesma conta só é percebido quando abrir posição ou ordem neste ativo.
 - **COMPRA / FECHA / VENDA:** mostram a tecla de atalho configurada nos parâmetros.
 - **Bloco de estado do dia:** segue a **Central de Controle**. Fica verde com LIBERADO e vermelho com BLOQUEADO quando a Central bloqueia, zera ou está offline.
 - **Oper:** mostra só a quantidade de operações do dia. O máximo fica na Central.
