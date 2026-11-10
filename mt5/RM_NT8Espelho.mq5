@@ -1,5 +1,5 @@
 //+------------------------------------------------------------------+
-//|  RM_NT8Espelho.mq5  v2.2  (versao leve)                           |
+//|  RM_NT8Espelho.mq5  v2.3  (versao leve)                           |
 //|  Espelho do grafico NT8 no MT5: VWAP + bandas, bolhas de delta,   |
 //|  PCR / 2x / X2 e absorcao, a partir de um horario do dia.         |
 //|                                                                   |
@@ -16,9 +16,11 @@
 //|     os dados continuam sendo lidos, entao reaparecem atualizados |
 //|  v2.2: confirma ao Scalper Pro (GV RMESP_ACK_<grafico>) que      |
 //|     escondeu/mostrou, para o EA avisar se o indicador nao responde|
+//|  v2.3: bolhas/textos/absorcao desenhados no fundo (nao cobrem o  |
+//|     painel do Scalper Pro) e linha de status discreta            |
 //+------------------------------------------------------------------+
 #property copyright   "Rodrigo Mello"
-#property version     "2.20"
+#property version     "2.30"
 #property description "Espelho leve NT8 -> MT5: VWAP, bolhas de delta e absorcao a partir de um horario."
 #property indicator_chart_window
 #property indicator_buffers 3
@@ -71,6 +73,8 @@ input bool   PrenderAbsorcaoNoCandle = true;   // mantem o ponto dentro do candl
 input int    MargemAbsorcaoPx = 2;             // folga do ponto amarelo ate a max/min do candle, em pixels
 input int    TamanhoFonte     = 8;
 input bool   MostrarStatus    = true;
+input bool   StatusDetalhado  = false;         // false = linha curta e discreta (detalhes ao passar o mouse)
+input bool   DesenharNoFundo  = true;          // bolhas/textos/absorcao atras do grafico: nao cobrem o painel do Scalper Pro
 input bool   Diagnostico      = true;          // registra no log (aba Experts) travamentos e execucoes lentas
 input int    LimiteDiagMs     = 30;            // registra execucoes do indicador acima deste tempo (ms)
 input int    LimiteTravaMs    = 400;           // registra quando o MT5 ficou parado mais que isto (ms)
@@ -650,6 +654,8 @@ bool Garantir(string nome, int tipo, datetime t, double ext, double hi, double l
       ObjectSetInteger(0, nome, OBJPROP_SELECTABLE, false);
       ObjectSetInteger(0, nome, OBJPROP_HIDDEN, true);
       if(tipo == 0) ObjectSetInteger(0, nome, OBJPROP_ARROWCODE, 108);
+      // no fundo: o painel do Scalper Pro (objetos da frente) fica por cima das bolhas
+      ObjectSetInteger(0, nome, OBJPROP_BACK, DesenharNoFundo);
       if(oculto) ObjectSetInteger(0, nome, OBJPROP_TIMEFRAMES, OBJ_NO_PERIODS);
       mexeu = true;
    }
@@ -939,12 +945,19 @@ void Status()
    if(MostrarAbsorcao) t += " | absorcao " + (string)nAbs;
    t += " | offset " + (PrecoPronto() ? DoubleToString(Offset(), 2) : "calibrando") + " | objetos " + (string)nObj;
    t += servicoOk ? " | escala: servico" : " | escala: ESTIMADA (inicie o servico RM_NT8Escala)";
-   if(oculto) t += " | OCULTO (botao ESPELHO)";
+   if(oculto) t += " | OCULTO (botao BOLHAS)";
    if(MonitorarConexao) t += conexAnt == 0 ? " | REDE: SEM CONEXAO" : " | rede ok " + (string)pingAtual + " ms";
    if(av != "") t += " | " + av;
-   if(statusCriado && t == statusTexto) return;                    // nada mudou: nao mexe no grafico
    bool alerta = StringFind(av, "ATENCAO") == 0;
-   statusTexto = t;
+   // linha curta: instrumento, hora da ultima leitura e so o que pede atencao (o resto vai na dica do mouse)
+   string curta = "NT8 " + (inst == "" ? "?" : inst) + " | " + ultLeitura;
+   if(oculto) curta += " | oculto";
+   if(MonitorarConexao && conexAnt == 0) curta += " | SEM CONEXAO";
+   if(avisoCopias != "") curta += " | " + IntegerToString((int)GlobalVariableGet(gvBase + "copias")) + " copias do indicador (Ctrl+I)";
+   else if(aviso != "") curta += " | aviso (passe o mouse)";
+   string mostrar = StatusDetalhado ? t : curta;
+   if(statusCriado && mostrar + "#" + t == statusTexto) return;    // nada mudou: nao mexe no grafico
+   statusTexto = mostrar + "#" + t;
    if(!statusCriado)
    {
       ObjectCreate(0, nm, OBJ_LABEL, 0, 0, 0);
@@ -956,8 +969,18 @@ void Status()
       ObjectSetInteger(0, nm, OBJPROP_HIDDEN, true);
       statusCriado = true;
    }
-   ObjectSetString (0, nm, OBJPROP_TEXT, t);
-   ObjectSetInteger(0, nm, OBJPROP_COLOR, alerta ? clrRed : clrSilver);
-   ObjectSetInteger(0, nm, OBJPROP_FONTSIZE, alerta ? 11 : 8);
+   ObjectSetString (0, nm, OBJPROP_TEXT, mostrar);
+   ObjectSetString (0, nm, OBJPROP_TOOLTIP, t);
+   if(StatusDetalhado)
+   {
+      ObjectSetInteger(0, nm, OBJPROP_COLOR, alerta ? clrRed : clrSilver);
+      ObjectSetInteger(0, nm, OBJPROP_FONTSIZE, alerta ? 11 : 8);
+   }
+   else
+   {
+      bool atencao = alerta || (MonitorarConexao && conexAnt == 0);
+      ObjectSetInteger(0, nm, OBJPROP_COLOR, atencao ? clrDarkOrange : clrGray);
+      ObjectSetInteger(0, nm, OBJPROP_FONTSIZE, 7);
+   }
 }
 //+------------------------------------------------------------------+

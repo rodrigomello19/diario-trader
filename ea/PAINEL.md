@@ -51,7 +51,11 @@ Copiador
     - `BOLHAS: atualize o RM_NT8Espelho (v2.2) e compile`: o indicador no gráfico é uma versão antiga e não respondeu;
     - `BOLHAS: RM_NT8Espelho nao esta nos graficos de US100`: o indicador não foi encontrado. A aba Experts lista os indicadores do gráfico.
   - O estado fica salvo por gráfico, inclusive ao trocar o tempo gráfico ou reiniciar o MT5.
-  - Precisa do **RM_NT8Espelho v2.2** (`mt5/RM_NT8Espelho.mq5`), copiado para `MQL5\Indicators` e compilado com F7.
+  - Precisa do **RM_NT8Espelho v2.2 ou mais nova** (`mt5/RM_NT8Espelho.mq5`), copiado para `MQL5\Indicators` e compilado com F7.
+- **RM_NT8Espelho v2.3:**
+  - **Bolhas atrás do painel:** as bolhas, os números (PCR, 2x, X2) e os pontos de absorção são desenhados **no fundo**, então o painel do Scalper Pro fica por cima. Se um ponto de absorção cair dentro do corpo de um candle, ele fica atrás do candle. Para voltar como era, use o parâmetro do indicador "DesenharNoFundo" = false.
+  - **Linha de status discreta** (canto inferior esquerdo, cinza e pequena): mostra só `NT8 <contrato> | <hora da última leitura>` e o que pede atenção, em laranja (sem conexão, cópias repetidas do indicador, avisos). O texto completo aparece ao passar o mouse. Para a linha longa de antes, use "StatusDetalhado" = true.
+  - **Cópias repetidas:** se a linha mostrar "2 copias do indicador (Ctrl+I)", há o indicador duas vezes no gráfico. Abra a lista com Ctrl+I e remova a cópia extra. Duas cópias desenham tudo em dobro.
 - **COMPRA / FECHA / VENDA:** mostram a tecla de atalho configurada nos parâmetros.
 - **Bloco de estado do dia:** segue a **Central de Controle**. Fica verde com LIBERADO e vermelho com BLOQUEADO quando a Central bloqueia, zera ou está offline.
 - **Oper:** mostra só a quantidade de operações do dia. O máximo fica na Central.
