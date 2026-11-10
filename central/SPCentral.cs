@@ -49,7 +49,7 @@ using System.Windows.Forms;
 using Microsoft.Win32;
 
 [assembly: System.Reflection.AssemblyTitle("SPCentral")]
-[assembly: System.Reflection.AssemblyVersion("1.6.0.0")]
+[assembly: System.Reflection.AssemblyVersion("1.7.0.0")]
 
 namespace SPCentral
 {
@@ -478,7 +478,7 @@ namespace SPCentral
     // ------------------------------------------------------------------------
     internal class FormCentral : Form
     {
-        public const string VERSAO = "1.6";   // aparece no titulo da janela e no log
+        public const string VERSAO = "1.7";   // aparece no titulo da janela e no log
         [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsProc cb, IntPtr lParam);
         [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr hWnd);
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(IntPtr hWnd, StringBuilder s, int max);
@@ -527,7 +527,8 @@ namespace SPCentral
         // UI
         private readonly NotifyIcon tray = new NotifyIcon();
         private readonly System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer();
-        private Label lblEstado, lblMotivo, lblOps, lblPts, lblHorario, lblEdicao;
+        private Label lblEstado, lblMotivo, lblOps, lblPts, lblHorario, lblEdicao, lblNav;
+        private volatile string navDiag = "";   // resultado da ultima varredura dos navegadores
         private ListView lvContas;
         private ListBox lbEventos;
         private TextBox txContaMae, txFilhas, txProc, txTitulos, txNavs;
@@ -1048,6 +1049,62 @@ namespace SPCentral
             }
         }
 
+        // Lista as janelas de navegador que a central enxerga (titulo e endereco) SEM fechar nada.
+        private void TestarNavegadores()
+        {
+            string[] titulos = ListaCsv(cfg.TitulosJanelas).ToArray();
+            string[] navs = ListaCsv(cfg.Navegadores).ToArray();
+            Thread t = new Thread(delegate ()
+            {
+                StringBuilder r = new StringBuilder();
+                r.AppendLine("Central v" + VERSAO + " | fechamento " + (cfg.FecharNavegadoresForaHorario ? "LIGADO" : "DESLIGADO")
+                             + " | agora: " + (navAtivo ? "FECHANDO (" + navMotivo + ")" : "liberado"));
+                r.AppendLine("Palavras: " + string.Join(", ", titulos));
+                r.AppendLine("Navegadores: " + string.Join(", ", navs));
+                r.AppendLine();
+                int n = 0;
+                EnumWindows(delegate (IntPtr h, IntPtr l)
+                {
+                    if (!IsWindowVisible(h)) return true;
+                    StringBuilder sb = new StringBuilder(512);
+                    GetWindowText(h, sb, sb.Capacity);
+                    string titulo = sb.ToString();
+                    if (titulo.Length == 0) return true;
+                    uint pid;
+                    GetWindowThreadProcessId(h, out pid);
+                    string proc = "?";
+                    try { using (Process p = Process.GetProcessById((int)pid)) proc = p.ProcessName; } catch (Exception) { }
+                    bool nav = false;
+                    foreach (string x in navs) if (string.Equals(proc, x, StringComparison.OrdinalIgnoreCase)) nav = true;
+                    bool noTitulo = Contem(titulo, titulos);
+                    if (!nav && !noTitulo) return true;   // so navegadores e janelas com as palavras
+                    string end = nav ? EnderecoNavegador(h) : "";
+                    bool bate = noTitulo || Contem(end, titulos);
+                    n++;
+                    r.AppendLine(string.Format("[{0}] processo={1}{2}", bate ? (nav ? "FECHARIA" : "nao e navegador da lista") : "ok",
+                                 proc, nav ? "" : " (fora da lista de navegadores)"));
+                    r.AppendLine("   titulo:   " + titulo);
+                    if (nav) r.AppendLine("   endereco: " + (end == "" ? "(nao consegui ler)" : end));
+                    return true;
+                }, IntPtr.Zero);
+                if (n == 0) r.AppendLine("Nenhuma janela de navegador encontrada.");
+                string txt = r.ToString();
+                Util.Log("Teste de navegadores:\r\n" + txt);
+                try
+                {
+                    BeginInvoke(new MethodInvoker(delegate
+                    {
+                        Clipboard.SetText(txt);
+                        MessageBox.Show(txt + "\r\n(Texto copiado: cole na conversa se precisar.)", "Testar navegadores");
+                    }));
+                }
+                catch (Exception) { }
+            });
+            t.IsBackground = true;
+            t.SetApartmentState(ApartmentState.STA);
+            t.Start();
+        }
+
         private void EventoDaThread(string msg)
         {
             try { if (IsHandleCreated) BeginInvoke(new MethodInvoker(delegate { Evento(msg); })); else Util.Log(msg); }
@@ -1161,6 +1218,9 @@ namespace SPCentral
                 }
             }
 
+            navDiag = string.Format("ultima varredura {0:HH:mm:ss}: {1} janela(s) de navegador, {2} com as palavras",
+                                    DateTime.Now, janelas.Count, vistas.Count);
+
             // esquece as janelas que ja fecharam
             List<IntPtr> velhas = new List<IntPtr>();
             foreach (IntPtr hw in pedidoFechar.Keys) if (!vistas.Contains(hw)) velhas.Add(hw);
@@ -1228,7 +1288,10 @@ namespace SPCentral
             lblOps = new Label { Left = 16, Top = 84, Width = 760, Height = 22, Font = new Font("Segoe UI", 10f, FontStyle.Bold) };
             lblPts = new Label { Left = 16, Top = 108, Width = 760, Height = 22, Font = new Font("Segoe UI", 10f, FontStyle.Bold) };
             lblHorario = new Label { Left = 16, Top = 132, Width = 760, Height = 22, Font = new Font("Segoe UI", 10f) };
-            lvContas = new ListView { Left = 16, Top = 162, Width = 770, Height = 180, View = View.Details, FullRowSelect = true, GridLines = true };
+            lblNav = new Label { Left = 16, Top = 156, Width = 770, Height = 20, Font = new Font("Segoe UI", 9f) };
+            Button btTesteNav = new Button { Text = "Testar navegadores", Left = 616, Top = 16, Width = 170, Height = 28 };
+            btTesteNav.Click += delegate { TestarNavegadores(); };
+            lvContas = new ListView { Left = 16, Top = 180, Width = 770, Height = 162, View = View.Details, FullRowSelect = true, GridLines = true };
             lvContas.Columns.Add("Conta", 190);
             lvContas.Columns.Add("Papel", 90);
             lvContas.Columns.Add("Modo", 70);
@@ -1238,7 +1301,8 @@ namespace SPCentral
             lvContas.Columns.Add("Flutuante (pts)", 110);
             Label lbe = new Label { Text = "Eventos", Left = 16, Top = 350, Width = 200 };
             lbEventos = new ListBox { Left = 16, Top = 370, Width = 770, Height = 200, HorizontalScrollbar = true };
-            tpPainel.Controls.AddRange(new Control[] { lblEstado, lblMotivo, lblOps, lblPts, lblHorario, lvContas, lbe, lbEventos });
+            tpPainel.Controls.AddRange(new Control[] { lblEstado, lblMotivo, lblOps, lblPts, lblHorario, lblNav, btTesteNav, lvContas, lbe, lbEventos });
+            btTesteNav.BringToFront();
 
             // --- Configuracao (em blocos)
             TabPage tpCfg = new TabPage("Configuracao");
@@ -1569,6 +1633,22 @@ namespace SPCentral
                 ptsReal, ptsFlut, total,
                 cfg.MetaPontos > 0 ? "+" + cfg.MetaPontos.ToString("0", CultureInfo.InvariantCulture) : "-",
                 cfg.LimitePerda > 0 ? "-" + cfg.LimitePerda.ToString("0", CultureInfo.InvariantCulture) : "-");
+            if (!cfg.FecharNavegadoresForaHorario)
+            {
+                lblNav.Text = "Navegadores: DESLIGADO na configuracao (bloco Ao travar e fora do horario)";
+                lblNav.ForeColor = Color.Gray;
+            }
+            else if (navAtivo)
+            {
+                lblNav.Text = "Navegadores: FECHANDO (" + navMotivo + ") | palavras: " + string.Join(", ", navTitulos) + " | " + navDiag;
+                lblNav.ForeColor = Color.Firebrick;
+            }
+            else
+            {
+                lblNav.Text = "Navegadores: liberados (EAs liberados e dentro do horario) | palavras: " + string.Join(", ", navTitulos);
+                lblNav.ForeColor = Color.SeaGreen;
+            }
+
             lblHorario.Text = string.Format("Inicio {0} | limite {1} | reset {2} | conta mae {3} | dia desde {4:dd/MM HH:mm}",
                 cfg.HoraInicio == "" ? "-" : cfg.HoraInicio, cfg.HoraFim == "" ? "-" : cfg.HoraFim, cfg.HoraReset,
                 IdMae() == "" ? "(nao encontrada)" : IdMae(), iniDia);

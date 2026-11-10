@@ -97,6 +97,8 @@ A trava dura até o **reset diário** (ex.: 06:00 do dia seguinte). A **senha me
 
 - **Estado**, com a cor correspondente: LIBERADA (verde), AGUARDANDO HORÁRIO (laranja) ou TRAVADA (vermelho, com o motivo e o horário até quando).
 - **Contadores:** operações x/máximo e pontos (realizado, flutuante e total), comparados com a meta e o limite de perda. Com as proteções ligadas, mostra também as perdas seguidas (x/máximo), o melhor resultado fechado e o nível em que a proteção do lucro trava.
+- **Linha "Navegadores" (v1.7):** mostra se a Central está fechando navegadores agora, por qual motivo, quais palavras usa e o resultado da última varredura (quantas janelas de navegador viu e quantas tinham as palavras).
+- **Botão "Testar navegadores" (v1.7):** lista o processo, o título e o endereço de cada janela de navegador que a Central enxerga, e diz qual ela fecharia. **Não fecha nada.** O resultado vai para a área de transferência, para colar onde precisar, e também fica no log.
 - **Estado PAUSA APOS PERDA** (laranja): sem novas entradas até o horário indicado. Depois disso, a central volta a LIBERADA sozinha.
 - **Contas:** todas as contas que o Scalper Pro e a filha NT8 estão reportando, com papel (mãe ou filha), online, posições e flutuante.
 - **Eventos:** histórico das ações. Também fica gravado em `%LOCALAPPDATA%\SPCentral\log_AAAAMMDD.txt`.
