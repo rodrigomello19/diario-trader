@@ -1,13 +1,13 @@
 //+------------------------------------------------------------------+
-//|                     SCALPER PRO v6.05 - MT5                       |
+//|                     SCALPER PRO v6.06 - MT5                       |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, Scalper Pro"
-#property version       "6.05"
+#property version       "6.06"
 #property strict
 
 #include <Trade/Trade.mqh>
 
-const string SP_EA_VERSAO = "6.05";
+const string SP_EA_VERSAO = "6.06";
 
 CTrade trade;
 
@@ -108,7 +108,7 @@ input bool   InpLinhasAutoRecarga  = false;   // Redesenhar sozinho quando o arq
 input double InpLinhasFaixaPct     = 10.0;    // Ignorar precos a mais de X% do preco atual (erro de digitacao)
 
 input group "=== Indicador espelho do NT8 (botao BOLHAS) ==="
-input string InpEspelhoPrefixoObj  = "";      // Prefixo dos objetos do indicador a esconder ("" = so o aviso ao indicador)
+input string InpEspelhoPrefixoObj  = "RMN8_"; // Prefixo dos objetos do indicador a esconder ("" = so o aviso ao indicador)
 
 input group "=== Timer grafico ==="
 input double InpTimerDeslocPts     = 1.0;    // Deslocamento vertical (pts)
@@ -239,6 +239,7 @@ string OBJ_BTN_TS       = "SP_BTN_TS";        // liga/desliga o trailing stop (c
 string OBJ_BTN_ESPELHO  = "SP_BTN_ESPELHO";   // mostra/esconde o indicador espelho do NT8
 bool   g_tsLigado       = true;
 bool   g_espelhoOculto  = false;
+ulong  g_espelhoVerificarMs = 0;   // quando conferir se o indicador respondeu ao botao BOLHAS
 const int ESPELHO_EVENTO = 7101;             // evento enviado ao indicador: CHARTEVENT_CUSTOM + 7101
 string g_btnPressNome   = "";               // botao com destaque de clique (volta ao normal no timer/tick)
 ulong  g_btnPressMs     = 0;
@@ -260,6 +261,7 @@ const string LIN_PREFIX = "SPDIA_";
 const string SYNC_PREFIX = "SPSYNC_";
 // Lista "copiar de qual grafico?" do SYNC (fora do prefixo SP_ para nao entrar no layout do painel)
 const string SYNCSEL_PREFIX = "SPSEL_";
+const string TABC_PREFIX    = "SPTABC_";   // quadro "parametros das contas" (mae)
 const int    SYNCSEL_MAX    = 8;
 long     g_syncSelIds[];
 bool     g_syncSelAberta  = false;
@@ -500,6 +502,10 @@ ulong          g_copyAckUltMs      = 0;
 bool           g_copyMaeErroGrav   = false;
 int            g_copyFilhasN       = 0;
 int            g_copyFilhasProntas = 0;
+int            g_copyFilhasDif     = 0;      // filhas com TP/SL/trail/step/TS/parciais diferentes da mae
+string         g_filhaConta[];               // contas conectadas (lidas do ACK)
+string         g_filhaPrm[];                 // parametros de cada uma ("" = sem dados: NT8 ou versao antiga)
+bool           g_tabContasAberta   = false;
 ulong          g_copyFilhasLidoMs  = 0;
 //+------------------------------------------------------------------+
 //| Central de Controle (SPCentral) - integracao                     |
@@ -717,6 +723,13 @@ void     LinhasCarregar(const bool avisar);
 void     LinhasVerificarArquivo();
 void     SincronizarLinhasHorizontais();
 void     FecharListaSync();
+void     AbrirTabelaContas();
+void     FecharTabelaContas();
+void     AtualizarTabelaContas(const string prmMae);
+bool     ContaParamDiferentes(const string prmMae, const string prmFilha);
+string   CopyParametrosConta(const bool local);
+void     EspelhoObjetosPrefixo(const long cid, const bool esconder);
+void     VerificarEspelho();
 void     AgendarFechamentoPosicao(const ulong posId, const ulong posTkt, const ulong posTktTrans,
                                   const ulong idStats, const ulong deal);
 void     ProcessarFechamentosPendentes();
@@ -5306,7 +5319,7 @@ void ProcessarCliqueBotaoPainel(const string btn)
    else if(btn == OBJ_BTN_SL_DN) AjustarPontosPasso(OBJ_EDIT_SL, -1);
    else if(btn == OBJ_BTN_SL_UP) AjustarPontosPasso(OBJ_EDIT_SL, 1);
    else if(btn == OBJ_BTN_MINIMIZE) ToggleMinimizarPainel();
-   else if(btn == OBJ_BTN_CLOSE) { FecharListaSync(); ObjectsDeleteAll(0, "SP_"); }
+   else if(btn == OBJ_BTN_CLOSE) { FecharListaSync(); FecharTabelaContas(); ObjectsDeleteAll(0, "SP_"); }
 
    if(btn != OBJ_BTN_CLOSE)
    {
@@ -5693,6 +5706,7 @@ void ToggleMinimizarPainel()
 {
    g_painelMinimizado = !g_painelMinimizado;
    FecharListaSync();
+   FecharTabelaContas();
    AplicarEstadoMinimizadoPainel();
    ChartRedraw(0);
 }
@@ -6122,6 +6136,8 @@ void CopyMae_LerFilhas()
    static string s_nome[];
    static ulong  s_tick[];
    static bool   s_pronta[];
+   static string s_conta[];
+   static string s_prm[];
 
    string nome = "";
    string diag = "";   // motivo de cada ACK ignorado (diagnostico de "0 filhas")
@@ -6160,22 +6176,39 @@ void CopyMae_LerFilhas()
             ArrayResize(s_nome, k + 1);
             ArrayResize(s_tick, k + 1);
             ArrayResize(s_pronta, k + 1);
+            ArrayResize(s_conta, k + 1);
+            ArrayResize(s_prm, k + 1);
             s_nome[k] = nome;
          }
          s_tick[k]   = tk;
          s_pronta[k] = (a[5] == "1");
+         s_conta[k]  = a[3];
+         s_prm[k]    = "";
+         if(ArraySize(a) >= 19 && a[6] == "PRM")   // filha v6.06+ manda os parametros
+            for(int j = 6; j < 19; j++) s_prm[k] += (j == 6 ? "" : "|") + a[j];
       }
       while(FileFindNext(hf, nome));
       FileFindClose(hf);
    }
 
-   int n = 0, prontas = 0;
+   int n = 0, prontas = 0, dif = 0;
+   ArrayResize(g_filhaConta, 0);
+   ArrayResize(g_filhaPrm, 0);
+   string prmMae = CopyParametrosConta(true);
    for(int i = 0; i < ArraySize(s_nome); i++)
    {
       if(agora > s_tick[i] && agora - s_tick[i] > (ulong)COPY_MAE_VELHA_MS) continue;
       n++;
       if(s_pronta[i]) prontas++;
+      int q = ArraySize(g_filhaConta);
+      ArrayResize(g_filhaConta, q + 1);
+      ArrayResize(g_filhaPrm, q + 1);
+      g_filhaConta[q] = s_conta[i];
+      g_filhaPrm[q]   = s_prm[i];
+      if(ContaParamDiferentes(prmMae, s_prm[i])) dif++;
    }
+   g_copyFilhasDif = dif;
+   AtualizarTabelaContas(prmMae);
 
    if(n != g_copyFilhasN || prontas != g_copyFilhasProntas)
       PrintFormat("Scalper Pro copiador MAE: filhas conectadas=%d prontas=%d", n, prontas);
@@ -6209,9 +6242,23 @@ void CopyFilha_GravarAck()
    if(h == INVALID_HANDLE) return;
    string txt = "ACK|" + g_copyCanal + "|" + IntegerToString((long)agora) + "|"
               + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) + "|" + _Symbol + "|"
-              + (CopyFilha_Pronta() ? "1" : "0") + "\r\n";
+              + (CopyFilha_Pronta() ? "1" : "0") + "|" + CopyParametrosConta(InpCopySLTPModo == COPY_SLTP_LOCAL) + "\r\n";
    FileWriteString(h, txt, StringLen(txt));
    FileClose(h);
+}
+
+// Parametros desta conta para o quadro de contas da mae (v6.06):
+// PRM|lote|tp|sl|trail|step|ts(0/1/2)|parciais(1/0)|p1pts|p1pct|p2pts|p2pct|local(1/0)
+string CopyParametrosConta(const bool local)
+{
+   double p1 = 0, c1 = 0, p2 = 0, c2 = 0;
+   PartialConfig(1, p1, c1);
+   PartialConfig(2, p2, c2);
+   return "PRM|" + DoubleToString(Lote, 2) + "|" + DoubleToString(TakeProfit, 0) + "|"
+        + DoubleToString(StopLoss, 0) + "|" + DoubleToString(TrailingStart, 0) + "|"
+        + DoubleToString(TrailingStep, 0) + "|" + IntegerToString(ModoTSPainel()) + "|"
+        + (ParciaisAtivas() ? "1" : "0") + "|" + DoubleToString(p1, 0) + "|" + DoubleToString(c1, 0) + "|"
+        + DoubleToString(p2, 0) + "|" + DoubleToString(c2, 0) + "|" + (local ? "1" : "0");
 }
 
 // Registra por que uma posicao da mae nao foi copiada (sem repetir a cada ciclo).
@@ -6914,6 +6961,14 @@ void CopyStatusCalcular(string &txt, color &cor, string &dica)
          cor = C_STATUS_WARN;
          return;
       }
+      dica += " | clique para ver os parametros das contas";
+      if(g_copyFilhasDif > 0)
+      {
+         txt = bola + IntegerToString(g_copyFilhasN) + (g_copyFilhasN == 1 ? " FILHA" : " FILHAS")
+             + " | PARAMETROS DIFERENTES";
+         cor = C_STATUS_WARN;
+         return;
+      }
       txt = bola + "MAE PRONTA | " + IntegerToString(g_copyFilhasN)
           + (g_copyFilhasN == 1 ? " FILHA CONECTADA" : " FILHAS CONECTADAS");
       cor = C_STATUS_OK;
@@ -7158,6 +7213,7 @@ int OnInit()
 
    RemoverRestosLimitesAntigos();
    ObjectsDeleteAll(0, SYNCSEL_PREFIX);   // lista do SYNC que tenha ficado de uma execucao anterior
+   ObjectsDeleteAll(0, TABC_PREFIX);      // quadro de contas idem
 
    ConfigurarGrafico();
    LimparGVsOrfas();
@@ -7205,6 +7261,7 @@ int OnInit()
 void OnDeinit(const int reason)
 {
    EventKillTimer();
+   FecharTabelaContas();
    ProcessarFechamentosPendentes();
    FecharListaSync();
    CancelarEdicaoCampoAtiva();
@@ -7409,6 +7466,7 @@ void OnTimer()
    ProcessarEstatisticasPendentes();
    if(g_espelhoOculto && InpEspelhoPrefixoObj != "")
       EsconderObjetosEspelhoNovos();
+   VerificarEspelho();
    ProcessarListaSyncTimeout();
 
    ProcessarResetStatusGeralAgendado();
@@ -7475,6 +7533,18 @@ void OnChartEvent(const int id, const long &lparam,
    {
       if(ProcessarCliqueListaSync(sparam))
          return;
+      if(StringFind(sparam, TABC_PREFIX) == 0)
+      {
+         if(sparam == TABC_PREFIX + "X") { FecharTabelaContas(); ChartRedraw(0); }
+         return;
+      }
+      if((sparam == OBJ_COPY_STATUS || sparam == OBJ_COPY_STRIP) && g_copyModoEf == COPY_MAE)
+      {
+         if(g_tabContasAberta) FecharTabelaContas();
+         else                  AbrirTabelaContas();
+         ChartRedraw(0);
+         return;
+      }
 
       string btn = ResolverCliqueBotaoPainel(sparam);
       if(btn != "")
@@ -9122,13 +9192,6 @@ void RotuloCampo(const string name, const int x, const int y)
    AplicarEstiloRotuloParametro(name);
 }
 
-void RotuloDireita(const string name, const int xDireita, const int y, const string texto, const color c)
-{
-   CreateLabel(name, xDireita, y, texto, c, 8);
-   ObjectSetInteger(0, name, OBJPROP_ANCHOR, ANCHOR_RIGHT_UPPER);
-   ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
-}
-
 void BotaoExecucao(const string name, const int x, const int y, const int w, const string titulo, const int tecla)
 {
    CreateButton(name, x, y, w, EXEC_BTN_H, "", BTN_EXEC_FONT_SIZE);
@@ -9171,13 +9234,13 @@ int DesenharSecoesPainel(const int lx, const int divW, const bool criar)
    CreateButton(OBJ_BTN_LOTE_UP, c1 + colW - 26, f1, 26, PFLD_H, "+", 11);
 
    RotuloCampo("SP_TP", c2, l1);
-   RotuloDireita("SP_TPU", c2 + colW, l1, "pts", C_MUTED);
+   ObjectDelete(0, "SP_TPU");   // "pts" removido (v6.06)
    CreateButton(OBJ_BTN_TP_DN, c2, f1, 26, PFLD_H, "-", 11);
    PosicionarCampo(OBJ_EDIT_TP, c2 + 28, f1, colW - 56, PFLD_H, criar, DoubleToString(TakeProfit, 0));
    CreateButton(OBJ_BTN_TP_UP, c2 + colW - 26, f1, 26, PFLD_H, "+", 11);
 
    RotuloCampo("SP_SL", c1, l2);
-   RotuloDireita("SP_SLU", c1 + colW, l2, "pts", C_MUTED);
+   ObjectDelete(0, "SP_SLU");
    CreateButton(OBJ_BTN_SL_DN, c1, f2, 26, PFLD_H, "-", 11);
    PosicionarCampo(OBJ_EDIT_SL, c1 + 28, f2, colW - 56, PFLD_H, criar, DoubleToString(StopLoss, 0));
    CreateButton(OBJ_BTN_SL_UP, c1 + colW - 26, f2, 26, PFLD_H, "+", 11);
@@ -9275,21 +9338,71 @@ void AtualizarBotaoEspelho()
                    : "Esconder as bolhas e a VWAP do NT8 (grafico limpo)");
 }
 
-// Avisa o indicador na hora (evento do grafico, sem consulta periodica) e, se informado,
-// esconde/mostra os objetos com o prefixo do indicador.
+// Avisa o indicador na hora (evento do grafico, sem consulta periodica) em TODOS os graficos
+// deste ativo (o indicador pode estar no grafico de estudo) e esconde/mostra os objetos com o
+// prefixo do indicador (funciona mesmo com uma versao antiga do indicador).
 void AplicarEspelho()
 {
-   GlobalVariableSet(NomeGVEspelho(), g_espelhoOculto ? 1.0 : 0.0);
-   EventChartCustom(ChartID(), (ushort)ESPELHO_EVENTO, g_espelhoOculto ? 1 : 0, 0.0, "RM_NT8Espelho");
-   if(InpEspelhoPrefixoObj != "")
+   double v = g_espelhoOculto ? 1.0 : 0.0;
+   for(long cid = ChartFirst(); cid >= 0; cid = ChartNext(cid))
    {
-      for(int i = ObjectsTotal(0, -1, -1) - 1; i >= 0; i--)
-      {
-         string nome = ObjectName(0, i, -1, -1);
-         if(StringFind(nome, InpEspelhoPrefixoObj) != 0) continue;
-         ObjectSetInteger(0, nome, OBJPROP_TIMEFRAMES, g_espelhoOculto ? OBJ_NO_PERIODS : OBJ_ALL_PERIODS);
-      }
+      if(ChartSymbol(cid) != _Symbol) continue;
+      GlobalVariableSet("RMESP_OCULTO_" + IntegerToString(cid), v);
+      EventChartCustom(cid, (ushort)ESPELHO_EVENTO, g_espelhoOculto ? 1 : 0, 0.0, "RM_NT8Espelho");
+      EspelhoObjetosPrefixo(cid, g_espelhoOculto);
    }
+   g_espelhoVerificarMs = GetTickCount64() + 1500;   // confere a resposta do indicador
+}
+
+void EspelhoObjetosPrefixo(const long cid, const bool esconder)
+{
+   if(InpEspelhoPrefixoObj == "") return;
+   for(int i = ObjectsTotal(cid, -1, -1) - 1; i >= 0; i--)
+   {
+      string nome = ObjectName(cid, i, -1, -1);
+      if(StringFind(nome, InpEspelhoPrefixoObj) != 0) continue;
+      ObjectSetInteger(cid, nome, OBJPROP_TIMEFRAMES, esconder ? OBJ_NO_PERIODS : OBJ_ALL_PERIODS);
+   }
+   ChartRedraw(cid);
+}
+
+// 1,5 s depois do clique: o indicador RM_NT8Espelho (v2.2+) respondeu? Diz na barra de status.
+void VerificarEspelho()
+{
+   if(g_espelhoVerificarMs == 0 || GetTickCount64() < g_espelhoVerificarMs) return;
+   g_espelhoVerificarMs = 0;
+
+   int nInd = 0, nAck = 0;
+   for(long cid = ChartFirst(); cid >= 0; cid = ChartNext(cid))
+   {
+      if(ChartSymbol(cid) != _Symbol) continue;
+      int h = ChartIndicatorGet(cid, 0, "RM_NT8Espelho");
+      if(h == INVALID_HANDLE) continue;
+      IndicatorRelease(h);
+      nInd++;
+      string g = "RMESP_ACK_" + IntegerToString(cid);
+      if(GlobalVariableCheck(g) && (GlobalVariableGet(g) > 0.5) == g_espelhoOculto) nAck++;
+   }
+
+   if(nInd == 0)
+   {
+      Status("BOLHAS: RM_NT8Espelho nao esta nos graficos de " + _Symbol, C_STATUS_WARN, true);
+      string lista = "";
+      for(int i = 0; i < ChartIndicatorsTotal(0, 0); i++)
+         lista += (lista == "" ? "" : ", ") + ChartIndicatorName(0, 0, i);
+      PrintFormat("SP BOLHAS: indicador RM_NT8Espelho nao encontrado | indicadores neste grafico: %s",
+                  lista == "" ? "nenhum" : lista);
+   }
+   else if(nAck < nInd)
+   {
+      Status("BOLHAS: atualize o RM_NT8Espelho (v2.2) e compile", C_STATUS_WARN, true);
+      PrintFormat("SP BOLHAS: %d grafico(s) com RM_NT8Espelho, %d respondeu(ram). Instale a v2.2 do indicador "
+                  "(MQL5\\Indicators) e compile com F7. Enquanto isso so os objetos %s sao escondidos (a VWAP fica).",
+                  nInd, nAck, InpEspelhoPrefixoObj);
+   }
+   else
+      Status(g_espelhoOculto ? "Bolhas e VWAP escondidas (" + IntegerToString(nInd) + " grafico(s))"
+                             : "Bolhas e VWAP visiveis", C_STATUS_OK, false);
 }
 
 void ToggleEspelho()
@@ -9297,24 +9410,183 @@ void ToggleEspelho()
    g_espelhoOculto = !g_espelhoOculto;
    AplicarEspelho();
    AtualizarBotaoEspelho();
-   Status(g_espelhoOculto ? "Bolhas e VWAP do NT8 escondidas" : "Bolhas e VWAP do NT8 visiveis", C_STATUS_OK, false);
+   Status(g_espelhoOculto ? "BOLHAS: escondendo..." : "BOLHAS: mostrando...", C_STATUS_OK, false);
    ChartRedraw(0);
 }
 
 // Enquanto escondido: objetos que o indicador criar depois tambem ficam escondidos
-// (so varre quando a quantidade de objetos do grafico muda).
+// (so varre quando a quantidade de objetos dos graficos do ativo muda; 1x por segundo).
 void EsconderObjetosEspelhoNovos()
 {
-   static int s_total = -1;
-   int total = ObjectsTotal(0, -1, -1);
+   static long s_total = -1;
+   long total = 0;
+   for(long cid = ChartFirst(); cid >= 0; cid = ChartNext(cid))
+      if(ChartSymbol(cid) == _Symbol) total += ObjectsTotal(cid, -1, -1);
    if(total == s_total) return;
    s_total = total;
-   for(int i = total - 1; i >= 0; i--)
+   for(long cid = ChartFirst(); cid >= 0; cid = ChartNext(cid))
    {
-      string nome = ObjectName(0, i, -1, -1);
-      if(StringFind(nome, InpEspelhoPrefixoObj) != 0) continue;
-      if(ObjectGetInteger(0, nome, OBJPROP_TIMEFRAMES) != OBJ_NO_PERIODS)
-         ObjectSetInteger(0, nome, OBJPROP_TIMEFRAMES, OBJ_NO_PERIODS);
+      if(ChartSymbol(cid) != _Symbol) continue;
+      for(int i = ObjectsTotal(cid, -1, -1) - 1; i >= 0; i--)
+      {
+         string nome = ObjectName(cid, i, -1, -1);
+         if(StringFind(nome, InpEspelhoPrefixoObj) != 0) continue;
+         if(ObjectGetInteger(cid, nome, OBJPROP_TIMEFRAMES) != OBJ_NO_PERIODS)
+            ObjectSetInteger(cid, nome, OBJPROP_TIMEFRAMES, OBJ_NO_PERIODS);
+      }
    }
 }
 
+//+------------------------------------------------------------------+
+//| Quadro "parametros das contas" (mae, v6.06)                       |
+//| Abre/fecha clicando na faixa do copiador. Mostra a mae e cada     |
+//| filha conectada; o que difere da mae fica em vermelho.            |
+//+------------------------------------------------------------------+
+// campos de "PRM|lote|tp|sl|tr|st|ts|parc|p1p|p1c|p2p|p2c|local": indices 1..12
+bool ContaPrmCampos(const string prm, string &c[])
+{
+   if(prm == "") return false;
+   return (StringSplit(prm, '|', c) >= 13 && c[0] == "PRM");
+}
+
+bool ContaNumDif(const string a, const string b)
+{
+   return MathAbs(StringToDouble(a) - StringToDouble(b)) > 0.5;
+}
+
+// Diferenca que muda a execucao (o lote nao conta). Filha que segue o SL/TP da mae
+// (modo diferente de LOCAL) nao usa TP/SL/trail/parciais proprios.
+bool ContaParamDiferentes(const string prmMae, const string prmFilha)
+{
+   string m[], f[];
+   if(!ContaPrmCampos(prmMae, m) || !ContaPrmCampos(prmFilha, f)) return false;
+   if(f[12] != "1") return false;
+   for(int i = 2; i <= 5; i++) if(ContaNumDif(m[i], f[i])) return true;
+   if(m[6] != f[6] || m[7] != f[7]) return true;
+   if(m[7] == "1")
+      for(int i = 8; i <= 11; i++) if(ContaNumDif(m[i], f[i])) return true;
+   return false;
+}
+
+void FecharTabelaContas()
+{
+   if(!g_tabContasAberta && ObjectFind(0, TABC_PREFIX + "BG") < 0) return;
+   ObjectsDeleteAll(0, TABC_PREFIX);
+   g_tabContasAberta = false;
+}
+
+void AbrirTabelaContas()
+{
+   g_tabContasAberta = true;
+   AtualizarTabelaContas(CopyParametrosConta(true));
+}
+
+void TabelaContasCelula(const string nome, const int x, const int y, const string txt, const color c,
+                        const bool negrito = false, const string dica = "")
+{
+   CreateLabel(nome, x, y, txt, c, 8, negrito);
+   ObjectSetInteger(0, nome, OBJPROP_ZORDER, 301);
+   ObjectSetInteger(0, nome, OBJPROP_SELECTABLE, false);
+   ObjectSetInteger(0, nome, OBJPROP_HIDDEN, true);
+   ObjectSetString(0, nome, OBJPROP_TOOLTIP, dica == "" ? "\n" : dica);
+}
+
+string ContaTextoTS(const string v)
+{
+   if(v == "0") return "0 OFF";
+   if(v == "1") return "1 FIXO";
+   if(v == "2") return "2 DIN";
+   return v;
+}
+
+// Redesenha so quando algum valor mudou (chamado a cada 1 s pela leitura das filhas).
+void AtualizarTabelaContas(const string prmMae)
+{
+   if(!g_tabContasAberta) return;
+   static string s_assin = "";
+   string assin = prmMae;
+   for(int i = 0; i < ArraySize(g_filhaConta); i++) assin += "#" + g_filhaConta[i] + "=" + g_filhaPrm[i];
+   if(assin == s_assin && ObjectFind(0, TABC_PREFIX + "BG") >= 0) return;
+   s_assin = assin;
+   ObjectsDeleteAll(0, TABC_PREFIX);
+
+   int    colX[8] = {0, 104, 152, 196, 240, 284, 324, 374};
+   string cab[8]  = {"Conta", "Lote", "TP", "SL", "Trail", "Step", "TS", "Parciais"};
+   const int w = 440, linhaH = 18, pad = 10;
+   int nLin = 1 + ArraySize(g_filhaConta);
+   int h = pad + 18 + linhaH + nLin * linhaH + (ArraySize(g_filhaConta) == 0 ? linhaH : 0) + 16 + pad;
+   int x = PANEL_X + PANEL_W + 6;
+   int y = PANEL_Y;
+
+   CreateRect(TABC_PREFIX + "BG", x, y, w, h, C_GLASS_BG, C_BORDER_COLOR);
+   ObjectSetInteger(0, TABC_PREFIX + "BG", OBJPROP_ZORDER, 300);
+   TabelaContasCelula(TABC_PREFIX + "TIT", x + pad, y + pad, "Parametros das contas", C_NOME_COLOR, true);
+   CreateButton(TABC_PREFIX + "X", x + w - 26, y + 6, 20, 18, "X", 8);
+   ObjectSetInteger(0, TABC_PREFIX + "X", OBJPROP_ZORDER, 302);
+
+   int yl = y + pad + 18;
+   for(int c = 0; c < 8; c++)
+      TabelaContasCelula(TABC_PREFIX + "H" + IntegerToString(c), x + pad + colX[c], yl, cab[c], C_MUTED, true);
+   yl += linhaH;
+
+   string m[];
+   bool temMae = ContaPrmCampos(prmMae, m);
+   for(int r = 0; r < nLin; r++)
+   {
+      bool   ehMae = (r == 0);
+      string conta = ehMae ? "MAE " + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) : g_filhaConta[r - 1];
+      string f[];
+      bool   temDados = temMae;
+      if(ehMae) ArrayCopy(f, m);
+      else      temDados = ContaPrmCampos(g_filhaPrm[r - 1], f);
+      bool   segueMae = (!ehMae && temDados && f[12] != "1");
+      string pre = TABC_PREFIX + "L" + IntegerToString(r) + "_";
+      TabelaContasCelula(pre + "0", x + pad + colX[0], yl, conta, C_NOME_COLOR, ehMae);
+
+      if(!temDados)
+      {
+         TabelaContasCelula(pre + "1", x + pad + colX[1], yl,
+                            StringFind(conta, "NT-") == 0 ? "NT8: parametros no NinjaTrader (ATM/ticks)"
+                                                          : "sem dados (atualize o EA desta conta)", C_MUTED);
+         yl += linhaH;
+         continue;
+      }
+
+      TabelaContasCelula(pre + "1", x + pad + colX[1], yl, f[1], C_NOME_COLOR);
+      if(segueMae)
+      {
+         TabelaContasCelula(pre + "2", x + pad + colX[2], yl, "segue o SL/TP da mae", C_MUTED);
+         yl += linhaH;
+         continue;
+      }
+
+      for(int c = 2; c <= 7; c++)
+      {
+         string txt = (c == 6) ? ContaTextoTS(f[6]) : (c == 7 ? (f[7] == "1" ? "ON" : "OFF") : f[c]);
+         bool dif = false;
+         if(!ehMae && temMae)
+         {
+            if(c <= 5)      dif = ContaNumDif(m[c], f[c]);
+            else if(c == 6) dif = (m[6] != f[6]);
+            else
+            {
+               dif = (m[7] != f[7]);
+               if(!dif && m[7] == "1")
+                  for(int i = 8; i <= 11; i++) if(ContaNumDif(m[i], f[i])) dif = true;
+            }
+         }
+         string dica = (c == 7) ? StringFormat("P1 %s pts / %s%%  |  P2 %s pts / %s%%", f[8], f[9], f[10], f[11]) : "";
+         TabelaContasCelula(pre + IntegerToString(c), x + pad + colX[c], yl, txt + (dif ? " *" : ""),
+                            dif ? C_STATUS_ERR : C_NOME_COLOR, dif, dica);
+      }
+      yl += linhaH;
+   }
+   if(ArraySize(g_filhaConta) == 0)
+   {
+      TabelaContasCelula(TABC_PREFIX + "VAZIO", x + pad, yl, "nenhuma filha conectada", C_MUTED);
+      yl += linhaH;
+   }
+   TabelaContasCelula(TABC_PREFIX + "NOTA", x + pad, yl + 2,
+                      "* diferente da mae (o lote nao conta). Atualiza a cada 1 s.", C_MUTED);
+   ChartRedraw(0);
+}

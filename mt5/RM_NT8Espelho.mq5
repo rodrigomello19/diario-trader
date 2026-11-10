@@ -1,5 +1,5 @@
 //+------------------------------------------------------------------+
-//|  RM_NT8Espelho.mq5  v2.1  (versao leve)                           |
+//|  RM_NT8Espelho.mq5  v2.2  (versao leve)                           |
 //|  Espelho do grafico NT8 no MT5: VWAP + bandas, bolhas de delta,   |
 //|  PCR / 2x / X2 e absorcao, a partir de um horario do dia.         |
 //|                                                                   |
@@ -14,9 +14,11 @@
 //|  v2.1: botao ESPELHO do Scalper Pro (v6.04+) esconde/mostra      |
 //|     VWAP, bandas, bolhas e absorcao na hora (evento do grafico); |
 //|     os dados continuam sendo lidos, entao reaparecem atualizados |
+//|  v2.2: confirma ao Scalper Pro (GV RMESP_ACK_<grafico>) que      |
+//|     escondeu/mostrou, para o EA avisar se o indicador nao responde|
 //+------------------------------------------------------------------+
 #property copyright   "Rodrigo Mello"
-#property version     "2.10"
+#property version     "2.20"
 #property description "Espelho leve NT8 -> MT5: VWAP, bolhas de delta e absorcao a partir de um horario."
 #property indicator_chart_window
 #property indicator_buffers 3
@@ -181,6 +183,7 @@ void OnDeinit(const int reason)
    EventKillTimer();
    ObjectsDeleteAll(0, PFX);
    if(gvBase != "") GlobalVariablesDeleteAll(gvBase);
+   GlobalVariableDel("RMESP_ACK_" + (string)ChartID());
    nObj = 0; statusCriado = false;
    ChartRedraw();
 }
@@ -424,6 +427,7 @@ void AplicarVisibilidade(bool redesenhar)
    for(int i = 0; i < nObj; i++) ObjectSetInteger(0, objs[i].nome, OBJPROP_TIMEFRAMES, tf);
    if(!oculto && nObj > 0) { escalaPendente = true; ultEvento = 0; }   // a escala pode ter mudado enquanto oculto
    if(statusCriado) { statusTexto = ""; Status(); }
+   GlobalVariableSet("RMESP_ACK_" + (string)ChartID(), oculto ? 1.0 : 0.0);   // resposta ao Scalper Pro
    if(redesenhar) ChartRedraw();
 }
 

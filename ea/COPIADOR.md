@@ -41,7 +41,31 @@ Com o copiador ligado, o painel ganha uma faixa própria logo abaixo da barra de
 | `● COPY FILHA: AGUARDANDO MAE` | vermelho | O arquivo do canal ainda não existe |
 | `● COPY FILHA: CANAL DA PROPRIA CONTA` | vermelho | O arquivo do canal é desta mesma conta |
 
-Para a mãe saber quais filhas estão prontas, cada filha grava `Common\Files\SP_CopyAck_<canal>_<conta>.txt` a cada 500 ms.
+| `● COPY n FILHA(S) \| PARAMETROS DIFERENTES` | laranja | Alguma filha MT5 está com TP, SL, trail, step, TS ou parciais diferentes da mãe (v6.06). Clique na faixa para ver qual. |
+
+Para a mãe saber quais filhas estão prontas, cada filha grava `Common\Files\SP_CopyAck_<canal>_<conta>.txt` a cada 500 ms. Desde a v6.06, a filha MT5 também manda nesse arquivo os parâmetros do painel dela.
+
+## Quadro "Parâmetros das contas" (v6.06)
+
+Na **mãe**, clique na faixa do copiador para abrir ou fechar o quadro. Ele aparece ao lado direito do painel:
+
+```
+Parametros das contas                                          [X]
+Conta            Lote  TP     SL    Trail  Step  TS      Parciais
+MAE 510087363    0.20  10000  4000  5000   100   1 FIXO  ON
+1514567645       1.00  1500 * 1000 *500 *  100   1 FIXO  ON *
+NT-APEX2209...   NT8: parametros no NinjaTrader (ATM/ticks)
+* diferente da mae (o lote nao conta). Atualiza a cada 1 s.
+```
+
+- **Primeira linha:** a mãe, que é a referência.
+- **Uma linha por filha conectada.** O que for diferente da mãe aparece **em vermelho com \***.
+  - O **lote** é só mostrado, não comparado, porque cada conta pode ter o seu.
+  - Em **Parciais**, a comparação inclui ON/OFF e os valores de P1 e P2. Passe o mouse para ver os valores.
+- **Filha que segue o SL/TP da mãe** (modo diferente de LOCAL): mostra "segue o SL/TP da mae" e não é comparada.
+- **Filha NT8:** os parâmetros ficam no NinjaTrader (ATM ou contratos e ticks), então o quadro não os mostra.
+- **Filha com EA antigo (antes da v6.06):** aparece "sem dados".
+- O quadro é atualizado a cada 1 s. Para corrigir uma diferença, ajuste o painel da filha no MT5 dela.
 
 ## Logs
 

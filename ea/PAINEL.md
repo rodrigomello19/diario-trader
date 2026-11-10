@@ -1,11 +1,11 @@
-# Painel do Scalper Pro (v6.05): opção A, tema claro
+# Painel do Scalper Pro (v6.06): opção A, tema claro
 
 ```
 Scalper Pro  v5.94 | US100                    [-] [X]
 ┌ PARÂMETROS ─────────────────── [Normal|Volátil] ┐
-│ Lote               Take profit             pts  │
+│ Lote               Take profit                  │
 │ [-][  0.20  ][+]   [-][   1500    ][+]        │
-│ Stop loss     pts  Trail / Step           [1]   │
+│ Stop loss          Trail / Step           [1]   │
 │ [-][  1000  ][+]   [  500    ] [  100        ]  │
 └─────────────────────────────────────────────────┘
 ┌ PARCIAIS ─────────────────────────────── [ON] ┐
@@ -40,14 +40,18 @@ Copiador
   - Vale também com uma posição aberta, e a mudança entra no próximo tick.
   - A escolha fica salva por ativo, mesmo depois de reiniciar o MT5.
   - Parciais, TP, SL e o copiador não mudam.
-- **BOLHAS (v6.04, antes ESPELHO):** esconde ou mostra a VWAP, as bandas, as bolhas e a absorção do indicador **RM_NT8Espelho** no mesmo gráfico.
+- **Take profit e Stop loss:** a etiqueta "pts" foi tirada (v6.06). Os valores continuam em pontos.
+- **BOLHAS (v6.04, antes ESPELHO):** esconde ou mostra a VWAP, as bandas, as bolhas e a absorção do indicador **RM_NT8Espelho**.
   - Com o indicador escondido, o botão mostra **BOLHAS OFF**.
-  - **Como funciona:** o EA envia um evento ao indicador, que muda só a visibilidade do que já desenhou. Nada é apagado nem recriado.
-  - O indicador continua lendo os dados enquanto está escondido, então tudo volta atualizado.
-  - Não há verificação periódica, e as ordens não são afetadas.
+  - **Vale para todos os gráficos do mesmo ativo (v6.06),** inclusive o gráfico de estudo, e não só para o gráfico do EA.
+  - **Como funciona:** o EA envia um evento ao indicador, que muda só a visibilidade do que já desenhou. Nada é apagado nem recriado. O indicador continua lendo os dados, então tudo volta atualizado. As ordens não são afetadas.
+  - **Objetos `RMN8_`:** o EA também esconde direto os objetos do indicador (parâmetro "Prefixo dos objetos do indicador a esconder", agora `RMN8_` por padrão). Assim as bolhas e a absorção somem mesmo com uma versão antiga do indicador. A VWAP só some com a v2.2.
+  - **Confirmação (v6.06):** 1,5 s depois do clique, a barra de status diz o resultado:
+    - `Bolhas e VWAP escondidas (n gráfico(s))`: deu certo;
+    - `BOLHAS: atualize o RM_NT8Espelho (v2.2) e compile`: o indicador no gráfico é uma versão antiga e não respondeu;
+    - `BOLHAS: RM_NT8Espelho nao esta nos graficos de US100`: o indicador não foi encontrado. A aba Experts lista os indicadores do gráfico.
   - O estado fica salvo por gráfico, inclusive ao trocar o tempo gráfico ou reiniciar o MT5.
-  - Precisa do **RM_NT8Espelho v2.1** (`mt5/RM_NT8Espelho.mq5`).
-  - O parâmetro opcional "Prefixo dos objetos do indicador a esconder" (ex.: `RMN8_`) só serve para uma versão antiga do indicador. Com a v2.1, deixe vazio.
+  - Precisa do **RM_NT8Espelho v2.2** (`mt5/RM_NT8Espelho.mq5`), copiado para `MQL5\Indicators` e compilado com F7.
 - **COMPRA / FECHA / VENDA:** mostram a tecla de atalho configurada nos parâmetros.
 - **Bloco de estado do dia:** segue a **Central de Controle**. Fica verde com LIBERADO e vermelho com BLOQUEADO quando a Central bloqueia, zera ou está offline.
 - **Oper:** mostra só a quantidade de operações do dia. O máximo fica na Central.
