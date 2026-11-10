@@ -476,6 +476,7 @@ namespace SPCentral
     // ------------------------------------------------------------------------
     internal class FormCentral : Form
     {
+        public const string VERSAO = "1.3";   // aparece no titulo da janela e no log
         [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsProc cb, IntPtr lParam);
         [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr hWnd);
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(IntPtr hWnd, StringBuilder s, int max);
@@ -529,7 +530,7 @@ namespace SPCentral
 
         public FormCentral()
         {
-            Text = "Central de Controle - Scalper Pro";
+            Text = "Central de Controle v" + VERSAO + " - Scalper Pro";
             Width = 820;
             Height = 720;
             StartPosition = FormStartPosition.CenterScreen;
@@ -603,7 +604,7 @@ namespace SPCentral
             catch (Exception) { }
 
             CarregarCamposConfig();
-            Evento("Central iniciada.");
+            Evento("Central v" + VERSAO + " iniciada.");
         }
 
         private bool PrimeiraConfiguracao()

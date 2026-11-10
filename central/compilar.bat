@@ -7,6 +7,16 @@ if not exist "%CSC%" (
   pause
   exit /b 1
 )
+rem A central aberta trava o SPCentral.exe: o compilador nao consegue substitui-lo
+tasklist /FI "IMAGENAME eq SPCentral.exe" 2>nul | find /I "SPCentral.exe" >nul
+if not errorlevel 1 (
+  echo A Central de Controle esta ABERTA. Feche-a primeiro: aba Senha mestra ^> Fechar a central.
+  echo Sem isso o SPCentral.exe antigo continua sendo usado.
+  pause
+  exit /b 1
+)
+echo Compilando %~dp0SPCentral.cs
+findstr /C:"VERSAO = " "%~dp0SPCentral.cs"
 "%CSC%" /nologo /target:winexe /optimize+ /out:"%~dp0SPCentral.exe" /r:System.dll /r:System.Core.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll "%~dp0SPCentral.cs"
 if errorlevel 1 (
   echo.
