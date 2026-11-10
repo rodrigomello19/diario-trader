@@ -261,7 +261,6 @@ const string LIN_PREFIX = "SPDIA_";
 const string SYNC_PREFIX = "SPSYNC_";
 // Lista "copiar de qual grafico?" do SYNC (fora do prefixo SP_ para nao entrar no layout do painel)
 const string SYNCSEL_PREFIX = "SPSEL_";
-const string TABC_PREFIX    = "SPTABC_";   // quadro "parametros das contas" (mae)
 const int    SYNCSEL_MAX    = 8;
 long     g_syncSelIds[];
 bool     g_syncSelAberta  = false;
@@ -502,10 +501,6 @@ ulong          g_copyAckUltMs      = 0;
 bool           g_copyMaeErroGrav   = false;
 int            g_copyFilhasN       = 0;
 int            g_copyFilhasProntas = 0;
-int            g_copyFilhasDif     = 0;      // filhas com TP/SL/trail/step/TS/parciais diferentes da mae
-string         g_filhaConta[];               // contas conectadas (lidas do ACK)
-string         g_filhaPrm[];                 // parametros de cada uma ("" = sem dados: NT8 ou versao antiga)
-bool           g_tabContasAberta   = false;
 ulong          g_copyFilhasLidoMs  = 0;
 //+------------------------------------------------------------------+
 //| Central de Controle (SPCentral) - integracao                     |
@@ -723,11 +718,6 @@ void     LinhasCarregar(const bool avisar);
 void     LinhasVerificarArquivo();
 void     SincronizarLinhasHorizontais();
 void     FecharListaSync();
-void     AbrirTabelaContas();
-void     FecharTabelaContas();
-void     AtualizarTabelaContas(const string prmMae);
-bool     ContaParamDiferentes(const string prmMae, const string prmFilha);
-string   CopyParametrosConta(const bool local);
 void     EspelhoObjetosPrefixo(const long cid, const bool esconder);
 void     VerificarEspelho();
 void     AgendarFechamentoPosicao(const ulong posId, const ulong posTkt, const ulong posTktTrans,
@@ -5319,7 +5309,7 @@ void ProcessarCliqueBotaoPainel(const string btn)
    else if(btn == OBJ_BTN_SL_DN) AjustarPontosPasso(OBJ_EDIT_SL, -1);
    else if(btn == OBJ_BTN_SL_UP) AjustarPontosPasso(OBJ_EDIT_SL, 1);
    else if(btn == OBJ_BTN_MINIMIZE) ToggleMinimizarPainel();
-   else if(btn == OBJ_BTN_CLOSE) { FecharListaSync(); FecharTabelaContas(); ObjectsDeleteAll(0, "SP_"); }
+   else if(btn == OBJ_BTN_CLOSE) { FecharListaSync(); ObjectsDeleteAll(0, "SP_"); }
 
    if(btn != OBJ_BTN_CLOSE)
    {
@@ -5706,7 +5696,6 @@ void ToggleMinimizarPainel()
 {
    g_painelMinimizado = !g_painelMinimizado;
    FecharListaSync();
-   FecharTabelaContas();
    AplicarEstadoMinimizadoPainel();
    ChartRedraw(0);
 }
@@ -6136,8 +6125,6 @@ void CopyMae_LerFilhas()
    static string s_nome[];
    static ulong  s_tick[];
    static bool   s_pronta[];
-   static string s_conta[];
-   static string s_prm[];
 
    string nome = "";
    string diag = "";   // motivo de cada ACK ignorado (diagnostico de "0 filhas")
@@ -6176,39 +6163,23 @@ void CopyMae_LerFilhas()
             ArrayResize(s_nome, k + 1);
             ArrayResize(s_tick, k + 1);
             ArrayResize(s_pronta, k + 1);
-            ArrayResize(s_conta, k + 1);
-            ArrayResize(s_prm, k + 1);
             s_nome[k] = nome;
          }
          s_tick[k]   = tk;
          s_pronta[k] = (a[5] == "1");
-         s_conta[k]  = a[3];
-         s_prm[k]    = "";
-         if(ArraySize(a) >= 19 && a[6] == "PRM")   // filha v6.06+ manda os parametros
-            for(int j = 6; j < 19; j++) s_prm[k] += (j == 6 ? "" : "|") + a[j];
+
       }
       while(FileFindNext(hf, nome));
       FileFindClose(hf);
    }
 
-   int n = 0, prontas = 0, dif = 0;
-   ArrayResize(g_filhaConta, 0);
-   ArrayResize(g_filhaPrm, 0);
-   string prmMae = CopyParametrosConta(true);
+   int n = 0, prontas = 0;
    for(int i = 0; i < ArraySize(s_nome); i++)
    {
       if(agora > s_tick[i] && agora - s_tick[i] > (ulong)COPY_MAE_VELHA_MS) continue;
       n++;
       if(s_pronta[i]) prontas++;
-      int q = ArraySize(g_filhaConta);
-      ArrayResize(g_filhaConta, q + 1);
-      ArrayResize(g_filhaPrm, q + 1);
-      g_filhaConta[q] = s_conta[i];
-      g_filhaPrm[q]   = s_prm[i];
-      if(ContaParamDiferentes(prmMae, s_prm[i])) dif++;
    }
-   g_copyFilhasDif = dif;
-   AtualizarTabelaContas(prmMae);
 
    if(n != g_copyFilhasN || prontas != g_copyFilhasProntas)
       PrintFormat("Scalper Pro copiador MAE: filhas conectadas=%d prontas=%d", n, prontas);
@@ -6242,23 +6213,9 @@ void CopyFilha_GravarAck()
    if(h == INVALID_HANDLE) return;
    string txt = "ACK|" + g_copyCanal + "|" + IntegerToString((long)agora) + "|"
               + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) + "|" + _Symbol + "|"
-              + (CopyFilha_Pronta() ? "1" : "0") + "|" + CopyParametrosConta(InpCopySLTPModo == COPY_SLTP_LOCAL) + "\r\n";
+              + (CopyFilha_Pronta() ? "1" : "0") + "\r\n";
    FileWriteString(h, txt, StringLen(txt));
    FileClose(h);
-}
-
-// Parametros desta conta para o quadro de contas da mae (v6.06):
-// PRM|lote|tp|sl|trail|step|ts(0/1/2)|parciais(1/0)|p1pts|p1pct|p2pts|p2pct|local(1/0)
-string CopyParametrosConta(const bool local)
-{
-   double p1 = 0, c1 = 0, p2 = 0, c2 = 0;
-   PartialConfig(1, p1, c1);
-   PartialConfig(2, p2, c2);
-   return "PRM|" + DoubleToString(Lote, 2) + "|" + DoubleToString(TakeProfit, 0) + "|"
-        + DoubleToString(StopLoss, 0) + "|" + DoubleToString(TrailingStart, 0) + "|"
-        + DoubleToString(TrailingStep, 0) + "|" + IntegerToString(ModoTSPainel()) + "|"
-        + (ParciaisAtivas() ? "1" : "0") + "|" + DoubleToString(p1, 0) + "|" + DoubleToString(c1, 0) + "|"
-        + DoubleToString(p2, 0) + "|" + DoubleToString(c2, 0) + "|" + (local ? "1" : "0");
 }
 
 // Registra por que uma posicao da mae nao foi copiada (sem repetir a cada ciclo).
@@ -6961,14 +6918,6 @@ void CopyStatusCalcular(string &txt, color &cor, string &dica)
          cor = C_STATUS_WARN;
          return;
       }
-      dica += " | clique para ver os parametros das contas";
-      if(g_copyFilhasDif > 0)
-      {
-         txt = bola + IntegerToString(g_copyFilhasN) + (g_copyFilhasN == 1 ? " FILHA" : " FILHAS")
-             + " | PARAMETROS DIFERENTES";
-         cor = C_STATUS_WARN;
-         return;
-      }
       txt = bola + "MAE PRONTA | " + IntegerToString(g_copyFilhasN)
           + (g_copyFilhasN == 1 ? " FILHA CONECTADA" : " FILHAS CONECTADAS");
       cor = C_STATUS_OK;
@@ -7213,7 +7162,6 @@ int OnInit()
 
    RemoverRestosLimitesAntigos();
    ObjectsDeleteAll(0, SYNCSEL_PREFIX);   // lista do SYNC que tenha ficado de uma execucao anterior
-   ObjectsDeleteAll(0, TABC_PREFIX);      // quadro de contas idem
 
    ConfigurarGrafico();
    LimparGVsOrfas();
@@ -7261,7 +7209,6 @@ int OnInit()
 void OnDeinit(const int reason)
 {
    EventKillTimer();
-   FecharTabelaContas();
    ProcessarFechamentosPendentes();
    FecharListaSync();
    CancelarEdicaoCampoAtiva();
@@ -7533,18 +7480,6 @@ void OnChartEvent(const int id, const long &lparam,
    {
       if(ProcessarCliqueListaSync(sparam))
          return;
-      if(StringFind(sparam, TABC_PREFIX) == 0)
-      {
-         if(sparam == TABC_PREFIX + "X") { FecharTabelaContas(); ChartRedraw(0); }
-         return;
-      }
-      if((sparam == OBJ_COPY_STATUS || sparam == OBJ_COPY_STRIP) && g_copyModoEf == COPY_MAE)
-      {
-         if(g_tabContasAberta) FecharTabelaContas();
-         else                  AbrirTabelaContas();
-         ChartRedraw(0);
-         return;
-      }
 
       string btn = ResolverCliqueBotaoPainel(sparam);
       if(btn != "")
@@ -9435,158 +9370,4 @@ void EsconderObjetosEspelhoNovos()
             ObjectSetInteger(cid, nome, OBJPROP_TIMEFRAMES, OBJ_NO_PERIODS);
       }
    }
-}
-
-//+------------------------------------------------------------------+
-//| Quadro "parametros das contas" (mae, v6.06)                       |
-//| Abre/fecha clicando na faixa do copiador. Mostra a mae e cada     |
-//| filha conectada; o que difere da mae fica em vermelho.            |
-//+------------------------------------------------------------------+
-// campos de "PRM|lote|tp|sl|tr|st|ts|parc|p1p|p1c|p2p|p2c|local": indices 1..12
-bool ContaPrmCampos(const string prm, string &c[])
-{
-   if(prm == "") return false;
-   return (StringSplit(prm, '|', c) >= 13 && c[0] == "PRM");
-}
-
-bool ContaNumDif(const string a, const string b)
-{
-   return MathAbs(StringToDouble(a) - StringToDouble(b)) > 0.5;
-}
-
-// Diferenca que muda a execucao (o lote nao conta). Filha que segue o SL/TP da mae
-// (modo diferente de LOCAL) nao usa TP/SL/trail/parciais proprios.
-bool ContaParamDiferentes(const string prmMae, const string prmFilha)
-{
-   string m[], f[];
-   if(!ContaPrmCampos(prmMae, m) || !ContaPrmCampos(prmFilha, f)) return false;
-   if(f[12] != "1") return false;
-   for(int i = 2; i <= 5; i++) if(ContaNumDif(m[i], f[i])) return true;
-   if(m[6] != f[6] || m[7] != f[7]) return true;
-   if(m[7] == "1")
-      for(int i = 8; i <= 11; i++) if(ContaNumDif(m[i], f[i])) return true;
-   return false;
-}
-
-void FecharTabelaContas()
-{
-   if(!g_tabContasAberta && ObjectFind(0, TABC_PREFIX + "BG") < 0) return;
-   ObjectsDeleteAll(0, TABC_PREFIX);
-   g_tabContasAberta = false;
-}
-
-void AbrirTabelaContas()
-{
-   g_tabContasAberta = true;
-   AtualizarTabelaContas(CopyParametrosConta(true));
-}
-
-void TabelaContasCelula(const string nome, const int x, const int y, const string txt, const color c,
-                        const bool negrito = false, const string dica = "")
-{
-   CreateLabel(nome, x, y, txt, c, 8, negrito);
-   ObjectSetInteger(0, nome, OBJPROP_ZORDER, 301);
-   ObjectSetInteger(0, nome, OBJPROP_SELECTABLE, false);
-   ObjectSetInteger(0, nome, OBJPROP_HIDDEN, true);
-   ObjectSetString(0, nome, OBJPROP_TOOLTIP, dica == "" ? "\n" : dica);
-}
-
-string ContaTextoTS(const string v)
-{
-   if(v == "0") return "0 OFF";
-   if(v == "1") return "1 FIXO";
-   if(v == "2") return "2 DIN";
-   return v;
-}
-
-// Redesenha so quando algum valor mudou (chamado a cada 1 s pela leitura das filhas).
-void AtualizarTabelaContas(const string prmMae)
-{
-   if(!g_tabContasAberta) return;
-   static string s_assin = "";
-   string assin = prmMae;
-   for(int i = 0; i < ArraySize(g_filhaConta); i++) assin += "#" + g_filhaConta[i] + "=" + g_filhaPrm[i];
-   if(assin == s_assin && ObjectFind(0, TABC_PREFIX + "BG") >= 0) return;
-   s_assin = assin;
-   ObjectsDeleteAll(0, TABC_PREFIX);
-
-   int    colX[8] = {0, 104, 152, 196, 240, 284, 324, 374};
-   string cab[8]  = {"Conta", "Lote", "TP", "SL", "Trail", "Step", "TS", "Parciais"};
-   const int w = 440, linhaH = 18, pad = 10;
-   int nLin = 1 + ArraySize(g_filhaConta);
-   int h = pad + 18 + linhaH + nLin * linhaH + (ArraySize(g_filhaConta) == 0 ? linhaH : 0) + 16 + pad;
-   int x = PANEL_X + PANEL_W + 6;
-   int y = PANEL_Y;
-
-   CreateRect(TABC_PREFIX + "BG", x, y, w, h, C_GLASS_BG, C_BORDER_COLOR);
-   ObjectSetInteger(0, TABC_PREFIX + "BG", OBJPROP_ZORDER, 300);
-   TabelaContasCelula(TABC_PREFIX + "TIT", x + pad, y + pad, "Parametros das contas", C_NOME_COLOR, true);
-   CreateButton(TABC_PREFIX + "X", x + w - 26, y + 6, 20, 18, "X", 8);
-   ObjectSetInteger(0, TABC_PREFIX + "X", OBJPROP_ZORDER, 302);
-
-   int yl = y + pad + 18;
-   for(int c = 0; c < 8; c++)
-      TabelaContasCelula(TABC_PREFIX + "H" + IntegerToString(c), x + pad + colX[c], yl, cab[c], C_MUTED, true);
-   yl += linhaH;
-
-   string m[];
-   bool temMae = ContaPrmCampos(prmMae, m);
-   for(int r = 0; r < nLin; r++)
-   {
-      bool   ehMae = (r == 0);
-      string conta = ehMae ? "MAE " + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) : g_filhaConta[r - 1];
-      string f[];
-      bool   temDados = temMae;
-      if(ehMae) ArrayCopy(f, m);
-      else      temDados = ContaPrmCampos(g_filhaPrm[r - 1], f);
-      bool   segueMae = (!ehMae && temDados && f[12] != "1");
-      string pre = TABC_PREFIX + "L" + IntegerToString(r) + "_";
-      TabelaContasCelula(pre + "0", x + pad + colX[0], yl, conta, C_NOME_COLOR, ehMae);
-
-      if(!temDados)
-      {
-         TabelaContasCelula(pre + "1", x + pad + colX[1], yl,
-                            StringFind(conta, "NT-") == 0 ? "NT8: parametros no NinjaTrader (ATM/ticks)"
-                                                          : "sem dados (atualize o EA desta conta)", C_MUTED);
-         yl += linhaH;
-         continue;
-      }
-
-      TabelaContasCelula(pre + "1", x + pad + colX[1], yl, f[1], C_NOME_COLOR);
-      if(segueMae)
-      {
-         TabelaContasCelula(pre + "2", x + pad + colX[2], yl, "segue o SL/TP da mae", C_MUTED);
-         yl += linhaH;
-         continue;
-      }
-
-      for(int c = 2; c <= 7; c++)
-      {
-         string txt = (c == 6) ? ContaTextoTS(f[6]) : (c == 7 ? (f[7] == "1" ? "ON" : "OFF") : f[c]);
-         bool dif = false;
-         if(!ehMae && temMae)
-         {
-            if(c <= 5)      dif = ContaNumDif(m[c], f[c]);
-            else if(c == 6) dif = (m[6] != f[6]);
-            else
-            {
-               dif = (m[7] != f[7]);
-               if(!dif && m[7] == "1")
-                  for(int i = 8; i <= 11; i++) if(ContaNumDif(m[i], f[i])) dif = true;
-            }
-         }
-         string dica = (c == 7) ? StringFormat("P1 %s pts / %s%%  |  P2 %s pts / %s%%", f[8], f[9], f[10], f[11]) : "";
-         TabelaContasCelula(pre + IntegerToString(c), x + pad + colX[c], yl, txt + (dif ? " *" : ""),
-                            dif ? C_STATUS_ERR : C_NOME_COLOR, dif, dica);
-      }
-      yl += linhaH;
-   }
-   if(ArraySize(g_filhaConta) == 0)
-   {
-      TabelaContasCelula(TABC_PREFIX + "VAZIO", x + pad, yl, "nenhuma filha conectada", C_MUTED);
-      yl += linhaH;
-   }
-   TabelaContasCelula(TABC_PREFIX + "NOTA", x + pad, yl + 2,
-                      "* diferente da mae (o lote nao conta). Atualiza a cada 1 s.", C_MUTED);
-   ChartRedraw(0);
 }
