@@ -27,7 +27,18 @@ A trava dura até o **reset diário** (ex.: 06:00 do dia seguinte). A **senha me
 ## Proteção contra alterações
 
 - **Janela de edição:** as configurações só podem ser alteradas sem senha dentro da janela definida. Com "bloqueada a partir de 09:00" e "liberada a partir de 22:00", dá para mexer à noite e até as 9h. Fora disso, e sempre que a central estiver travada, alterar exige a senha mestra.
-- **Fechar a central** (menu do ícone ou aba Senha mestra) exige a senha. O "X" da janela só esconde a central, que continua no ícone do escudo perto do relógio.
+- **Fechar a central** (menu do ícone ou aba Senha mestra) exige a senha.
+- **Sempre à mão (v1.2):**
+  - **O "X" da janela só minimiza:** a central continua na **barra de tarefas** e no ícone do escudo.
+  - **Abrir o `SPCentral.exe` ou um atalho de novo só traz a janela** da central que já está aberta. Nunca abre uma segunda central.
+  - **Atalhos:** a central cria "Central de Controle" na Área de Trabalho e no Menu Iniciar. Se um atalho ou o início com o Windows for apagado, ela recria em até 1 minuto.
+- **Erros inesperados não fecham a central (v1.2):** ela anota o erro no log (`%LOCALAPPDATA%\SPCentral\log_AAAAMMDD.txt`) e continua rodando.
+- **Proteção contra exclusão (v1.2):** apagar dá "Acesso negado", tanto por engano quanto de propósito, nestes itens:
+  - o `SPCentral.exe`;
+  - a pasta de dados `%LOCALAPPDATA%\SPCentral` (configuração, estado e logs);
+  - a marca `SP_Central_Ativa.txt` em `Common\Files`. Sem ela os EAs operariam livres.
+
+  A proteção é refeita a cada 10 minutos. Para retirar tudo, use **Desinstalar** (senha mestra).
 - **Central fechada à força** (Gerenciador de Tarefas): os Scalper Pro e as filhas NT8 **bloqueiam novas entradas** em até 10 s ("central offline").
 - **Arquivos editados ou apagados:** se a configuração ou o estado forem alterados à mão ou apagados, a central bloqueia tudo até a senha mestra.
 - **Inicialização:** a central se registra para abrir junto com o Windows.
@@ -91,8 +102,16 @@ Arquivos trocados em `%APPDATA%\MetaQuotes\Terminal\Common\Files`:
 
 ## Desinstalar
 
-Feche a central com a senha mestra e apague:
-- a pasta do `.exe`;
-- `%LOCALAPPDATA%\SPCentral`;
-- o arquivo `SP_Central_Ativa.txt` em `Common\Files`;
-- o valor `SPCentral` em `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
+Na aba **Senha mestra**, clique em **Desinstalar** e digite a senha. A central então:
+- retira a proteção contra exclusão;
+- apaga os atalhos e o início com o Windows;
+- apaga a marca `SP_Central_Ativa.txt`, e os EAs passam a operar **sem** a central;
+- fecha.
+
+Depois, se quiser, apague a pasta do programa e `%LOCALAPPDATA%\SPCentral`.
+
+## Atualizar a central
+
+1. **Fechar a central** (senha mestra). Isso libera o `.exe` para ser substituído, e os EAs ficam bloqueados enquanto ela estiver fechada.
+2. Copie o novo `SPCentral.cs` e rode o `compilar.bat`.
+3. Abra o `SPCentral.exe`. As configurações e o estado continuam, e a proteção volta sozinha.

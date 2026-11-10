@@ -14,7 +14,11 @@
 //   - a trava dura ate o reset diario configurado; a SENHA MESTRA destrava antes;
 //   - configuracoes so podem ser alteradas na janela de edicao (ex.: ate 09:00
 //     e depois das 22:00); fora dela, so com a senha mestra;
-//   - com a central fechada, os EAs ficam bloqueados (sem novas entradas).
+//   - com a central fechada, os EAs ficam bloqueados (sem novas entradas);
+//   - fica sempre na barra de tarefas (fechar = minimizar), abrir o .exe de novo so
+//     traz a janela, recria os atalhos e o inicio com o Windows a cada minuto, e
+//     protege contra exclusao o .exe, a pasta de dados e a marca da central
+//     (o botao Desinstalar, com a senha mestra, retira tudo).
 //
 //  Comunicacao: arquivos em %APPDATA%\MetaQuotes\Terminal\Common\Files
 //   SP_Central_Ativa.txt            marca: EAs passam a obedecer a central
@@ -30,7 +34,10 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
+using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -38,7 +45,7 @@ using System.Windows.Forms;
 using Microsoft.Win32;
 
 [assembly: System.Reflection.AssemblyTitle("SPCentral")]
-[assembly: System.Reflection.AssemblyVersion("1.1.0.0")]
+[assembly: System.Reflection.AssemblyVersion("1.2.0.0")]
 
 namespace SPCentral
 {
@@ -49,16 +56,35 @@ namespace SPCentral
         {
             bool novo;
             using (Mutex mtx = new Mutex(true, "SPCentral_instancia_unica", out novo))
+            using (EventWaitHandle mostrar = new EventWaitHandle(false, EventResetMode.AutoReset, "SPCentral_mostrar_janela"))
             {
                 if (!novo)
                 {
-                    MessageBox.Show("A Central de Controle ja esta aberta (icone do escudo perto do relogio).",
-                        "Central de Controle", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    // ja esta rodando: so pede para a central aberta aparecer (nunca abre uma segunda)
+                    mostrar.Set();
                     return;
                 }
+
+                // um erro inesperado nunca fecha a central: vai para o log e ela continua
+                Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+                Application.ThreadException += delegate(object o, ThreadExceptionEventArgs e)
+                {
+                    Util.Log("ERRO (a central continua rodando): " + e.Exception);
+                };
+                AppDomain.CurrentDomain.UnhandledException += delegate(object o, UnhandledExceptionEventArgs e)
+                {
+                    Util.Log("ERRO GRAVE: " + e.ExceptionObject);
+                };
+
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
-                Application.Run(new FormCentral());
+                FormCentral form = new FormCentral();
+                ThreadPool.RegisterWaitForSingleObject(mostrar, delegate(object st, bool tempo)
+                {
+                    try { if (form.IsHandleCreated) form.BeginInvoke(new MethodInvoker(form.MostrarJanela)); }
+                    catch (Exception) { }
+                }, null, -1, false);
+                Application.Run(form);
             }
         }
     }
@@ -157,6 +183,62 @@ namespace SPCentral
                 }
             }
             catch (Exception) { }
+        }
+
+        // ---- protecao contra exclusao (permissao "negar excluir" para Todos) ----
+        private static readonly SecurityIdentifier Todos = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
+
+        public static void ProtegerArquivo(string arq, bool proteger)
+        {
+            try
+            {
+                if (!File.Exists(arq)) return;
+                FileSecurity fs = File.GetAccessControl(arq);
+                FileSystemAccessRule r = new FileSystemAccessRule(Todos, FileSystemRights.Delete, AccessControlType.Deny);
+                if (proteger) fs.AddAccessRule(r); else fs.RemoveAccessRule(r);
+                File.SetAccessControl(arq, fs);
+            }
+            catch (Exception ex) { Log("protecao de " + arq + ": " + ex.Message); }
+        }
+
+        public static void ProtegerPasta(string pasta, bool proteger)
+        {
+            try
+            {
+                if (!Directory.Exists(pasta)) return;
+                DirectorySecurity ds = Directory.GetAccessControl(pasta);
+                FileSystemAccessRule r = new FileSystemAccessRule(Todos,
+                    FileSystemRights.Delete | FileSystemRights.DeleteSubdirectoriesAndFiles,
+                    InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Deny);
+                if (proteger) ds.AddAccessRule(r); else ds.RemoveAccessRule(r);
+                Directory.SetAccessControl(pasta, ds);
+            }
+            catch (Exception ex) { Log("protecao de " + pasta + ": " + ex.Message); }
+        }
+
+        // Atalho .lnk pelo WScript.Shell (sem referencias extras para compilar)
+        public static void CriarAtalho(string lnk, string alvo, string descricao)
+        {
+            object sh = null, at = null;
+            try
+            {
+                Type t = Type.GetTypeFromProgID("WScript.Shell");
+                if (t == null) return;
+                sh = Activator.CreateInstance(t);
+                at = t.InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, sh, new object[] { lnk });
+                Type ta = at.GetType();
+                ta.InvokeMember("TargetPath", BindingFlags.SetProperty, null, at, new object[] { alvo });
+                ta.InvokeMember("WorkingDirectory", BindingFlags.SetProperty, null, at, new object[] { Path.GetDirectoryName(alvo) });
+                ta.InvokeMember("Description", BindingFlags.SetProperty, null, at, new object[] { descricao });
+                ta.InvokeMember("IconLocation", BindingFlags.SetProperty, null, at, new object[] { alvo + ",0" });
+                ta.InvokeMember("Save", BindingFlags.InvokeMethod, null, at, null);
+            }
+            catch (Exception ex) { Log("atalho " + lnk + ": " + ex.Message); }
+            finally
+            {
+                if (at != null && Marshal.IsComObject(at)) Marshal.ReleaseComObject(at);
+                if (sh != null && Marshal.IsComObject(sh)) Marshal.ReleaseComObject(sh);
+            }
         }
 
         public static double ParseD(string s)
@@ -404,6 +486,13 @@ namespace SPCentral
         private readonly Dictionary<string, DateTime> divergenteDesde = new Dictionary<string, DateTime>();
         private readonly List<string> zerarContas = new List<string>();
         private DateTime ultimoFechamento = DateTime.MinValue;
+        private DateTime ultimaManutencao = DateTime.MinValue;
+        private DateTime ultimaProtecao = DateTime.MinValue;
+
+        private const string NOME_ATALHO = "Central de Controle.lnk";
+        private static string AtalhoAreaTrabalho { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), NOME_ATALHO); } }
+        private static string AtalhoMenuIniciar  { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), NOME_ATALHO); } }
+        private static string ArquivoMarca       { get { return Path.Combine(Util.PastaCommon, "SP_Central_Ativa.txt"); } }
 
         // indicadores do ciclo
         private int    opsDia;
@@ -601,6 +690,46 @@ namespace SPCentral
         private void Ciclo()
         {
             if (sairAutorizado) return;
+            try { CicloInterno(); }
+            catch (Exception ex) { Util.Log("ERRO no ciclo (a central continua): " + ex); }
+            try { Manutencao(); }
+            catch (Exception ex) { Util.Log("ERRO na manutencao: " + ex); }
+        }
+
+        // A cada 1 min: atalhos e inicio com o Windows (recriados se apagados).
+        // A cada 10 min (e ao iniciar): protecao contra exclusao.
+        private void Manutencao()
+        {
+            DateTime agora = DateTime.Now;
+            if ((agora - ultimaManutencao).TotalSeconds < 60) return;
+            ultimaManutencao = agora;
+
+            string exe = Application.ExecutablePath;
+            using (RegistryKey run = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run"))
+            {
+                string valor = "\"" + exe + "\"";
+                if ((run.GetValue("SPCentral") as string) != valor) run.SetValue("SPCentral", valor);
+            }
+            if (!File.Exists(AtalhoAreaTrabalho)) Util.CriarAtalho(AtalhoAreaTrabalho, exe, "Central de Controle - Scalper Pro");
+            if (!File.Exists(AtalhoMenuIniciar))  Util.CriarAtalho(AtalhoMenuIniciar, exe, "Central de Controle - Scalper Pro");
+
+            if ((agora - ultimaProtecao).TotalMinutes >= 10)
+            {
+                ultimaProtecao = agora;
+                AplicarProtecoes(true);
+            }
+        }
+
+        // .exe, pasta de dados (%LOCALAPPDATA%\SPCentral) e a marca da central em Common\Files
+        private void AplicarProtecoes(bool proteger)
+        {
+            Util.ProtegerArquivo(Application.ExecutablePath, proteger);
+            Util.ProtegerPasta(Util.PastaApp, proteger);
+            Util.ProtegerArquivo(ArquivoMarca, proteger);
+        }
+
+        private void CicloInterno()
+        {
             DateTime agora = DateTime.Now;
             DateTime iniDia = InicioDia(agora);
             DateTime fimDia = iniDia.AddDays(1);
@@ -1023,7 +1152,16 @@ namespace SPCentral
             };
             Button btSair = new Button { Text = "Fechar a central", Left = 444, Top = 112, Width = 200, Height = 32 };
             btSair.Click += delegate { SairComSenha(); };
-            tpSenha.Controls.AddRange(new Control[] { exp, btDestravar, btTrocar, btSair });
+            Label expDes = new Label
+            {
+                Left = 16, Top = 170, Width = 760, Height = 70,
+                Text = "Protecao contra exclusao: o SPCentral.exe, a pasta de dados e a marca da central nao podem ser apagados\r\n" +
+                       "(\"Acesso negado\"). Para atualizar a central: Fechar a central, copiar o novo arquivo, compilar e abrir.\r\n" +
+                       "Para remover tudo use Desinstalar (senha mestra)."
+            };
+            Button btDesinstalar = new Button { Text = "Desinstalar", Left = 16, Top = 244, Width = 200, Height = 32, ForeColor = Color.Firebrick };
+            btDesinstalar.Click += delegate { Desinstalar(); };
+            tpSenha.Controls.AddRange(new Control[] { exp, btDestravar, btTrocar, btSair, expDes, btDesinstalar });
         }
 
         // Bloco com titulo; os campos entram a partir de gy (coordenadas dentro do bloco).
@@ -1281,19 +1419,53 @@ namespace SPCentral
             while (lbEventos.Items.Count > 300) lbEventos.Items.RemoveAt(lbEventos.Items.Count - 1);
         }
 
-        private void MostrarJanela()
+        public void MostrarJanela()
         {
             Show();
+            ShowInTaskbar = true;
             WindowState = FormWindowState.Normal;
             Activate();
+            BringToFront();
         }
 
         private void SairComSenha()
         {
             if (!ConferirSenha("Senha mestra para FECHAR a central (os EAs ficarao bloqueados)")) return;
+            Util.ProtegerArquivo(Application.ExecutablePath, false);   // permite atualizar o .exe; volta ao abrir
             Evento("Central fechada com a senha mestra.");
             sairAutorizado = true;
             timer.Stop();
+            tray.Visible = false;
+            Application.Exit();
+        }
+
+        private void Desinstalar()
+        {
+            if (!ConferirSenha("Senha mestra para DESINSTALAR a central")) return;
+            if (MessageBox.Show(
+                    "Desinstalar a Central de Controle?\r\n\r\n" +
+                    "- retira a protecao contra exclusao;\r\n" +
+                    "- apaga os atalhos e o inicio com o Windows;\r\n" +
+                    "- apaga a marca SP_Central_Ativa.txt: os EAs deixam de obedecer a central e operam LIVRES;\r\n" +
+                    "- fecha a central.\r\n\r\n" +
+                    "Depois apague a pasta do programa e %LOCALAPPDATA%\\SPCentral se quiser.",
+                    "Central de Controle", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+                return;
+
+            sairAutorizado = true;
+            timer.Stop();
+            AplicarProtecoes(false);
+            try
+            {
+                using (RegistryKey run = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run"))
+                    run.DeleteValue("SPCentral", false);
+            }
+            catch (Exception) { }
+            try { if (File.Exists(AtalhoAreaTrabalho)) File.Delete(AtalhoAreaTrabalho); } catch (Exception) { }
+            try { if (File.Exists(AtalhoMenuIniciar)) File.Delete(AtalhoMenuIniciar); } catch (Exception) { }
+            try { if (File.Exists(ArquivoMarca)) File.Delete(ArquivoMarca); } catch (Exception ex) { Util.Log("marca: " + ex.Message); }
+            Evento("Central DESINSTALADA com a senha mestra.");
+            MessageBox.Show("Central desinstalada. Os EAs voltam a operar sem a central.", "Central de Controle");
             tray.Visible = false;
             Application.Exit();
         }
@@ -1302,9 +1474,9 @@ namespace SPCentral
         {
             if (!sairAutorizado && e.CloseReason == CloseReason.UserClosing)
             {
-                e.Cancel = true;     // fechar a janela so esconde; a central continua rodando
-                Hide();
-                try { tray.ShowBalloonTip(3000, "Central de Controle", "A central continua ativa (icone do escudo).", ToolTipIcon.Info); }
+                e.Cancel = true;     // fechar a janela so minimiza: a central fica na barra de tarefas
+                WindowState = FormWindowState.Minimized;
+                try { tray.ShowBalloonTip(3000, "Central de Controle", "A central continua ativa (minimizada na barra de tarefas).", ToolTipIcon.Info); }
                 catch (Exception) { }
                 return;
             }
