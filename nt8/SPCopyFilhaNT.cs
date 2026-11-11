@@ -1,5 +1,5 @@
 // ============================================================================
-//  SP Copy Filha NT8 v1.3  -  filha NinjaTrader 8 do copiador Scalper Pro (MT5)
+//  SP Copy Filha NT8 v1.5  -  filha NinjaTrader 8 do copiador Scalper Pro (MT5)
 // ----------------------------------------------------------------------------
 //  Le o arquivo de estado que a MAE (Scalper Pro, modo Mae) grava em
 //  %APPDATA%\MetaQuotes\Terminal\Common\Files\SP_Copy_<canal>.txt e replica
@@ -13,6 +13,11 @@
 //                                 (nao usa Account.Flatten: ele desabilita a estrategia)
 //   - filha saiu por SL/TP     -> nao reabre enquanto a posicao da mae existir
 //   - reinicio de qualquer lado-> estado reconciliado pelo arquivo
+//   - v1.4: conta zerada -> cancela SPC_SL/SPC_TP restantes (inclusive ainda nao
+//           confirmados); SL/TP executado sem copia ativa -> zera a mercado (SPC_Orfa)
+//   - v1.5: ZERAR da Central (botao BLOQUEAR do Scalper Pro, limite de perda...)
+//           -> depois de zerar, cancela TODAS as ordens ativas do contrato nesta conta,
+//           inclusive as ainda Initialized; motivo do zerar vem da Central
 //  Grava SP_CopyAck_<canal>_NT-<conta>.txt para a faixa da mae contar esta
 //  filha como conectada/pronta.
 //
@@ -80,6 +85,9 @@ namespace NinjaTrader.NinjaScript.Strategies
         private int    entradaQtdExec;      // contratos ja executados da entrada
         private double entradaValorExec;    // soma preco*qtd das execucoes da entrada
         private Order  ordemFechamento;     // ordem a mercado enviada para fechar a copia
+        private ulong  varreduraMs;         // ultima varredura de SL/TP orfaos (conta zerada)
+        private ulong  orfaExecMs;          // SPC_SL/SPC_TP executado sem copia ativa (0 = nao)
+        private ulong  zerarOrdensMs;       // ultima limpeza de ordens durante o ZERAR da Central
         private readonly object lockBracket = new object();
         private static readonly object lockArqLog = new object();
 
@@ -256,6 +264,10 @@ namespace NinjaTrader.NinjaScript.Strategies
             bool   compraFilha;
             bool   temPos = PosicaoFilha(out qtdFilha, out compraFilha);
 
+            // 0a) Protecoes contra SL/TP orfaos (incidente 10/11: TP de uma copia ja
+            //     encerrada ficou ativo e abriu venda sem stop 21 min depois)
+            ProtegerOrfaos(temPos, qtdFilha, compraFilha);
+
             // 0) Central de Controle
             CentralLer();
             CentralGravarStatus(temPos ? 1 : 0);
@@ -267,6 +279,7 @@ namespace NinjaTrader.NinjaScript.Strategies
             }
             if (centralEstado == 2)
             {
+                if (!temPos) CancelarOrdensAoZerar();
                 if (temPos)
                     Fechar("central: " + centralMotivo, qtdFilha, compraFilha);
                 else if (copiaIdMae != 0 && !entradaPendente)
@@ -534,14 +547,103 @@ namespace NinjaTrader.NinjaScript.Strategies
                     if (o.Instrument.FullName != Instrument.FullName) continue;
                     if (o == ordemFechamento) continue;
                     if (o.OrderType != OrderType.StopMarket && o.OrderType != OrderType.StopLimit && o.OrderType != OrderType.Limit) continue;
-                    if (o.OrderState == OrderState.Working || o.OrderState == OrderState.Accepted
-                        || o.OrderState == OrderState.Submitted || o.OrderState == OrderState.ChangePending
-                        || o.OrderState == OrderState.ChangeSubmitted)
+                    if (OrdemAtiva(o))
                         cancelar.Add(o);
                 }
             }
             if (cancelar.Count > 0)
                 Account.Cancel(cancelar);
+        }
+
+        // Inclui Initialized: logo apos o Submit o SL/TP ainda nao foi confirmado pela
+        // corretora e ficava fora do cancelamento (causa do incidente de 10/11).
+        private static bool OrdemAtiva(Order o)
+        {
+            switch (o.OrderState)
+            {
+                case OrderState.Initialized:
+                case OrderState.Submitted:
+                case OrderState.Accepted:
+                case OrderState.TriggerPending:
+                case OrderState.Working:
+                case OrderState.ChangePending:
+                case OrderState.ChangeSubmitted:
+                case OrderState.PartFilled:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static bool EhOrdemBracket(Order o)
+        {
+            return o != null && (o.Name == "SPC_SL" || o.Name == "SPC_TP");
+        }
+
+        // 1) Conta zerada e sem entrada em andamento: nenhum SPC_SL/SPC_TP pode ficar ativo.
+        // 2) SPC_SL/SPC_TP executado sem copia ativa abriu posicao: zera na hora.
+        private void ProtegerOrfaos(bool temPos, int qtdFilha, bool compraFilha)
+        {
+            ulong agora = GetTickCount64();
+
+            ulong orfa;
+            lock (lockBracket) orfa = orfaExecMs;
+            if (orfa != 0)
+            {
+                if (temPos && copiaIdMae == 0)
+                {
+                    lock (lockBracket) orfaExecMs = 0;
+                    Order z = Account.CreateOrder(Instrument, compraFilha ? OrderAction.Sell : OrderAction.BuyToCover,
+                        OrderType.Market, OrderEntry.Automated, TimeInForce.Day, qtdFilha, 0, 0, "", "SPC_Orfa", Core.Globals.MaxDate, null);
+                    Account.Submit(new[] { z });
+                    CancelarBracketsOrfaos();
+                    Imprimir(string.Format("ALERTA: SL/TP orfao executado abriu {0} {1} sem copia ativa. Posicao zerada a mercado.",
+                        compraFilha ? "compra" : "venda", qtdFilha));
+                }
+                else if (agora - orfa > 5000)
+                    lock (lockBracket) orfaExecMs = 0;   // posicao nao apareceu: execucao so reduziu/zerou
+            }
+
+            if (temPos || entradaPendente) return;
+            if (agora - varreduraMs < 250) return;
+            varreduraMs = agora;
+            int n = CancelarBracketsOrfaos();
+            if (n > 0)
+                Imprimir(string.Format("conta zerada com {0} ordem(ns) SPC_SL/SPC_TP ainda ativa(s): cancelando", n));
+        }
+
+        // ZERAR da Central com a conta ja zerada: nenhuma ordem do contrato pode ficar ativa nesta conta
+        // (entradas, SL/TP de copia, ordens manuais), inclusive as Initialized. A ordem de fechamento fica.
+        private void CancelarOrdensAoZerar()
+        {
+            ulong agora = GetTickCount64();
+            if (agora - zerarOrdensMs < 500) return;
+            zerarOrdensMs = agora;
+            List<Order> cancelar = new List<Order>();
+            lock (Account.Orders)
+            {
+                foreach (Order o in Account.Orders)
+                    if (o.Instrument.FullName == Instrument.FullName && OrdemAtiva(o)
+                        && o.Name != "SPC_Close" && o.Name != "SPC_Orfa")
+                        cancelar.Add(o);
+            }
+            if (cancelar.Count == 0) return;
+            Account.Cancel(cancelar);
+            Imprimir(string.Format("ZERAR da central ({0}): {1} ordem(ns) ativa(s) do contrato cancelada(s)", centralMotivo, cancelar.Count));
+        }
+
+        private int CancelarBracketsOrfaos()
+        {
+            List<Order> cancelar = new List<Order>();
+            lock (Account.Orders)
+            {
+                foreach (Order o in Account.Orders)
+                    if (o.Instrument.FullName == Instrument.FullName && EhOrdemBracket(o) && OrdemAtiva(o))
+                        cancelar.Add(o);
+            }
+            if (cancelar.Count > 0)
+                Account.Cancel(cancelar);
+            return cancelar.Count;
         }
 
         private bool BracketEnviado()
@@ -554,6 +656,14 @@ namespace NinjaTrader.NinjaScript.Strategies
             if (e == null || e.Execution == null || e.Execution.Instrument == null) return;
             if (e.Execution.Instrument.FullName != Instrument.FullName) return;
             ulong agora = GetTickCount64();
+
+            if (EhOrdemBracket(e.Execution.Order) && (copiaIdMae == 0 || fechamentoEnvioMs != 0))
+            {
+                // so zera sozinho sem copia ativa; com fechamento em andamento o Fechar() ja reconcilia
+                if (copiaIdMae == 0) lock (lockBracket) orfaExecMs = agora;
+                Imprimir(string.Format("ATENCAO: {0} executado ({1} @ {2}) sem copia ativa",
+                    e.Execution.Order.Name, e.Quantity, e.Price.ToString(CultureInfo.InvariantCulture)));
+            }
 
             bool ehEntradaPropria = nomeEntrada.Length > 0 && e.Execution.Order != null && e.Execution.Order.Name == nomeEntrada;
             if (ehEntradaPropria && string.IsNullOrWhiteSpace(TemplateAtm))
@@ -682,7 +792,8 @@ namespace NinjaTrader.NinjaScript.Strategies
                             if (linhas[i].Trim() == "Z|" + IdCentral())
                             {
                                 estado = 2;
-                                motivo = "divergencia com a conta mae";
+                                // Z com a central LIVRE = divergencia; com a central travada = zerar pedido por ela
+                                motivo = c[3] == "LIVRE" ? "divergencia com a conta mae" : c[4];
                             }
                     }
                 }

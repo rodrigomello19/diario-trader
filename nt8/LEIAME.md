@@ -76,6 +76,18 @@ Cada gráfico do Scalper Pro em modo Mãe publica **um canal**. Para copiar dois
 
 Na rolagem, desabilite a estratégia, troque o **Instrumento** (ex.: `MNQ 12-26` para `MNQ 03-27`) e habilite de novo. O MT5 não muda.
 
+## Zerar pela Central (v1.5)
+
+Quando a Central manda zerar esta conta, a filha:
+1. fecha a posição do contrato;
+2. já zerada, **cancela todas as ordens ativas do contrato nesta conta**, inclusive as ainda "Initialized" (não confirmadas pela corretora). Só a própria ordem de fechamento fica.
+
+Isso acontece no botão BLOQUEAR do Scalper Pro, no limite de perda, no "zerar no horário limite" e na divergência.
+
+O log mostra o motivo que veio da Central, por exemplo `ZERAR da central (bloqueio pelo botao BLOQUEAR...)`.
+
+A v1.4 já protegia contra SL/TP órfãos: cancela os SPC_SL/SPC_TP com a conta zerada e zera uma posição aberta por um deles.
+
 ## Log
 
 O log aparece na janela **Output** e também é gravado em `Documentos\NinjaTrader 8\SPCopy\log_AAAAMMDD.txt`. Para mandar para análise, anexe esse arquivo.

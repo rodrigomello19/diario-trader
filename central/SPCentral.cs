@@ -28,6 +28,7 @@
 //   SP_Central_Cmd.txt              comando (CMD|1|tickMs|LIVRE/BLOQ/ZERAR|motivo|ate)
 //   SP_Central_St_<conta>_<sim>.txt estado de cada EA/estrategia (1 s)
 //   SP_Central_Tr_<conta>.txt       operacoes encerradas (pontos)
+//   SP_Central_Pedido_<conta>.txt   botao BLOQUEAR do Scalper Pro: trava ate o reset e zera as filhas
 //
 //  Compilar: central\compilar.bat (usa o csc.exe do .NET Framework do Windows)
 // ============================================================================
@@ -49,7 +50,7 @@ using System.Windows.Forms;
 using Microsoft.Win32;
 
 [assembly: System.Reflection.AssemblyTitle("SPCentral")]
-[assembly: System.Reflection.AssemblyVersion("1.7.0.0")]
+[assembly: System.Reflection.AssemblyVersion("1.8.0.0")]
 
 namespace SPCentral
 {
@@ -430,6 +431,7 @@ namespace SPCentral
         public DateTime TravadoAte;
         public DateTime Base;                 // contagem do dia a partir daqui
         public DateTime HorarioIgnoradoAte;   // destravado com senha apos o horario limite
+        public bool     ZerarFilhas;          // trava pelo botao BLOQUEAR: zera as contas filhas
 
         public static string Caminho { get { return Path.Combine(Util.PastaApp, "estado.txt"); } }
 
@@ -443,6 +445,7 @@ namespace SPCentral
             a.Set("TravadoAte", TravadoAte.Ticks.ToString(CultureInfo.InvariantCulture));
             a.Set("Base", Base.Ticks.ToString(CultureInfo.InvariantCulture));
             a.Set("HorarioIgnoradoAte", HorarioIgnoradoAte.Ticks.ToString(CultureInfo.InvariantCulture));
+            a.Set("ZerarFilhas", ZerarFilhas ? "1" : "0");
             a.Salvar(Caminho);
         }
 
@@ -458,6 +461,7 @@ namespace SPCentral
             TravadoAte         = new DateTime(Util.ParseL(a.Get("TravadoAte", "0")));
             Base               = new DateTime(Util.ParseL(a.Get("Base", "0")));
             HorarioIgnoradoAte = new DateTime(Util.ParseL(a.Get("HorarioIgnoradoAte", "0")));
+            ZerarFilhas        = a.Get("ZerarFilhas", "0") == "1";
             return 0;
         }
     }
@@ -478,7 +482,7 @@ namespace SPCentral
     // ------------------------------------------------------------------------
     internal class FormCentral : Form
     {
-        public const string VERSAO = "1.7";   // aparece no titulo da janela e no log
+        public const string VERSAO = "1.8";   // aparece no titulo da janela e no log
         [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsProc cb, IntPtr lParam);
         [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr hWnd);
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(IntPtr hWnd, StringBuilder s, int max);
@@ -765,6 +769,8 @@ namespace SPCentral
             LerStatus();
             LerOperacoes(baseCont);
 
+            LerPedidos(agora);
+
             StatusConta mae = StatusMae();
             ptsFlut = (mae != null && mae.Online) ? mae.Flutuante : 0;
             double total = ptsReal + ptsFlut;
@@ -818,6 +824,9 @@ namespace SPCentral
             navAtivo   = cfg.FecharNavegadoresForaHorario && (estadoCmd != "LIVRE" || foraHorario);
 
             VerificarDivergencia(agora, mae);
+            if (est.Travado && est.ZerarFilhas)
+                foreach (string f in IdsFilhas())
+                    if (!zerarContas.Contains(f)) zerarContas.Add(f);
             GravarComando();
 
             // fecha as plataformas depois que as posicoes terminaram
@@ -875,6 +884,7 @@ namespace SPCentral
             est.Travado = false;
             est.Motivo = "";
             est.Modo = "";
+            est.ZerarFilhas = false;
             est.Base = agora;   // contagem recomeca
             if (comSenha) est.HorarioIgnoradoAte = InicioDia(agora).AddDays(1);
             est.Salvar();
@@ -971,6 +981,47 @@ namespace SPCentral
 
         // Filha posicionada com a mae zerada por mais de N s -> zerar so essa filha
         // (perda de sinal do copiador).
+        // Contas filhas: as da configuracao + as que se apresentam como FILHA (exceto a mae)
+        private List<string> IdsFilhas()
+        {
+            List<string> l = new List<string>();
+            string mae = IdMae();
+            foreach (string f in cfg.Filhas()) if (f != mae && !l.Contains(f)) l.Add(f);
+            foreach (StatusConta s in contas)
+                if (s.Modo == "FILHA" && s.Id != mae && !l.Contains(s.Id)) l.Add(s.Id);
+            return l;
+        }
+
+        // Botao BLOQUEAR do Scalper Pro: SP_Central_Pedido_<conta>.txt = PEDIDO|1|tickMs|TRAVAR|conta|simbolo
+        // Trava ate o reset (como um limite) e zera as filhas; a posicao da mae segue ate fechar.
+        private readonly HashSet<string> pedidosFeitos = new HashSet<string>();
+        private void LerPedidos(DateTime agora)
+        {
+            string[] arqs;
+            try { arqs = Directory.GetFiles(Util.PastaCommon, "SP_Central_Pedido_*.txt"); }
+            catch (Exception) { return; }
+            ulong agoraTk = Util.GetTickCount64();
+            foreach (string a in arqs)
+            {
+                try
+                {
+                    string[] c = Util.LerTexto(a).Trim().Split('|');
+                    try { File.Delete(a); } catch (Exception) { }
+                    if (c.Length < 5 || c[0] != "PEDIDO" || c[3] != "TRAVAR") continue;
+                    ulong tk = (ulong)Util.ParseL(c[2]);
+                    if (tk == 0 || (agoraTk > tk && agoraTk - tk > 60000)) continue;   // pedido velho (ex.: antes de reiniciar)
+                    if (!pedidosFeitos.Add(c[4] + "|" + c[2])) continue;
+                    string motivo = "bloqueio pelo botao BLOQUEAR do Scalper Pro (conta " + c[4] + ")";
+                    if (!est.Travado) Travar(motivo, "AGUARDAR", agora);
+                    est.ZerarFilhas = true;
+                    est.Salvar();
+                    Evento("BLOQUEAR pedido pela conta " + c[4] + ": central travada ate o reset; zerando as contas filhas ("
+                           + string.Join(", ", IdsFilhas().ToArray()) + ").");
+                }
+                catch (Exception) { }
+            }
+        }
+
         private void VerificarDivergencia(DateTime agora, StatusConta mae)
         {
             zerarContas.Clear();

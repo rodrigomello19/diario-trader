@@ -1,13 +1,13 @@
 //+------------------------------------------------------------------+
-//|                     SCALPER PRO v6.07 - MT5                       |
+//|                     SCALPER PRO v6.08 - MT5                       |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, Scalper Pro"
-#property version       "6.07"
+#property version       "6.08"
 #property strict
 
 #include <Trade/Trade.mqh>
 
-const string SP_EA_VERSAO = "6.07";
+const string SP_EA_VERSAO = "6.08";
 
 CTrade trade;
 
@@ -237,6 +237,10 @@ string OBJ_BTN_LOTE_DN  = "SP_LOTE_DN";     // passo do lote
 string OBJ_BTN_LOTE_UP  = "SP_LOTE_UP";
 string OBJ_BTN_TS       = "SP_BTN_TS";        // liga/desliga o trailing stop (cartao PARAMETROS)
 string OBJ_BTN_ESPELHO  = "SP_BTN_ESPELHO";   // mostra/esconde o indicador espelho do NT8
+string OBJ_BTN_BLOQ     = "SP_BTN_BLOQ";      // BLOQUEAR: trava a Central ate o reset e zera as filhas (v6.08)
+ulong  g_bloqConfirmaMs = 0;                  // 1o clique em BLOQUEAR: aguarda o 2o por 4 s
+bool   g_bloqManLocal   = false;              // sem Central: bloqueio so desta conta ate o fim do dia
+datetime g_bloqManDia   = 0;
 bool   g_tsLigado       = true;
 bool   g_espelhoOculto  = false;
 ulong  g_espelhoVerificarMs = 0;   // quando conferir se o indicador respondeu ao botao BOLHAS
@@ -735,6 +739,9 @@ void     CopiarLinhasDeGrafico(const long chartOrigem);
 bool     ProcessarCliqueListaSync(const string nome);
 void     ProcessarListaSyncTimeout();
 void     VerificarOutrosEAs(const bool forcar = false);
+void     AtualizarBotaoBloquear();
+void     CliqueBloquear();
+bool     BloqueioManualLocal();
 bool     ProcessarCliqueOutroEA(const string nome);
 
 string GVOpCounted(ulong dealTkt)  { return GV_PREFIX + "OC_" + IntegerToString(dealTkt); }
@@ -2321,6 +2328,7 @@ void ReconciliarOperacoesAbertas()
 bool PodeOperarRapido()
 {
    // limites do dia, horarios e trava ficam na Central de Controle
+   if(BloqueioManualLocal()) return false;   // botao BLOQUEAR sem Central instalada
    return !Central_BloqueiaNovas();
 }
 
@@ -4534,6 +4542,12 @@ bool ObterStatusImpedimento(string &texto, color &cor)
       cor = C_STATUS_ERR;
       return true;
    }
+   if(BloqueioManualLocal())
+   {
+      texto = "BLOQUEADO PELO BOTAO ATE AMANHA";
+      cor = C_STATUS_ERR;
+      return true;
+   }
    if(g_outroEATxt != "")
    {
       texto = "OUTRO EA LIGADO: " + g_outroEATxt;
@@ -5062,6 +5076,7 @@ void AplicarEstiloBotao(const string name, bool press)
    if(name == OBJ_BTN_PERF_N || name == OBJ_BTN_PERF_V) { AtualizarSegmentoPerfil(); return; }
    if(name == OBJ_BTN_TS) { AtualizarBotaoTS(); return; }
    if(name == OBJ_BTN_ESPELHO) { AtualizarBotaoEspelho(); return; }
+   if(name == OBJ_BTN_BLOQ) { AtualizarBotaoBloquear(); return; }
 
    RemoverDecorBotao(name);
 
@@ -5097,6 +5112,7 @@ void AplicarEstiloBotao(const string name, bool press)
 void AtualizarEstadoLimitesUI()
 {
    bool bloq = (g_centralEstado != CENTRAL_LIVRE);   // estado da Central de Controle
+   AtualizarBotaoBloquear();
 
    if(ObjectFind(0, OBJ_LIM_STATE) >= 0)
    {
@@ -5312,6 +5328,7 @@ void ProcessarCliqueBotaoPainel(const string btn)
    else if(btn == OBJ_BTN_PARCIAIS) ToggleParciaisSistema();
    else if(btn == OBJ_BTN_TS) CiclarModoTS();
    else if(btn == OBJ_BTN_ESPELHO) ToggleEspelho();
+   else if(btn == OBJ_BTN_BLOQ) CliqueBloquear();
    else if(btn == OBJ_BTN_PERF_N) { if(SetupVolatilAtivo())  AlternarPerfilSetup(); }
    else if(btn == OBJ_BTN_PERF_V) { if(!SetupVolatilAtivo()) AlternarPerfilSetup(); }
    else if(btn == OBJ_BTN_LOTE_DN) AjustarLotePasso(-1);
@@ -5349,7 +5366,7 @@ string ResolverCliqueBotaoPainel(const string sparam)
    if(sparam == OBJ_BTN_BUY || sparam == OBJ_BTN_SELL || sparam == OBJ_BTN_CLOSEALL
       || sparam == OBJ_BTN_SYNC_HL || sparam == OBJ_BTN_LINHAS
       || sparam == OBJ_BTN_PARCIAIS || sparam == OBJ_BTN_PERF_N || sparam == OBJ_BTN_PERF_V
-      || sparam == OBJ_BTN_TS || sparam == OBJ_BTN_ESPELHO
+      || sparam == OBJ_BTN_TS || sparam == OBJ_BTN_ESPELHO || sparam == OBJ_BTN_BLOQ
       || sparam == OBJ_BTN_LOTE_DN || sparam == OBJ_BTN_LOTE_UP
       || sparam == OBJ_BTN_TP_DN || sparam == OBJ_BTN_TP_UP || sparam == OBJ_BTN_SL_DN || sparam == OBJ_BTN_SL_UP
       || sparam == OBJ_BTN_MINIMIZE || sparam == OBJ_BTN_CLOSE)
@@ -5439,14 +5456,14 @@ void ReposicionarObjetoXY(const string name, const int x, const int y)
 void ReposicionarBotoesAux(const int lx, const int divW, const int yAux)
 {
    g_syncSelY = yAux;
-   string b[3];
-   b[0] = OBJ_BTN_SYNC_HL; b[1] = OBJ_BTN_LINHAS; b[2] = OBJ_BTN_ESPELHO;
-   int w = (divW - 12) / 3;
-   for(int i = 0; i < 3; i++)
+   string b[4];
+   b[0] = OBJ_BTN_SYNC_HL; b[1] = OBJ_BTN_LINHAS; b[2] = OBJ_BTN_ESPELHO; b[3] = OBJ_BTN_BLOQ;
+   int w = (divW - 18) / 4;
+   for(int i = 0; i < 4; i++)
    {
       if(ObjectFind(0, b[i]) < 0) continue;
       int x  = lx + i * (w + 6);
-      int wi = (i == 2) ? divW - 2 * (w + 6) : w;
+      int wi = (i == 3) ? divW - 3 * (w + 6) : w;
       ObjectSetInteger(0, b[i], OBJPROP_XDISTANCE, x);
       ObjectSetInteger(0, b[i], OBJPROP_YDISTANCE, yAux);
       ObjectSetInteger(0, b[i], OBJPROP_XSIZE, wi);
@@ -5459,6 +5476,7 @@ void ReposicionarBotoesAux(const int lx, const int divW, const int yAux)
    if(ObjectFind(0, OBJ_BTN_SYNC_HL) >= 0)
       ObjectSetString(0, OBJ_BTN_SYNC_HL, OBJPROP_TOOLTIP, "Copiar as linhas do grafico de estudo");
    AtualizarBotaoEspelho();
+   AtualizarBotaoBloquear();
    AtualizarEstadoLimitesUI();
 }
 
@@ -7047,7 +7065,7 @@ void Central_Ler()
                {
                   string l = linhas[i];
                   StringTrimRight(l);
-                  if(l == meu) { estado = CENTRAL_ZERAR; motivo = "divergencia com a conta mae"; }
+                  if(l == meu) { estado = CENTRAL_ZERAR; motivo = (c[3] == "LIVRE") ? "divergencia com a conta mae" : c[4]; }
                }
             }
          }
@@ -7209,6 +7227,11 @@ int OnInit()
    ChartRedraw(0);
 
    VerificarOutrosEAs(true);   // outro EA neste ativo ja ligado ao iniciar
+   if(GlobalVariableCheck("SP_BLOQMAN_DIA"))
+   {
+      g_bloqManDia   = (datetime)GlobalVariableGet("SP_BLOQMAN_DIA");
+      g_bloqManLocal = (g_bloqManDia == DiaCalendarioAtual());
+   }
    SincronizarStatusImpedimento();
    // Copiador ativo: timer em ms; as rotinas de 1 s continuam a cada 1 s (OnTimer).
    if(g_copyModoEf != COPY_DESLIGADO)
@@ -7429,6 +7452,12 @@ void OnTimer()
    VerificarEspelho();
    ProcessarListaSyncTimeout();
    VerificarOutrosEAs();
+   if(g_bloqConfirmaMs > 0 && GetTickCount64() - g_bloqConfirmaMs > 4000)
+   {
+      g_bloqConfirmaMs = 0;
+      AtualizarBotaoBloquear();
+      ChartRedraw(0);
+   }
 
    ProcessarResetStatusGeralAgendado();
    ProcessarResetStatusParciaisAgendado();
@@ -9221,6 +9250,7 @@ int DesenharSecoesPainel(const int lx, const int divW, const bool criar)
    CreateButton(OBJ_BTN_SYNC_HL, lx, ya, 10, SEC_AUX_BTN_H, "SYNC", 7);
    CreateButton(OBJ_BTN_LINHAS, lx, ya, 10, SEC_AUX_BTN_H, "LINHAS", 7);
    CreateButton(OBJ_BTN_ESPELHO, lx, ya, 10, SEC_AUX_BTN_H, "BOLHAS", 7);
+   CreateButton(OBJ_BTN_BLOQ, lx, ya, 10, SEC_AUX_BTN_H, "BLOQUEAR", 7);
    ReposicionarBotoesAux(lx, divW, ya);
 
    return ya + SEC_AUX_BTN_H + GAP_AUX_MET;
@@ -9468,4 +9498,90 @@ bool ProcessarCliqueOutroEA(const string nome)
    VerificarOutrosEAs(true);
    Status("Ciente: " + g_outroEACiente, C_STATUS_OK, false);
    return true;
+}
+
+//+------------------------------------------------------------------+
+//| Botao BLOQUEAR (v6.08)                                            |
+//| 2 cliques (o 2o em ate 4 s): pede a Central para TRAVAR ate o     |
+//| reset diario, como um limite atingido, e ZERAR AS FILHAS (MT5 e   |
+//| NT8). A posicao desta conta segue ate fechar (SL/TP/trailing).    |
+//| Sem Central instalada: bloqueia so esta conta ate o fim do dia.   |
+//+------------------------------------------------------------------+
+bool BloqueioManualLocal()
+{
+   if(!g_bloqManLocal) return false;
+   if(DiaCalendarioAtual() != g_bloqManDia)   // virou o dia
+   {
+      g_bloqManLocal = false;
+      GlobalVariableDel("SP_BLOQMAN_DIA");
+      return false;
+   }
+   return true;
+}
+
+void AtualizarBotaoBloquear()
+{
+   if(ObjectFind(0, OBJ_BTN_BLOQ) < 0) return;
+   bool bloqueado = BloqueioManualLocal() || g_centralEstado != CENTRAL_LIVRE;
+   bool confirma  = (g_bloqConfirmaMs > 0);
+   RemoverDecorBotao(OBJ_BTN_BLOQ);
+   ObjectSetString(0, OBJ_BTN_BLOQ, OBJPROP_TEXT, confirma ? "CONFIRMA?" : (bloqueado ? "BLOQUEADO" : "BLOQUEAR"));
+   ObjectSetString(0, OBJ_BTN_BLOQ, OBJPROP_FONT, UI_FONT_BOLD);
+   ObjectSetInteger(0, OBJ_BTN_BLOQ, OBJPROP_FONTSIZE, 7);
+   color bg = confirma ? C_STATUS_ERR : C_AUX_LIMITS_BG;
+   ObjectSetInteger(0, OBJ_BTN_BLOQ, OBJPROP_BGCOLOR, bg);
+   ObjectSetInteger(0, OBJ_BTN_BLOQ, OBJPROP_BORDER_COLOR, confirma ? C_STATUS_ERR : C_AUX_LIMITS_BRD);
+   ObjectSetInteger(0, OBJ_BTN_BLOQ, OBJPROP_BORDER_TYPE, BORDER_FLAT);
+   ObjectSetInteger(0, OBJ_BTN_BLOQ, OBJPROP_COLOR, confirma ? C_EXEC_TEXT_ON : (bloqueado ? C_MUTED : C_STATUS_ERR));
+   ObjectSetInteger(0, OBJ_BTN_BLOQ, OBJPROP_STATE, false);
+   ObjectSetString(0, OBJ_BTN_BLOQ, OBJPROP_TOOLTIP, confirma
+                   ? "Clique de novo para confirmar o bloqueio"
+                   : "Bloquear as operacoes ate o reset da Central e zerar as contas filhas (2 cliques)");
+}
+
+void CliqueBloquear()
+{
+   ulong agora = GetTickCount64();
+   if(g_bloqConfirmaMs == 0 || agora - g_bloqConfirmaMs > 4000)
+   {
+      g_bloqConfirmaMs = agora;   // 1o clique: pede confirmacao (sem MessageBox, que travaria o EA)
+      AtualizarBotaoBloquear();
+      Status("BLOQUEAR: clique de novo em ate 4 s para confirmar", C_STATUS_WARN, false);
+      return;
+   }
+   g_bloqConfirmaMs = 0;
+
+   // nenhuma entrada nova nesta conta a partir de agora
+   if(g_jLinhaArmada) CancelarPendenteLinha(true);
+   if(g_lLinhaArmada) CancelarPendenteLinha(false);
+   ExecutarCancelamentoPendentes();
+
+   bool temCentral = !MQLInfoInteger(MQL_TESTER) && FileIsExist(CENTRAL_MARCA, FILE_COMMON);
+   if(temCentral)
+   {
+      string arq = "SP_Central_Pedido_" + CentralIdConta() + ".txt";
+      int h = FileOpen(arq, FILE_WRITE|FILE_BIN|FILE_ANSI|FILE_COMMON|FILE_SHARE_READ|FILE_SHARE_WRITE);
+      if(h != INVALID_HANDLE)
+      {
+         string txt = "PEDIDO|1|" + IntegerToString((long)GetTickCount64()) + "|TRAVAR|" + CentralIdConta() + "|" + _Symbol + "\r\n";
+         FileWriteString(h, txt, StringLen(txt));
+         FileClose(h);
+         g_centralLidoMs = 0;   // le a resposta da Central ja no proximo ciclo
+         Status("BLOQUEIO pedido a Central: trava ate o reset e zera as filhas", C_STATUS_ERR, true);
+         PrintFormat("SP BLOQUEAR: pedido enviado a Central (%s)", arq);
+      }
+      else
+         temCentral = false;
+   }
+   if(!temCentral)
+   {
+      g_bloqManLocal = true;
+      g_bloqManDia   = DiaCalendarioAtual();
+      GlobalVariableSet("SP_BLOQMAN_DIA", (double)g_bloqManDia);
+      Status("BLOQUEADO ate amanha (sem Central: as filhas NAO sao zeradas)", C_STATUS_ERR, true);
+      Print("SP BLOQUEAR: Central nao encontrada; bloqueio so desta conta ate o fim do dia");
+   }
+   AtualizarBotaoBloquear();
+   SincronizarStatusImpedimento();
+   ChartRedraw(0);
 }

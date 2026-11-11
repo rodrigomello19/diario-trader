@@ -105,6 +105,14 @@ A trava dura até o **reset diário** (ex.: 06:00 do dia seguinte). A **senha me
 
 No MT5, o bloco de estado do Scalper Pro fica vermelho (BLOQUEADO) e a barra de status mostra `CENTRAL: <motivo>` ou `ZERANDO: <motivo>`. Se o motivo não couber na barra, ele termina em "..." e o texto completo aparece ao passar o mouse. Na filha NT8, o motivo aparece no log.
 
+## Botão BLOQUEAR do Scalper Pro (v1.8)
+
+O Scalper Pro (v6.08+) grava `SP_Central_Pedido_<conta>.txt` quando você confirma o botão **BLOQUEAR**. Em até 0,5 s, a central:
+- **trava até o reset diário**, com o motivo "bloqueio pelo botão BLOQUEAR do Scalper Pro". Sem novas entradas, e a posição da mãe segue até fechar;
+- **zera as contas filhas:** as da configuração e as que estão conectadas como filha. Elas recebem o comando `Z|<conta>` até ficarem zeradas.
+
+Só a senha mestra destrava antes do reset. Pedidos com mais de 1 minuto, como os que ficaram de antes de reiniciar a central, são ignorados.
+
 ## Como os EAs obedecem
 
 | Comando da central | Scalper Pro (MT5) | Filha NT8 |

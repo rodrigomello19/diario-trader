@@ -15,7 +15,7 @@ Scalper Pro  v5.94 | US100                    [-] [X]
 └────────────────────────────────────────────────┘
 [   COMPRA   ] [   FECHA   ] [   VENDA   ]
     tecla I        tecla O       tecla P
-[   SYNC   ] [  LINHAS  ] [  BOLHAS   ]
+[  SYNC  ] [ LINHAS ] [ BOLHAS ] [BLOQUEAR]
 ┌ LIBERADO │  Oper  │ Pontos │ Spread ┐
 │          │   2    │  +840  │   12   │
 └──────────┴────────┴────────┴────────┘
@@ -41,6 +41,14 @@ Copiador
   - A escolha fica salva por ativo, mesmo depois de reiniciar o MT5.
   - Parciais, TP, SL e o copiador não mudam.
 - **Take profit e Stop loss:** a etiqueta "pts" foi tirada (v6.06). Os valores continuam em pontos.
+- **BLOQUEAR (v6.08):** encerra o dia de operações. **Clique duas vezes**: no 1º o botão mostra "CONFIRMA?", e o 2º precisa vir em até 4 s.
+  - **Com a Central de Controle,** o Scalper pede a ela para **travar até o reset diário**, como se fosse um limite atingido.
+    - **Esta conta** não abre mais operações. A posição aberta segue até fechar pelo SL, TP ou trailing.
+    - **As contas filhas (MT5 e NT8) são zeradas.** A filha NT8 (v1.5) também cancela todas as ordens ativas do contrato, inclusive as ainda "Initialized".
+    - As plataformas fecham depois, se essa opção estiver ligada na Central.
+    - Só a senha mestra destrava antes do reset.
+  - **Sem a Central,** só esta conta fica bloqueada até o fim do dia. As filhas **não** são zeradas.
+  - Depois de usado, o botão mostra **BLOQUEADO**.
 - **BOLHAS (v6.04, antes ESPELHO):** esconde ou mostra a VWAP, as bandas, as bolhas e a absorção do indicador **RM_NT8Espelho**.
   - Com o indicador escondido, o botão mostra **BOLHAS OFF**.
   - **Vale para todos os gráficos do mesmo ativo (v6.06),** inclusive o gráfico de estudo, e não só para o gráfico do EA.
