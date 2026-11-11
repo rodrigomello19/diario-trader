@@ -9250,7 +9250,7 @@ int DesenharSecoesPainel(const int lx, const int divW, const bool criar)
    CreateButton(OBJ_BTN_SYNC_HL, lx, ya, 10, SEC_AUX_BTN_H, "SYNC", 7);
    CreateButton(OBJ_BTN_LINHAS, lx, ya, 10, SEC_AUX_BTN_H, "LINHAS", 7);
    CreateButton(OBJ_BTN_ESPELHO, lx, ya, 10, SEC_AUX_BTN_H, "BOLHAS", 7);
-   CreateButton(OBJ_BTN_BLOQ, lx, ya, 10, SEC_AUX_BTN_H, "BLOQUEAR", 7);
+   CreateButton(OBJ_BTN_BLOQ, lx, ya, 10, SEC_AUX_BTN_H, "BLOCK", 7);
    ReposicionarBotoesAux(lx, divW, ya);
 
    return ya + SEC_AUX_BTN_H + GAP_AUX_MET;
@@ -9525,7 +9525,7 @@ void AtualizarBotaoBloquear()
    bool bloqueado = BloqueioManualLocal() || g_centralEstado != CENTRAL_LIVRE;
    bool confirma  = (g_bloqConfirmaMs > 0);
    RemoverDecorBotao(OBJ_BTN_BLOQ);
-   ObjectSetString(0, OBJ_BTN_BLOQ, OBJPROP_TEXT, confirma ? "CONFIRMA?" : (bloqueado ? "BLOQUEADO" : "BLOQUEAR"));
+   ObjectSetString(0, OBJ_BTN_BLOQ, OBJPROP_TEXT, confirma ? "CONFIRMA?" : (bloqueado ? "BLOQUEADO" : "BLOCK"));
    ObjectSetString(0, OBJ_BTN_BLOQ, OBJPROP_FONT, UI_FONT_BOLD);
    ObjectSetInteger(0, OBJ_BTN_BLOQ, OBJPROP_FONTSIZE, 7);
    color bg = confirma ? C_STATUS_ERR : C_AUX_LIMITS_BG;

@@ -15,7 +15,7 @@ Scalper Pro  v5.94 | US100                    [-] [X]
 └────────────────────────────────────────────────┘
 [   COMPRA   ] [   FECHA   ] [   VENDA   ]
     tecla I        tecla O       tecla P
-[  SYNC  ] [ LINHAS ] [ BOLHAS ] [BLOQUEAR]
+[  SYNC  ] [ LINHAS ] [ BOLHAS ] [ BLOCK  ]
 ┌ LIBERADO │  Oper  │ Pontos │ Spread ┐
 │          │   2    │  +840  │   12   │
 └──────────┴────────┴────────┴────────┘
@@ -41,7 +41,7 @@ Copiador
   - A escolha fica salva por ativo, mesmo depois de reiniciar o MT5.
   - Parciais, TP, SL e o copiador não mudam.
 - **Take profit e Stop loss:** a etiqueta "pts" foi tirada (v6.06). Os valores continuam em pontos.
-- **BLOQUEAR (v6.08):** encerra o dia de operações. **Clique duas vezes**: no 1º o botão mostra "CONFIRMA?", e o 2º precisa vir em até 4 s.
+- **BLOCK (v6.08):** encerra o dia de operações. **Clique duas vezes**: no 1º o botão mostra "CONFIRMA?", e o 2º precisa vir em até 4 s.
   - **Com a Central de Controle,** o Scalper pede a ela para **travar até o reset diário**, como se fosse um limite atingido.
     - **Esta conta** não abre mais operações. A posição aberta segue até fechar pelo SL, TP ou trailing.
     - **As contas filhas (MT5 e NT8) são zeradas.** A filha NT8 (v1.5) também cancela todas as ordens ativas do contrato, inclusive as ainda "Initialized".
