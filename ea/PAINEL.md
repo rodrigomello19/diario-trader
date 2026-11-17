@@ -41,6 +41,11 @@ Copiador
   - A escolha fica salva por ativo, mesmo depois de reiniciar o MT5.
   - Parciais, TP, SL e o copiador não mudam.
 - **Take profit e Stop loss:** a etiqueta "pts" foi tirada (v6.06). Os valores continuam em pontos.
+- **Central v2.0 (Scalper Pro v6.09):**
+  - **Número mágico próprio:** as ordens do Scalper passam a ter o número mágico **53500001** (parâmetro "Magic das ordens do Scalper Pro", grupo Central de Controle). Antes era 0, igual a uma operação manual. As posições abertas pelas versões antigas continuam reconhecidas pelo comentário "SP_".
+  - **Zerar operações de fora:** com a opção ligada na Central, este EA zera em até 0,5 s qualquer posição ou ordem **da conta** que não seja do Scalper, do copiador ou de um robô autorizado (ex.: DGX). Vale em qualquer ativo e também para o que for feito à mão no MT5, no celular ou na web. Aparece um alerta "Operação FORA do Scalper Pro ZERADA".
+  - **Bloqueios por conta e ativo:** o EA obedece às linhas da Central para a conta e o ativo dele.
+  - **Valores em dinheiro:** ele envia à Central o resultado em dinheiro de cada operação e o flutuante, para as regras de valor e a proteção de lucro.
 - **BLOCK (v6.08):** encerra o dia de operações. **Clique duas vezes**: no 1º o botão mostra "CONFIRMA?", e o 2º precisa vir em até 4 s.
   - **Com a Central de Controle,** o Scalper pede a ela para **travar até o reset diário**, como se fosse um limite atingido.
     - **Esta conta** não abre mais operações. A posição aberta segue até fechar pelo SL, TP ou trailing.

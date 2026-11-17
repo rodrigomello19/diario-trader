@@ -1,5 +1,5 @@
 // ============================================================================
-//  SP Copy Filha NT8 v1.5  -  filha NinjaTrader 8 do copiador Scalper Pro (MT5)
+//  SP Copy Filha NT8 v1.6  -  filha NinjaTrader 8 do copiador Scalper Pro (MT5)
 // ----------------------------------------------------------------------------
 //  Le o arquivo de estado que a MAE (Scalper Pro, modo Mae) grava em
 //  %APPDATA%\MetaQuotes\Terminal\Common\Files\SP_Copy_<canal>.txt e replica
@@ -18,6 +18,9 @@
 //   - v1.5: ZERAR da Central (botao BLOQUEAR do Scalper Pro, limite de perda...)
 //           -> depois de zerar, cancela TODAS as ordens ativas do contrato nesta conta,
 //           inclusive as ainda Initialized; motivo do zerar vem da Central
+//   - v1.6: Central v2 (regras por conta e ativo): linhas B/Z com conta e ativo;
+//           "zerar operacoes de fora" (F|1): posicao sem copia ativa no contrato (manual,
+//           web, celular, outro robo) e zerada na hora e ordens soltas sao canceladas
 //  Grava SP_CopyAck_<canal>_NT-<conta>.txt para a faixa da mae contar esta
 //  filha como conectada/pronta.
 //
@@ -96,6 +99,8 @@ namespace NinjaTrader.NinjaScript.Strategies
         private int    centralEstado;       // 0 livre, 1 bloqueia novas, 2 zerar
         private int    centralEstadoAnt;
         private string centralMotivo = "";
+        private bool   centralZerarFora;    // Central: zerar operacoes feitas fora do copiador
+        private ulong  foraOrdensMs;
         private ulong  centralLidoMs;
         private ulong  centralUltOkMs;
         private ulong  centralStatusMs;
@@ -287,6 +292,18 @@ namespace NinjaTrader.NinjaScript.Strategies
                 else if (copiaIdMae == 0)
                     fechamentoEnvioMs = 0;
                 return;
+            }
+
+            // 0b) Operacao de fora (manual, web, celular, outro robo) no contrato sem copia ativa: zera
+            if (centralZerarFora && copiaIdMae == 0 && !entradaPendente)
+            {
+                if (temPos)
+                {
+                    Fechar("operacao FORA do copiador (manual/outro robo) - Central de Controle", qtdFilha, compraFilha);
+                    return;
+                }
+                fechamentoEnvioMs = 0;
+                CancelarOrdensForaDoCopiador();
             }
 
             if (!maeValida)
@@ -632,6 +649,34 @@ namespace NinjaTrader.NinjaScript.Strategies
             Imprimir(string.Format("ZERAR da central ({0}): {1} ordem(ns) ativa(s) do contrato cancelada(s)", centralMotivo, cancelar.Count));
         }
 
+        // Sem copia ativa e conta zerada no contrato: ordem ativa aqui so pode ser de fora (manual, ATM solto)
+        private void CancelarOrdensForaDoCopiador()
+        {
+            ulong agora = GetTickCount64();
+            if (agora - foraOrdensMs < 500) return;
+            foraOrdensMs = agora;
+            List<Order> cancelar = new List<Order>();
+            lock (Account.Orders)
+            {
+                foreach (Order o in Account.Orders)
+                    if (o.Instrument.FullName == Instrument.FullName && OrdemAtiva(o)
+                        && o.Name != "SPC_Close" && o.Name != "SPC_Orfa")
+                        cancelar.Add(o);
+            }
+            if (cancelar.Count == 0) return;
+            Account.Cancel(cancelar);
+            Imprimir(string.Format("{0} ordem(ns) FORA do copiador cancelada(s) no contrato (Central de Controle)", cancelar.Count));
+        }
+
+        // Ativo da linha B/Z da Central: * = todos; senao prefixo do contrato (MNQ vale para MNQ 12-26)
+        private bool CentralAtivoBate(string ativo)
+        {
+            string a = (ativo ?? "").Trim();
+            if (a == "" || a == "*") return true;
+            return Instrument.FullName.StartsWith(a, StringComparison.OrdinalIgnoreCase)
+                || Instrument.MasterInstrument.Name.StartsWith(a, StringComparison.OrdinalIgnoreCase);
+        }
+
         private int CancelarBracketsOrfaos()
         {
             List<Order> cancelar = new List<Order>();
@@ -769,6 +814,7 @@ namespace NinjaTrader.NinjaScript.Strategies
             {
                 centralEstado = 0;
                 centralMotivo = "";
+                centralZerarFora = false;
                 return;
             }
 
@@ -788,13 +834,28 @@ namespace NinjaTrader.NinjaScript.Strategies
                         centralUltOkMs = agora;
                         motivo = c[4];
                         estado = c[3] == "LIVRE" ? 0 : (c[3] == "ZERAR" ? 2 : 1);
+                        // v2: F|1/0|magics ; B|conta|ativo|motivo (sem novas) ; Z|conta|ativo|motivo (zerar)
+                        bool zerarFora = false;
                         for (int i = 1; i < linhas.Length; i++)
-                            if (linhas[i].Trim() == "Z|" + IdCentral())
+                        {
+                            string[] p = linhas[i].Trim().Split('|');
+                            if (p.Length < 2) continue;
+                            if (p[0] == "F") { zerarFora = p[1] == "1"; continue; }
+                            if ((p[0] != "Z" && p[0] != "B") || p[1] != IdCentral()) continue;
+                            if (!CentralAtivoBate(p.Length >= 3 ? p[2] : "*")) continue;
+                            string mot = p.Length >= 4 ? p[3] : (c[3] == "LIVRE" ? "divergencia com a conta mae" : c[4]);
+                            if (p[0] == "Z")
                             {
+                                if (estado != 2) motivo = mot;
                                 estado = 2;
-                                // Z com a central LIVRE = divergencia; com a central travada = zerar pedido por ela
-                                motivo = c[3] == "LIVRE" ? "divergencia com a conta mae" : c[4];
                             }
+                            else if (estado == 0)
+                            {
+                                estado = 1;
+                                motivo = mot;
+                            }
+                        }
+                        centralZerarFora = zerarFora;
                     }
                 }
             }

@@ -1,13 +1,13 @@
 //+------------------------------------------------------------------+
-//|                     SCALPER PRO v6.08 - MT5                       |
+//|                     SCALPER PRO v6.09 - MT5                       |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, Scalper Pro"
-#property version       "6.08"
+#property version       "6.09"
 #property strict
 
 #include <Trade/Trade.mqh>
 
-const string SP_EA_VERSAO = "6.08";
+const string SP_EA_VERSAO = "6.09";
 
 CTrade trade;
 
@@ -106,6 +106,9 @@ input group "=== Linhas do dia (arquivo SP_Linhas.txt) ==="
 input bool   InpLinhasArquivo      = false;   // Carregar SP_Linhas.txt ao iniciar o EA (padrao: so pelo botao LINHAS)
 input bool   InpLinhasAutoRecarga  = false;   // Redesenhar sozinho quando o arquivo for salvo
 input double InpLinhasFaixaPct     = 10.0;    // Ignorar precos a mais de X% do preco atual (erro de digitacao)
+
+input group "=== Central de Controle ==="
+input long   InpMagicProprio       = 53500001; // Magic das ordens do Scalper Pro (a Central zera operacoes de fora)
 
 input group "=== Indicador espelho do NT8 (botao BOLHAS) ==="
 input string InpEspelhoPrefixoObj  = "RMN8_"; // Prefixo dos objetos do indicador a esconder ("" = so o aviso ao indicador)
@@ -539,6 +542,11 @@ ulong  g_centralLidoMs      = 0;
 ulong  g_centralUltOkMs     = 0;
 ulong  g_centralStatusMs    = 0;
 ulong  g_centralZerarMs     = 0;
+bool   g_centralZerarFora   = false;   // Central: zerar operacoes feitas fora do Scalper Pro / copiador / robos autorizados
+long   g_centralMagics[];               // robos autorizados (ex.: DGX)
+bool   g_centralZerarTudo   = false;   // Z com ativo * : zera todos os ativos da conta
+ulong  g_estranhasMs        = 0;
+ulong  g_estranhaAvisada    = 0;
 
 // indicador no painel
 const string   OBJ_COPY_STATUS     = "SP_COPY_ST";
@@ -739,6 +747,11 @@ void     CopiarLinhasDeGrafico(const long chartOrigem);
 bool     ProcessarCliqueListaSync(const string nome);
 void     ProcessarListaSyncTimeout();
 void     VerificarOutrosEAs(const bool forcar = false);
+bool     CentralAtivoBate(const string ativo);
+bool     MagicPermitido(const long mg, const string comentario);
+bool     Central_FecharPosicao(const ulong t, const string sym);
+void     Central_ZerarEstranhas();
+double   ValorPosicaoFechada(const ulong posId);
 void     AtualizarBotaoBloquear();
 void     CliqueBloquear();
 bool     BloqueioManualLocal();
@@ -2415,7 +2428,7 @@ double NormalizeVolPainel(double vol)
 
 void ConfigurarTrade()
 {
-   trade.SetExpertMagicNumber(0);
+   trade.SetExpertMagicNumber((ulong)InpMagicProprio);   // v6.09: magic proprio (antes 0, igual a operacao manual)
    trade.SetDeviationInPoints(50);
    trade.SetAsyncMode(false);
 
@@ -6070,6 +6083,8 @@ string CopyMae_EstadoPosicoes(int &n, string &resumo, const bool comResumo = fal
       ulong t = PositionGetTicket(i);
       if(t == 0 || !PositionSelectByTicket(t)) continue;
       if(PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+      // operacao de fora (a Central vai zerar): nao vai para as filhas
+      if(g_centralZerarFora && !MagicPermitido(PositionGetInteger(POSITION_MAGIC), PositionGetString(POSITION_COMMENT))) continue;
 
       bool compra = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY);
       s += "P|" + IntegerToString(PositionGetInteger(POSITION_IDENTIFIER)) + "|" + (compra ? "B" : "S") + "|"
@@ -7029,6 +7044,8 @@ void Central_Ler()
    {
       g_centralEstado = CENTRAL_LIVRE;
       g_centralMotivo = "";
+      g_centralZerarFora = false;
+      g_centralZerarTudo = false;
       return;
    }
 
@@ -7060,12 +7077,55 @@ void Central_Ler()
                else if(c[3] == "ZERAR") estado = CENTRAL_ZERAR;
                else                     estado = CENTRAL_BLOQ;
 
-               string meu = "Z|" + CentralIdConta();
+               // v2: F|1/0|magics ; B|conta|ativo|motivo (sem novas) ; Z|conta|ativo|motivo (zerar)
+               bool zerarFora = false, zerarTudo = false;
+               string magicsTxt = "";
                for(int i = 1; i < nl; i++)
                {
                   string l = linhas[i];
                   StringTrimRight(l);
-                  if(l == meu) { estado = CENTRAL_ZERAR; motivo = (c[3] == "LIVRE") ? "divergencia com a conta mae" : c[4]; }
+                  string p[];
+                  int np = StringSplit(l, '|', p);
+                  if(np < 2) continue;
+                  if(p[0] == "F")
+                  {
+                     zerarFora = (p[1] == "1");
+                     magicsTxt = (np >= 3) ? p[2] : "";
+                     continue;
+                  }
+                  if((p[0] != "Z" && p[0] != "B") || p[1] != CentralIdConta()) continue;
+                  string ativo = (np >= 3) ? p[2] : "*";
+                  if(!CentralAtivoBate(ativo)) continue;
+                  string mot = (np >= 4) ? p[3] : ((c[3] == "LIVRE") ? "divergencia com a conta mae" : c[4]);
+                  if(p[0] == "Z")
+                  {
+                     if(estado != CENTRAL_ZERAR) motivo = mot;
+                     estado = CENTRAL_ZERAR;
+                     string a = ativo;
+                     StringTrimLeft(a);
+                     StringTrimRight(a);
+                     if(a == "" || a == "*") zerarTudo = true;
+                  }
+                  else if(estado == CENTRAL_LIVRE)
+                  {
+                     estado = CENTRAL_BLOQ;
+                     motivo = mot;
+                  }
+               }
+               g_centralZerarFora = zerarFora;
+               g_centralZerarTudo = zerarTudo;
+               string ms[];
+               int nm = StringSplit(magicsTxt, ',', ms);
+               ArrayResize(g_centralMagics, 0);
+               for(int k = 0; k < nm; k++)
+               {
+                  string x = ms[k];
+                  StringTrimLeft(x);
+                  StringTrimRight(x);
+                  if(x == "") continue;
+                  int q = ArraySize(g_centralMagics);
+                  ArrayResize(g_centralMagics, q + 1);
+                  g_centralMagics[q] = StringToInteger(x);
                }
             }
          }
@@ -7092,7 +7152,22 @@ string Central_TextoStatus()
    return "CENTRAL: " + g_centralMotivo;
 }
 
-// Uma linha por operacao encerrada; a central soma as do dia da conta mae.
+// Resultado em dinheiro de uma posicao fechada: lucro + comissao + swap + taxas de todos os negocios dela
+double ValorPosicaoFechada(const ulong posId)
+{
+   if(posId == 0 || !HistorySelectByPosition(posId)) return 0;
+   double v = 0;
+   for(int i = HistoryDealsTotal() - 1; i >= 0; i--)
+   {
+      ulong d = HistoryDealGetTicket(i);
+      if(d == 0) continue;
+      v += HistoryDealGetDouble(d, DEAL_PROFIT) + HistoryDealGetDouble(d, DEAL_COMMISSION)
+         + HistoryDealGetDouble(d, DEAL_SWAP) + HistoryDealGetDouble(d, DEAL_FEE);
+   }
+   return v;
+}
+
+// Uma linha por operacao encerrada (pontos e valor); a central soma por conta e ativo.
 void Central_RegistrarTrade(const ulong posId, const double pts)
 {
    if(MQLInfoInteger(MQL_TESTER)) return;
@@ -7101,7 +7176,7 @@ void Central_RegistrarTrade(const ulong posId, const double pts)
    if(h == INVALID_HANDLE) return;
    FileSeek(h, 0, SEEK_END);
    string l = "T|" + IntegerToString((long)posId) + "|" + IntegerToString((long)TimeLocal()) + "|"
-            + DoubleToString(pts, 1) + "|" + _Symbol + "\r\n";
+            + DoubleToString(pts, 1) + "|" + _Symbol + "|" + DoubleToString(ValorPosicaoFechada(posId), 2) + "\r\n";
    FileWriteString(h, l, StringLen(l));
    FileClose(h);
 }
@@ -7114,19 +7189,20 @@ void Central_GravarStatus()
    g_centralStatusMs = agora;
 
    int    nPos = 0;
-   double flut = 0;
+   double flut = 0, flutV = 0;
    for(int i = PositionsTotal() - 1; i >= 0; i--)
    {
       ulong t = PositionGetTicket(i);
       if(t == 0 || !PositionSelectByTicket(t)) continue;
       if(PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
       nPos++;
+      flutV += PositionGetDouble(POSITION_PROFIT) + PositionGetDouble(POSITION_SWAP);
       flut += LucroPontosPosicao(t);
    }
    string modo = (g_copyModoEf == COPY_MAE) ? "MAE" : (g_copyModoEf == COPY_FILHA ? "FILHA" : "SOLO");
-   string txt = "ST|1|" + IntegerToString((long)agora) + "|" + CentralIdConta() + "|" + _Symbol + "|" + modo + "|"
+   string txt = "ST|2|" + IntegerToString((long)agora) + "|" + CentralIdConta() + "|" + _Symbol + "|" + modo + "|"
               + IntegerToString(nPos) + "|" + DoubleToString(flut, 1) + "|"
-              + IntegerToString((long)TimeLocal()) + "\r\n";
+              + IntegerToString((long)TimeLocal()) + "|" + DoubleToString(flutV, 2) + "\r\n";
    int h = FileOpen("SP_Central_St_" + CentralIdConta() + "_" + _Symbol + ".txt",
                     FILE_WRITE|FILE_BIN|FILE_ANSI|FILE_COMMON|FILE_SHARE_READ|FILE_SHARE_WRITE);
    if(h == INVALID_HANDLE) return;
@@ -7158,7 +7234,7 @@ void Central_Processar()
       AtualizarEstadoLimitesUI();
    }
 
-   if(g_centralEstado == CENTRAL_ZERAR && TemPosicaoNoSimbolo())
+   if(g_centralEstado == CENTRAL_ZERAR && PositionsTotal() > 0)
    {
       ulong agora = GetTickCount64();
       if(g_centralZerarMs == 0 || agora - g_centralZerarMs >= 1000)
@@ -7168,14 +7244,92 @@ void Central_Processar()
          {
             ulong t = PositionGetTicket(i);
             if(t == 0 || !PositionSelectByTicket(t)) continue;
-            if(PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
-            if(trade.PositionClose(t))
+            string sym = PositionGetString(POSITION_SYMBOL);
+            if(sym != _Symbol && !g_centralZerarTudo) continue;
+            if(Central_FecharPosicao(t, sym))
             {
-               CopyMae_PublicarJa();
-               PrintFormat("Scalper Pro CENTRAL: posicao #%I64u zerada (%s)", t, g_centralMotivo);
+               if(sym == _Symbol) CopyMae_PublicarJa();
+               PrintFormat("Scalper Pro CENTRAL: posicao #%I64u %s zerada (%s)", t, sym, g_centralMotivo);
             }
          }
       }
+   }
+
+   Central_ZerarEstranhas();
+}
+
+// Ativo da linha B/Z da central bate com este grafico? (* = todos; senao prefixo: US100 vale para US100.cash)
+bool CentralAtivoBate(const string ativo)
+{
+   string a = ativo;
+   StringTrimLeft(a);
+   StringTrimRight(a);
+   if(a == "" || a == "*") return true;
+   string s = _Symbol;
+   StringToUpper(s);
+   StringToUpper(a);
+   return StringFind(s, a) == 0;
+}
+
+// Operacao do proprio sistema: Scalper Pro (magic proprio, ou magic 0 com comentario SP_ das versoes antigas),
+// copias do copiador e robos autorizados na Central (ex.: DGX). O resto e "de fora".
+bool MagicPermitido(const long mg, const string comentario)
+{
+   if(mg == InpMagicProprio || mg == InpCopyMagic) return true;
+   if(mg == 0 && StringFind(comentario, "SP_") == 0) return true;
+   for(int i = 0; i < ArraySize(g_centralMagics); i++)
+      if(g_centralMagics[i] == mg) return true;
+   return false;
+}
+
+bool Central_FecharPosicao(const ulong t, const string sym)
+{
+   CTrade tz;
+   tz.SetExpertMagicNumber((ulong)InpMagicProprio);
+   tz.SetDeviationInPoints(200);
+   tz.SetTypeFilling(ObterFilling(sym));
+   tz.LogLevel(LOG_LEVEL_ERRORS);
+   return tz.PositionClose(t);
+}
+
+// Central com "zerar operacoes de fora" ligado: qualquer posicao ou ordem desta CONTA (todos os ativos)
+// que nao seja do sistema e fechada/cancelada na hora (a mao no MT5, celular, web ou outro robo).
+void Central_ZerarEstranhas()
+{
+   if(!g_centralZerarFora) return;
+   ulong agora = GetTickCount64();
+   if(agora - g_estranhasMs < 500) return;
+   g_estranhasMs = agora;
+
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong t = PositionGetTicket(i);
+      if(t == 0 || !PositionSelectByTicket(t)) continue;
+      long   mg  = PositionGetInteger(POSITION_MAGIC);
+      string cm  = PositionGetString(POSITION_COMMENT);
+      if(MagicPermitido(mg, cm)) continue;
+      string sym = PositionGetString(POSITION_SYMBOL);
+      double vol = PositionGetDouble(POSITION_VOLUME);
+      bool   ok  = Central_FecharPosicao(t, sym);
+      if(ok && sym == _Symbol) CopyMae_PublicarJa();
+      if(g_estranhaAvisada != t)
+      {
+         g_estranhaAvisada = t;
+         string msg = StringFormat("Operacao FORA do Scalper Pro %s: %s %.2f (magic %I64d, comentario '%s') - Central de Controle",
+                                   ok ? "ZERADA" : "(falha ao zerar)", sym, vol, mg, cm);
+         Print("Scalper Pro CENTRAL: " + msg);
+         Alert("Scalper Pro: " + msg);
+      }
+   }
+   for(int i = OrdersTotal() - 1; i >= 0; i--)
+   {
+      ulong t = OrderGetTicket(i);
+      if(t == 0 || !OrderSelect(t)) continue;
+      if(MagicPermitido(OrderGetInteger(ORDER_MAGIC), OrderGetString(ORDER_COMMENT))) continue;
+      string sym = OrderGetString(ORDER_SYMBOL);
+      CTrade tz;
+      if(tz.OrderDelete(t))
+         PrintFormat("Scalper Pro CENTRAL: ordem #%I64u %s FORA do Scalper Pro cancelada (magic %I64d)", t, sym, OrderGetInteger(ORDER_MAGIC));
    }
 }
 
@@ -8624,7 +8778,7 @@ bool FecharVolumePorDeal(ulong posTkt, double volume, bool &fechouTotal, string 
    req.symbol       = sym;
    req.volume       = volume;
    req.deviation    = 50;
-   req.magic        = 0;
+   req.magic        = InpMagicProprio;
    req.type_filling = ObterFilling(sym);
    req.comment      = "SP_Partial";
 
@@ -9448,14 +9602,14 @@ void VerificarOutrosEAs(const bool forcar = false)
    if(graficos == "") g_outroEACiente = "";
    string txt = (graficos != "" && graficos != g_outroEACiente) ? graficos : "";
 
-   // 2) posicao ou ordem deste ativo com magic de outro robo (o Scalper usa 0; copias usam InpCopyMagic)
+   // 2) posicao ou ordem deste ativo com magic de outro robo (nao Scalper/copiador/autorizado; 0 = manual nao entra aqui)
    string magics = "";
    for(int i = PositionsTotal() - 1; i >= 0; i--)
    {
       ulong t = PositionGetTicket(i);
       if(t == 0 || !PositionSelectByTicket(t) || PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
       long mg = PositionGetInteger(POSITION_MAGIC);
-      if(mg != 0 && mg != InpCopyMagic && StringFind(magics, "#" + IntegerToString(mg)) < 0)
+      if(mg != 0 && !MagicPermitido(mg, PositionGetString(POSITION_COMMENT)) && StringFind(magics, "#" + IntegerToString(mg)) < 0)
          magics += " #" + IntegerToString(mg);
    }
    for(int i = OrdersTotal() - 1; i >= 0; i--)
@@ -9463,7 +9617,7 @@ void VerificarOutrosEAs(const bool forcar = false)
       ulong t = OrderGetTicket(i);
       if(t == 0 || !OrderSelect(t) || OrderGetString(ORDER_SYMBOL) != _Symbol) continue;
       long mg = OrderGetInteger(ORDER_MAGIC);
-      if(mg != 0 && mg != InpCopyMagic && StringFind(magics, "#" + IntegerToString(mg)) < 0)
+      if(mg != 0 && !MagicPermitido(mg, OrderGetString(ORDER_COMMENT)) && StringFind(magics, "#" + IntegerToString(mg)) < 0)
          magics += " #" + IntegerToString(mg);
    }
    if(magics != "")

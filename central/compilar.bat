@@ -7,19 +7,22 @@ if not exist "%CSC%" (
   pause
   exit /b 1
 )
-rem A central aberta trava o SPCentral.exe: o compilador nao consegue substitui-lo
-tasklist /FI "IMAGENAME eq SPCentral.exe" 2>nul | find /I "SPCentral.exe" >nul
-if not errorlevel 1 (
-  echo A Central de Controle esta ABERTA. Feche-a primeiro: aba Senha mestra ^> Fechar a central.
-  echo Sem isso o SPCentral.exe antigo continua sendo usado.
+rem O SPCentral.exe desta pasta e o INSTALADOR. Se ele estiver aberto (central v1.x rodando daqui),
+rem o compilador nao consegue substitui-lo.
+if not exist "%~dp0SPCentral.exe" goto compilar
+2>nul (call ) >>"%~dp0SPCentral.exe"
+if errorlevel 1 (
+  echo O SPCentral.exe desta pasta esta EM USO ^(central antiga rodando daqui^).
+  echo Feche-a primeiro: aba Senha mestra ^> Fechar a central.
   pause
   exit /b 1
 )
+:compilar
 echo Compilando %~dp0SPCentral.cs
 findstr /C:"VERSAO = " "%~dp0SPCentral.cs"
 rem a leitura do endereco do navegador usa a Automacao da Interface do Windows (pasta WPF do .NET)
 for %%I in ("%CSC%") do set NETDIR=%%~dpI
-"%CSC%" /nologo /target:winexe /optimize+ /out:"%~dp0SPCentral.exe" /lib:"%NETDIR%WPF" /r:System.dll /r:System.Core.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:UIAutomationClient.dll /r:UIAutomationTypes.dll /r:WindowsBase.dll "%~dp0SPCentral.cs"
+"%CSC%" /nologo /target:winexe /optimize+ /out:"%~dp0SPCentral.exe" /lib:"%NETDIR%WPF" /r:System.dll /r:System.Core.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:System.Security.dll /r:UIAutomationClient.dll /r:UIAutomationTypes.dll /r:WindowsBase.dll "%~dp0SPCentral.cs"
 if errorlevel 1 (
   echo.
   echo ERRO na compilacao. Envie as mensagens acima para correcao.
@@ -28,4 +31,6 @@ if errorlevel 1 (
 )
 echo.
 echo OK: SPCentral.exe gerado em %~dp0
+echo Este SPCentral.exe e o INSTALADOR: de dois cliques nele para instalar.
+echo Se ja houver uma central instalada, desinstale antes (aba Senha mestra ^> Desinstalar).
 pause

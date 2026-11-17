@@ -76,6 +76,12 @@ Cada gráfico do Scalper Pro em modo Mãe publica **um canal**. Para copiar dois
 
 Na rolagem, desabilite a estratégia, troque o **Instrumento** (ex.: `MNQ 12-26` para `MNQ 03-27`) e habilite de novo. O MT5 não muda.
 
+## Central v2.0 (v1.6)
+
+- **Bloqueios por conta e ativo:** a filha obedece às linhas `B|NT-<conta>|<ativo>|...` e `Z|NT-<conta>|<ativo>|...`. O ativo pode ser `*` ou o início do contrato (ex.: `MNQ` vale para `MNQ 12-26`).
+- **Zerar operações de fora:** com a opção ligada na Central, se houver posição no contrato **sem cópia ativa** (manual na plataforma, web, celular ou outro robô), a filha zera na hora. Ordens soltas no contrato também são canceladas.
+- **Limite:** só vale para o contrato desta estratégia. Para cobrir outro contrato na mesma conta, rode outra instância da estratégia nele.
+
 ## Zerar pela Central (v1.5)
 
 Quando a Central manda zerar esta conta, a filha:

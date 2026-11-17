@@ -1,147 +1,140 @@
-# Central de Controle (SPCentral)
+# Central de Controle (SPCentral) v2.0
 
-Programa do Windows que segura o seu plano de trading. Os limites são cadastrados antes do pregão. Quando um deles é atingido, a central **trava todos os Scalper Pro (MT5) e as filhas NinjaTrader 8**, fecha as plataformas e só libera no reset diário ou com a **senha mestra**, que deve ficar com outra pessoa.
+Programa do Windows que segura o seu plano de trading, com **regras por conta e por ativo**.
 
-## O que ela controla
-
-Todos os limites são contados **pela conta mãe**. Uma operação copiada para 3 filhas conta como 1, e os pontos são os do painel do Scalper Pro da mãe.
-
-| Limite | Exemplo | O que acontece |
-|---|---|---|
-| Máximo de operações no dia | 3 | Ao fechar a 3ª operação: trava. As plataformas fecham. |
-| Meta de pontos | 1.200 | Ao atingir (realizado + flutuante): **sem novas entradas**. A operação aberta **continua até fechar** (SL/TP/trailing/manual), e depois as plataformas fecham. |
-| Limite de perda | 1.500 (= −1.500) | Ao atingir (realizado + flutuante): **ZERA tudo** (mãe e filhas) e fecha as plataformas. |
-| Horário limite | 10:30 | A partir desse horário: sem novas entradas. A operação aberta termina e depois as plataformas fecham. Também dá para marcar "zerar no horário limite". |
-| Horário de início (opcional) | 09:00 | Antes desse horário as entradas ficam bloqueadas. As plataformas não são fechadas. |
-| Divergência de sinal | 20 s | Uma filha posicionada com a mãe zerada há mais de 20 s (perda de sinal do copiador) tem **só aquela filha** zerada. |
-| **Perdas seguidas** (v1.1) | 2 | Ao fechar a 2ª operação perdedora em sequência: trava. A operação aberta termina, e as plataformas fecham. Um ganho zera a sequência. Uma saída no zero a zero não muda a sequência. |
-| **Pausa após perda** (v1.1) | 15 min | Depois de cada operação perdedora: **sem novas entradas** por 15 min. **Não trava e não fecha as plataformas.** O painel mostra "PAUSA APOS PERDA" e até que horas. |
-| **Proteção do lucro** (v1.1) | devolver 400, a partir de +600 | Depois de o resultado **fechado** do dia chegar a +600, o total (fechado + flutuante) não pode cair mais de 400 abaixo do melhor resultado fechado. Ex.: melhor fechado +800 → trava em +400. Ao atingir: **ZERA tudo** e fecha as plataformas. |
-
-Os três limites novos ficam desligados com 0.
-
-Enquanto estiver travada, a central **fecha de novo** qualquer MT5, NinjaTrader ou TradingView que for aberto (processos `terminal64`, `NinjaTrader`, `TradingView` e janelas com "TradingView" no título, como abas do navegador). As listas podem ser editadas.
-
-**Navegadores bloqueados (v1.6):** a central fecha a cada 2 s toda janela de **navegador** com uma destas palavras no **título** ou no **endereço** (barra de endereço) da aba ativa: **TradingView, NinjaTrader, Tradovate**. O endereço é necessário porque o título de um gráfico do TradingView mostra só o ativo e o preço (ex.: "NQ1! 21.350 ▲ +0,5%"), sem a palavra TradingView. Maiúsculas e minúsculas tanto faz. Isso vale:
-- **sempre que os EAs estiverem bloqueados, seja qual for o motivo:**
-  - meta de pontos, limite de perda ou máximo de operações;
-  - perdas seguidas ou proteção do lucro;
-  - pausa após perda;
-  - antes do horário de início ou depois do horário limite;
-  - central alterada;
-- **fora do horário de operação:** antes do início e depois do limite, até o reset.
-
-Quando os EAs voltam a ser liberados (fim da pausa, reset diário ou senha mestra), os navegadores deixam de ser fechados.
-
-**Janela que não fecha (v1.5):** a central primeiro pede para a janela fechar, como um clique no X. O Edge, com várias abas abertas, costuma perguntar "Fechar todas as guias?" e não fechar. Se a janela continuar aberta depois de **5 s**, a central **encerra o navegador** inteiro, com todas as janelas dele, e registra em Eventos "Navegador ENCERRADO".
-
-**Inicialização turbo do Edge:** se ela estiver ligada, o Edge reabre muito rápido. Vale desligar em edge://settings/system > "Inicialização turbo".
-- **Navegadores:** Chrome, Edge, Firefox, Opera, Brave e Vivaldi.
-- **Configurar:** a lista de palavras e a de navegadores ficam no bloco "Ao travar e fora do horário". Esse fechamento pode ser desligado pela caixa de marcar do mesmo bloco.
-- **Fica de fora:** quando os EAs só estão bloqueados (pausa, antes do início...), apenas os navegadores são fechados. O MT5 e o NinjaTrader instalados continuam abertos para o próximo pregão. Eles só são fechados quando a central **trava**.
-- **Limite do Windows:** o título e o endereço lidos são os da **aba ativa**. Uma aba do TradingView escondida atrás de outra só é detectada quando ficar ativa, e aí a **janela inteira** do navegador é fechada, com todas as abas. Use uma janela separada para o TradingView.
-- **Registro:** cada janela fechada aparece em Eventos.
-
-A trava dura até o **reset diário** (ex.: 06:00 do dia seguinte). A **senha mestra** destrava antes. Ao destravar, a contagem recomeça do zero.
-
-## Proteção contra alterações
-
-- **Janela de edição:** as configurações só podem ser alteradas sem senha dentro da janela definida. Com "bloqueada a partir de 09:00" e "liberada a partir de 22:00", dá para mexer à noite e até as 9h. Fora disso, e sempre que a central estiver travada, alterar exige a senha mestra.
-- **Fechar a central** (menu do ícone ou aba Senha mestra) exige a senha.
-- **Sempre à mão (v1.2):**
-  - **O "X" da janela só minimiza:** a central continua na **barra de tarefas** e no ícone do escudo.
-  - **Abrir o `SPCentral.exe` ou um atalho de novo só traz a janela** da central que já está aberta. Nunca abre uma segunda central.
-  - **Atalhos:** a central cria "Central de Controle" na Área de Trabalho e no Menu Iniciar. Se um atalho ou o início com o Windows for apagado, ela recria em até 1 minuto.
-- **Erros inesperados não fecham a central (v1.2):** ela anota o erro no log (`%LOCALAPPDATA%\SPCentral\log_AAAAMMDD.txt`) e continua rodando.
-- **Proteção contra exclusão (v1.2):** apagar dá "Acesso negado", tanto por engano quanto de propósito, nestes itens:
-  - o `SPCentral.exe`;
-  - a pasta de dados `%LOCALAPPDATA%\SPCentral` (configuração, estado e logs);
-  - a marca `SP_Central_Ativa.txt` em `Common\Files`. Sem ela os EAs operariam livres.
-
-  A proteção é refeita a cada 10 minutos. Para retirar tudo, use **Desinstalar** (senha mestra).
-- **Central fechada à força** (Gerenciador de Tarefas): os Scalper Pro e as filhas NT8 **bloqueiam novas entradas** em até 10 s ("central offline").
-- **Arquivos editados ou apagados:** se a configuração ou o estado forem alterados à mão ou apagados, a central bloqueia tudo até a senha mestra.
-- **Inicialização:** a central se registra para abrir junto com o Windows.
-
-> **Limite honesto:** isto é uma barreira contra o impulso, não um cofre. Quem tiver acesso de administrador e conhecimento técnico consegue contornar, por exemplo apagando a marca `SP_Central_Ativa.txt` com a central fechada, recompilando o EA ou mudando o relógio do PC. A proteção funciona porque desfazê-la exige tempo e intenção, o que costuma bastar para o momento de impulso.
+- **Quando uma regra é atingida,** a central bloqueia aquela conta/ativo. Conforme o caso, ela também zera a conta, fecha os navegadores e fecha as plataformas.
+- **Operações feitas fora do Scalper Pro, do copiador ou do DGX são zeradas na hora:** à mão no MT5, no celular, na web ou por outro robô.
+- **Destravar** só acontece no reset diário ou com a **senha mestra**, que deve ficar com outra pessoa.
 
 ## Instalação
 
-1. Crie uma pasta fixa, por exemplo `C:\SPCentral`, e copie `SPCentral.cs` e `compilar.bat` para ela.
-2. Dê dois cliques em **`compilar.bat`**. Ele usa o compilador C# que já vem no Windows e gera o `SPCentral.exe`. Se aparecer erro, envie as mensagens para correção.
-3. Abra o **`SPCentral.exe`**. Na primeira vez ele pede a **senha mestra**: **peça para a outra pessoa digitar** (mínimo de 6 caracteres).
-4. Na aba **Configuração**, preencha:
-   - **Conta mãe:** o login MT5 da mãe (ex.: `510087363`). Se ficar vazio, a central usa o Scalper Pro em modo Mãe que estiver rodando.
-   - **Contas filhas:** separe por vírgula. MT5 pelo login (ex.: `1514567645`); NT8 como `NT-<conta>` (ex.: `NT-APEX2209540000056`). Os IDs aparecem na lista de contas do Painel.
-   - Limites, proteção extra, horários, reset e janela de edição. Depois clique em **Salvar configuração**.
+1. Copie `SPCentral.cs` e `compilar.bat` para uma pasta, por exemplo `C:\SPCentral`, e dê dois cliques em **compilar.bat**. Ele gera o **instalador** `SPCentral.exe`.
+2. Dê dois cliques no `SPCentral.exe` e confirme. A central:
+   - fica numa **pasta oculta** (`%LOCALAPPDATA%\SPCentralApp`, com atributos oculto e sistema);
+   - cria o atalho **"Central de Controle"** na Área de Trabalho e no Menu Iniciar;
+   - inicia junto com o Windows e fica no **ícone do escudo** perto do relógio.
+3. Na primeira vez, peça para **a outra pessoa** criar a **senha mestra** (mínimo de 6 caracteres).
+4. Cadastre as regras (aba **Regras por conta e ativo**) e confira a aba **Geral**.
 
-   A aba **Configuração** (v1.1) é dividida em blocos:
-   - Limites do dia
-   - Proteção extra
-   - Horários
-   - Janela de edição
-   - Contas
-   - Ao travar
+**Uma central por vez.** Enquanto houver uma central instalada ou aberta, o instalador recusa, até se for a mesma versão. Para trocar de versão: **aba Senha mestra > Desinstalar** (pede a senha) e depois rode o novo `SPCentral.exe`.
 
-   Detalhes da tela:
-   - **Horários:** são escolhidos nas setas do seletor HH:mm. O horário de início e o horário limite têm uma caixa de marcar: desmarcada = sem horário.
-   - **Resumo:** o topo da aba mostra o **plano salvo** em uma linha.
-   - **Ajuda:** cada campo explica o que faz, à direita ou ao passar o mouse.
-5. Atualize os EAs e a estratégia:
-   - **Scalper Pro v5.87 ou mais nova** (atual: v6.06) em todos os terminais MT5 (mãe e filhas);
-   - **SPCopyFilhaNT v1.2 ou mais nova** (atual: v1.3) no NinjaTrader 8.
+**Vindo da v1.x:**
+1. Na central antiga, use **Fechar a central** (senha).
+2. Compile a v2.0 na mesma pasta e instale.
+3. As configurações antigas viram **uma regra** para a conta mãe:
+   - meta → pontos ganhos;
+   - limite de perda → pontos perdidos;
+   - início e limite → horário de bloqueio.
+4. A senha mestra continua a mesma.
 
-   A partir daí todos obedecem à central automaticamente. Não há parâmetro para desligar.
+## Regras por conta e ativo
+
+Cada regra vale para **uma conta** (login do MT5, ou `NT-<conta>` no NinjaTrader) e **um ativo**. O ativo pode ser `US100`, `MNQ`... ou `*` para todos os ativos da conta somados. `US100` vale também para `US100.cash`, e `MNQ` vale para `MNQ 12-26`.
+
+| Campo | O que faz |
+|---|---|
+| **Horário de bloqueio** (das / até) | **Não opera dentro do intervalo.** Ex.: 12:00 até 14:00 = sem operações no almoço. Pode passar da meia-noite: 17:00 até 11:30 = só opera das 11:30 às 17:00. A opção "zerar quando o bloqueio começar" fecha a posição aberta. |
+| **Pontos ganhos** | Ao ganhar isso (fechado + aberto): **sem novas entradas**. A operação aberta termina. |
+| **Pontos perdidos** | Ao perder isso (fechado + aberto): **ZERA** a conta/ativo. |
+| **Valor ganho** | Igual aos pontos ganhos, em dinheiro. |
+| **Valor perdido** | Igual aos pontos perdidos, em dinheiro: **ZERA**. |
+| **Quando atingido (valor)** | Ativa a **proteção de lucro**. Ao chegar nesse ganho, o sistema passa a proteger o resultado usando o Drawdown máximo, logo abaixo. Os dois trabalham juntos. |
+| **Drawdown máximo (valor)** | Funciona junto com "Quando atingido". Se o resultado cair isso abaixo do **melhor resultado do dia** (inclui a operação aberta): **ZERA**. Se um dos dois estiver em 0, essa proteção fica desligada. |
+| **Máximo de operações** | Ao fechar a última operação permitida: sem novas entradas. Parciais da mesma posição contam como 1 operação. |
+| **Parar após perdas seguidas** | Trava depois de N operações perdedoras em sequência. |
+| **Pausa após cada perda** | Sem novas entradas por X minutos. Não trava. |
+| **Ao bloquear: fechar navegadores** | Em qualquer bloqueio dessa regra, fecha as janelas de navegador com TradingView, Tradovate, Apex ou NinjaTrader no título ou no endereço. |
+| **Ao bloquear: fechar plataformas** | Quando a regra **trava** por limite e as posições estão zeradas, fecha o MT5, o NinjaTrader... |
+
+- **Duração da trava:** até o **reset diário** (aba Geral). A senha mestra destrava antes: a regra selecionada (botão no Painel) ou tudo (aba Senha mestra). Ao destravar, a contagem daquela regra recomeça.
+- **Valores em dinheiro:** precisam do **Scalper Pro v6.09+**, que envia o resultado e o flutuante em dinheiro.
+- **Contas NT8:** o NinjaTrader não envia resultados para a central. Nessas contas valem o **horário de bloqueio** e os bloqueios/zeragens vindos de outras regras. Os limites de pontos e valores das filhas acompanham a mãe.
+
+## Operações fora do sistema (aba Geral)
+
+Com **"Zerar na hora qualquer operação que não venha do Scalper Pro..."** ligado, toda posição ou ordem da conta é **fechada/cancelada em até 0,5 s** se não vier de:
+- o próprio Scalper Pro (número mágico próprio, padrão 53500001; as posições abertas pelas versões antigas também são reconhecidas);
+- as cópias do copiador;
+- um robô autorizado, cujos números mágicos você cadastra (ex.: o DGX). Para liberar operações manuais, cadastre `0`.
+
+**Onde vale:**
+- **MT5:** vale em **qualquer ativo da conta**. O MT5 pode ser um gráfico de estudo, o celular ou a web: basta um **Scalper Pro v6.09+ rodando nessa conta** em qualquer gráfico. Quem zera é o Scalper.
+- **MT5 aberto sem Scalper Pro numa conta:** a central **não fecha** (pode ser estudo). Ela só avisa no Painel que operações manuais nessa conta não serão zeradas.
+- **NinjaTrader (filha v1.6+):** posição no contrato **sem cópia ativa** é zerada, e ordens soltas são canceladas.
+
+## Horário de edição (aba Geral)
+
+As regras e as configurações podem ser alteradas **sem senha** só no horário de edição, por exemplo das 08:00 às 11:30 (início do pregão do Nasdaq). Fora dele, ou com qualquer trava ativa, alterar pede a senha mestra.
+
+## Recuperação de senha
+
+Esqueceu a senha mestra? Na aba **Recuperação de senha**, clique em **Esqueci a senha**.
+
+1. Um aviso do pedido sai **na hora**, por e-mail e Telegram.
+2. Uma **senha temporária** é enviada às **20:00 do dia do pedido**. Um pedido feito depois das 20:00 é entregue às 20:00 do dia seguinte.
+3. A senha antiga só deixa de valer depois que pelo menos um envio der certo. Se falhar, a central tenta de novo a cada 5 minutos.
+4. Use a temporária e troque por uma nova em **Senha mestra > Trocar senha mestra**.
+
+Um pedido que não foi você pode ser cancelado com a senha mestra.
+
+**Configurar** (salvar os contatos sempre pede a senha mestra):
+- **E-mail (Gmail):**
+  - servidor `smtp.gmail.com`, porta `587`;
+  - a "conta que envia" é um Gmail com **senha de app** (Conta Google > Segurança > Senhas de app, exige verificação em duas etapas);
+  - "Enviar para" é quem recebe a senha.
+- **Telegram:**
+  1. Crie um bot com o **@BotFather** e copie o **token**.
+  2. Mande qualquer mensagem para o bot.
+  3. Abra `https://api.telegram.org/bot<TOKEN>/getUpdates` e copie o número em `chat > id`.
+- Use **Testar e-mail** e **Testar Telegram** depois de salvar.
+- A senha do e-mail e o token ficam **cifrados pelo Windows**, para este usuário.
+
+## Proteção contra alterações
+
+- **Arquivos editados ou apagados:** se a configuração ou o estado forem alterados à mão ou apagados, a central bloqueia tudo até a senha mestra.
+- **Proteção contra exclusão:**
+  - o `.exe` instalado, a pasta de dados (`%LOCALAPPDATA%\SPCentral`, oculta) e a marca `SP_Central_Ativa.txt` negam a exclusão ("Acesso negado");
+  - os atalhos e o início com o Windows são recriados a cada minuto.
+- **Fechar a janela só minimiza.** Fechar a central (ícone do escudo ou aba Senha mestra) pede a senha.
+- **Central fechada à força:** com a central fechada, os Scalper Pro e as filhas NT8 **bloqueiam novas entradas** em até 10 s ("central offline").
+- **Botão BLOCK do Scalper Pro:** trava **tudo** até o reset e zera as outras contas (filhas). A posição de quem apertou segue até fechar.
+
+> **Limite honesto:** isto é uma barreira contra o impulso, não um cofre. Quem tiver acesso de administrador e conhecimento técnico consegue contornar.
 
 ## Painel
 
-- **Estado**, com a cor correspondente: LIBERADA (verde), AGUARDANDO HORÁRIO (laranja) ou TRAVADA (vermelho, com o motivo e o horário até quando).
-- **Contadores:** operações x/máximo e pontos (realizado, flutuante e total), comparados com a meta e o limite de perda. Com as proteções ligadas, mostra também as perdas seguidas (x/máximo), o melhor resultado fechado e o nível em que a proteção do lucro trava.
-- **Linha "Navegadores" (v1.7):** mostra se a Central está fechando navegadores agora, por qual motivo, quais palavras usa e o resultado da última varredura (quantas janelas de navegador viu e quantas tinham as palavras).
-- **Botão "Testar navegadores" (v1.7):** lista o processo, o título e o endereço de cada janela de navegador que a Central enxerga, e diz qual ela fecharia. **Não fecha nada.** O resultado vai para a área de transferência, para colar onde precisar, e também fica no log.
-- **Estado PAUSA APOS PERDA** (laranja): sem novas entradas até o horário indicado. Depois disso, a central volta a LIBERADA sozinha.
-- **Contas:** todas as contas que o Scalper Pro e a filha NT8 estão reportando, com papel (mãe ou filha), online, posições e flutuante.
-- **Eventos:** histórico das ações. Também fica gravado em `%LOCALAPPDATA%\SPCentral\log_AAAAMMDD.txt`.
+- **Estado geral:**
+  - TUDO LIBERADO;
+  - n REGRAS BLOQUEADAS;
+  - TRAVA GERAL;
+  - BLOQUEADA (central alterada).
+- **Situação de cada regra:**
+  - LIVRE, BLOQUEADA ou ZERANDO, com o motivo;
+  - operações;
+  - pontos e valor (fechado / aberto);
+  - estado da proteção de lucro.
+- **Avisos:** MT5 aberto sem Scalper Pro, pedido de recuperação, zerar-fora desligado.
+- **Contas conectadas e Eventos:** os eventos também ficam em `%LOCALAPPDATA%\SPCentral\log_AAAAMMDD.txt`.
+- **Testar navegadores:** mostra o que a central enxerga em cada janela de navegador, sem fechar nada.
 
-No MT5, o bloco de estado do Scalper Pro fica vermelho (BLOQUEADO) e a barra de status mostra `CENTRAL: <motivo>` ou `ZERANDO: <motivo>`. Se o motivo não couber na barra, ele termina em "..." e o texto completo aparece ao passar o mouse. Na filha NT8, o motivo aparece no log.
+## Comunicação com os EAs
 
-## Botão BLOQUEAR do Scalper Pro (v1.8)
-
-O Scalper Pro (v6.08+) grava `SP_Central_Pedido_<conta>.txt` quando você confirma o botão **BLOQUEAR**. Em até 0,5 s, a central:
-- **trava até o reset diário**, com o motivo "bloqueio pelo botão BLOQUEAR do Scalper Pro". Sem novas entradas, e a posição da mãe segue até fechar;
-- **zera as contas filhas:** as da configuração e as que estão conectadas como filha. Elas recebem o comando `Z|<conta>` até ficarem zeradas.
-
-Só a senha mestra destrava antes do reset. Pedidos com mais de 1 minuto, como os que ficaram de antes de reiniciar a central, são ignorados.
-
-## Como os EAs obedecem
-
-| Comando da central | Scalper Pro (MT5) | Filha NT8 |
-|---|---|---|
-| LIVRE | Normal | Normal |
-| BLOQ | Recusa entradas (botões, teclas, linhas J/L), cancela pendentes e não abre cópias. Posições abertas seguem com SL/TP/trailing e fecham junto com a mãe. | Não abre cópias. Fecha junto com a mãe. |
-| ZERAR | Fecha todas as posições do símbolo, a cada 1 s até zerar | Fecha a posição do contrato e cancela o SL/TP |
-
-Arquivos trocados em `%APPDATA%\MetaQuotes\Terminal\Common\Files`:
+Arquivos em `%APPDATA%\MetaQuotes\Terminal\Common\Files`:
 
 | Arquivo | Quem grava | Conteúdo |
 |---|---|---|
 | `SP_Central_Ativa.txt` | central | Marca: os EAs passam a obedecer |
-| `SP_Central_Cmd.txt` | central (a cada 0,5 s) | `CMD|1|tick|LIVRE/BLOQ/ZERAR|motivo|ate` e linhas `Z|<conta>` |
-| `SP_Central_St_<conta>_<símbolo>.txt` | cada EA ou estratégia (1 s) | Posições e flutuante |
-| `SP_Central_Tr_<conta>.txt` | Scalper Pro | Uma linha por operação encerrada, com os pontos |
+| `SP_Central_Cmd.txt` | central (0,5 s) | `CMD\|2\|tick\|LIVRE/BLOQ\|motivo\|ate` (geral); `F\|1/0\|magics` (zerar de fora); `B\|conta\|ativo\|motivo` (sem novas entradas); `Z\|conta\|ativo\|motivo` (zerar) |
+| `SP_Central_St_<conta>_<ativo>.txt` | Scalper Pro / filha NT8 (1 s) | Posições e flutuante em pontos e em dinheiro |
+| `SP_Central_Tr_<conta>.txt` | Scalper Pro | Uma linha por operação encerrada, com pontos e valor |
+| `SP_Central_Pedido_<conta>.txt` | Scalper Pro | Botão BLOCK |
+
+**Versões necessárias:** Scalper Pro **v6.09+** e SPCopyFilhaNT **v1.6+**. As versões antigas não entendem as linhas por conta/ativo.
 
 ## Desinstalar
 
-Na aba **Senha mestra**, clique em **Desinstalar** e digite a senha. A central então:
-- retira a proteção contra exclusão;
-- apaga os atalhos e o início com o Windows;
-- apaga a marca `SP_Central_Ativa.txt`, e os EAs passam a operar **sem** a central;
-- fecha.
+Na aba **Senha mestra > Desinstalar** (senha), escolha:
+- **Sim:** apaga também as regras, as configurações e a senha;
+- **Não:** guarda tudo para a próxima instalação.
 
-Depois, se quiser, apague a pasta do programa e `%LOCALAPPDATA%\SPCentral`.
-
-## Atualizar a central
-
-1. **Fechar a central** (senha mestra). Isso libera o `.exe` para ser substituído, e os EAs ficam bloqueados enquanto ela estiver fechada.
-2. Copie o novo `SPCentral.cs` e rode o `compilar.bat`.
-3. Abra o `SPCentral.exe`. As configurações e o estado continuam, e a proteção volta sozinha.
+A central então retira as proteções, os atalhos e o início com o Windows. Também apaga a marca, e os EAs passam a operar **sem** a central. A pasta oculta é removida depois que a central fecha.
