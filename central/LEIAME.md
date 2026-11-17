@@ -1,4 +1,4 @@
-# Central de Controle (SPCentral) v2.0
+# Central de Controle (SPCentral) v2.1
 
 Programa do Windows que segura o seu plano de trading, com **regras por conta e por ativo**.
 
@@ -102,6 +102,11 @@ Um pedido que não foi você pode ser cancelado com a senha mestra.
 > **Limite honesto:** isto é uma barreira contra o impulso, não um cofre. Quem tiver acesso de administrador e conhecimento técnico consegue contornar.
 
 ## Painel
+
+- **Tamanho da tela (v2.1):** no canto superior do Painel, escolha **100% a 200%**.
+  - Vale para todas as janelas da central e fica salvo.
+  - Na primeira vez, a central escolhe sozinha pela resolução da tela.
+  - As listas acompanham a janela: maximize para ver mais.
 
 - **Estado geral:**
   - TUDO LIBERADO;

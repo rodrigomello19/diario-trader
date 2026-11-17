@@ -53,13 +53,13 @@ using System.Windows.Forms;
 using Microsoft.Win32;
 
 [assembly: System.Reflection.AssemblyTitle("SPCentral")]
-[assembly: System.Reflection.AssemblyVersion("2.0.0.0")]
+[assembly: System.Reflection.AssemblyVersion("2.1.0.0")]
 
 namespace SPCentral
 {
     internal static class Program
     {
-        public const string VERSAO = "2.0";
+        public const string VERSAO = "2.1";
 
         [STAThread]
         private static void Main()
@@ -476,6 +476,75 @@ namespace SPCentral
             {
                 if ((int)resp.StatusCode != 200) throw new Exception("Telegram respondeu " + (int)resp.StatusCode);
             }
+        }
+
+        // ---- tamanho da tela (zoom) ----
+        // Escala posicoes, tamanhos, fontes e colunas de todos os controles por f (1.25 = 125%).
+        public static void Escalar(Control raiz, float f, bool incluirRaiz)
+        {
+            if (Math.Abs(f - 1f) < 0.001f) return;
+            List<Control> todos = new List<Control>();
+            Coletar(raiz, todos);
+            // fase 1: tamanho de fonte efetivo de cada um (antes de mexer, por causa da heranca de fonte)
+            List<float> tam = new List<float>();
+            foreach (Control c in todos) tam.Add(c.Font.Size);
+            raiz.SuspendLayout();
+            for (int i = 0; i < todos.Count; i++)
+            {
+                Control c = todos[i];
+                Font fo = c.Font;
+                c.Font = new Font(fo.FontFamily, tam[i] * f, fo.Style);
+                if (c == raiz)
+                {
+                    if (!incluirRaiz) continue;
+                    c.Width = (int)Math.Round(c.Width * f);
+                    c.Height = (int)Math.Round(c.Height * f);
+                    continue;
+                }
+                if (c is TabPage || c.Dock != DockStyle.None) continue;
+                c.Left = (int)Math.Round(c.Left * f);
+                c.Top = (int)Math.Round(c.Top * f);
+                c.Width = (int)Math.Round(c.Width * f);
+                c.Height = (int)Math.Round(c.Height * f);
+                ListView lv = c as ListView;
+                if (lv != null) foreach (ColumnHeader ch in lv.Columns) ch.Width = (int)Math.Round(ch.Width * f);
+            }
+            raiz.ResumeLayout(true);
+        }
+
+        private static void Coletar(Control c, List<Control> l)
+        {
+            l.Add(c);
+            foreach (Control x in c.Controls) Coletar(x, l);
+        }
+
+        // Zoom escolhido (registro) ou automatico pela resolucao da tela
+        public static float ZoomSalvo()
+        {
+            try
+            {
+                using (RegistryKey rk = Registry.CurrentUser.OpenSubKey(RegChave))
+                {
+                    string z = rk == null ? null : rk.GetValue("Zoom") as string;
+                    double v = ParseD(z);
+                    if (v >= 0.9 && v <= 2.5) return (float)v;
+                }
+            }
+            catch (Exception) { }
+            Rectangle a = Screen.PrimaryScreen.WorkingArea;
+            if (a.Width >= 2500 || a.Height >= 1500) return 1.5f;
+            if (a.Width >= 1800 || a.Height >= 1000) return 1.25f;
+            return 1f;
+        }
+
+        public static void SalvarZoom(float z)
+        {
+            try
+            {
+                using (RegistryKey rk = Registry.CurrentUser.CreateSubKey(RegChave))
+                    rk.SetValue("Zoom", z.ToString("0.00", CultureInfo.InvariantCulture));
+            }
+            catch (Exception) { }
         }
 
         public static double ParseD(string s)
@@ -1061,6 +1130,10 @@ namespace SPCentral
             Controls.Add(ca);
             Controls.Add(new Label { Left = 10, Top = y + 48, Width = 10, Height = 10 });
             CancelButton = ca;
+            Util.Escalar(this, FormCentral.ZoomAtual, true);
+            Rectangle area = Screen.PrimaryScreen.WorkingArea;
+            if (Height > area.Height) Height = area.Height;
+            if (Width > area.Width) Width = area.Width;
         }
 
         private void Confirmar()
@@ -1246,6 +1319,7 @@ namespace SPCentral
 
             MontarUI();
             Inicializar();
+            AplicarZoom(Util.ZoomSalvo(), true);
 
             tray.Icon = SystemIcons.Shield;
             tray.Text = "Central de Controle";
@@ -1383,6 +1457,7 @@ namespace SPCentral
                 f.Controls.AddRange(new Control[] { l, t, ok, ca });
                 f.AcceptButton = ok;
                 f.CancelButton = ca;
+                Util.Escalar(f, FormCentral.ZoomAtual, true);
                 return f.ShowDialog() == DialogResult.OK ? t.Text : null;
             }
         }
@@ -2324,6 +2399,33 @@ namespace SPCentral
         // Painel
         private Label lblEstado, lblMotivo, lblNav, lblAvisos, lblEdicaoRegras, lblEdicaoGeral, lblRecStatus;
         private ListView lvSituacao, lvContas, lvRegras;
+        public static float ZoomAtual = 1f;
+        private ComboBox cbZoom;
+        private bool zoomCarregando;
+        private readonly List<KeyValuePair<Control, AnchorStyles>> ancoras = new List<KeyValuePair<Control, AnchorStyles>>();
+
+        private void Ancorar(Control c, AnchorStyles a) { ancoras.Add(new KeyValuePair<Control, AnchorStyles>(c, a)); }
+
+        // Aplica o tamanho z (1.0 = 100%). As ancoras saem durante a escala e voltam depois,
+        // para as listas acompanharem a janela (maximizar/redimensionar).
+        private void AplicarZoom(float z, bool inicio)
+        {
+            float f = z / ZoomAtual;
+            foreach (KeyValuePair<Control, AnchorStyles> kv in ancoras) kv.Key.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+            FormWindowState ws = WindowState;
+            if (ws != FormWindowState.Normal) WindowState = FormWindowState.Normal;
+            Util.Escalar(this, f, true);
+            Rectangle area = Screen.FromControl(this).WorkingArea;
+            if (Width > area.Width) Width = area.Width;
+            if (Height > area.Height) Height = area.Height;
+            if (inicio) { Left = area.Left + (area.Width - Width) / 2; Top = area.Top + (area.Height - Height) / 2; }
+            foreach (KeyValuePair<Control, AnchorStyles> kv in ancoras) kv.Key.Anchor = kv.Value;
+            if (ws == FormWindowState.Maximized) WindowState = ws;
+            ZoomAtual = z;
+            zoomCarregando = true;
+            cbZoom.SelectedItem = ((int)Math.Round(z * 100)) + "%";
+            zoomCarregando = false;
+        }
         private ListBox lbEventos;
         // Geral
         private DateTimePicker dtReset, dtEdDe, dtEdAte, dtRecHora;
@@ -2342,7 +2444,7 @@ namespace SPCentral
             // ================= Painel =================
             TabPage tp = new TabPage("  Painel  ");
             tabs.TabPages.Add(tp);
-            lblEstado = new Label { Left = 16, Top = 10, Width = 640, Height = 40, Font = new Font("Segoe UI", 18f, FontStyle.Bold) };
+            lblEstado = new Label { Left = 16, Top = 10, Width = 570, Height = 40, Font = new Font("Segoe UI", 18f, FontStyle.Bold) };
             lblMotivo = new Label { Left = 16, Top = 52, Width = 900, Height = 22, Font = new Font("Segoe UI", 10f) };
             Button btTeste = new Button { Text = "Testar navegadores", Left = 760, Top = 12, Width = 180, Height = 30 };
             btTeste.Click += delegate { TestarNavegadores(); };
@@ -2358,9 +2460,28 @@ namespace SPCentral
                                                 new[] { 190, 80, 160, 70, 80, 120, 120 });
             Label l3 = new Label { Text = "Eventos", Left = 16, Top = 504, Width = 300, Font = FonteTitulo };
             lbEventos = new ListBox { Left = 16, Top = 526, Width = 924, Height = 170, HorizontalScrollbar = true, Font = FonteDica };
-            tp.Controls.AddRange(new Control[] { lblEstado, lblMotivo, btTeste, btDestravarSel, l1, lvSituacao, lblNav, lblAvisos, l2, lvContas, l3, lbEventos });
+            Label lz = new Label { Text = "Tamanho da tela", Left = 600, Top = 18, Width = 110, Font = FonteDica, TextAlign = ContentAlignment.MiddleRight };
+            cbZoom = new ComboBox { Left = 712, Top = 14, Width = 70, DropDownStyle = ComboBoxStyle.DropDownList, Font = FonteCampo };
+            cbZoom.Items.AddRange(new object[] { "100%", "125%", "150%", "175%", "200%" });
+            cbZoom.SelectedIndexChanged += delegate
+            {
+                if (zoomCarregando || cbZoom.SelectedItem == null) return;
+                float z = (float)Util.ParseD(((string)cbZoom.SelectedItem).TrimEnd('%')) / 100f;
+                if (Math.Abs(z - ZoomAtual) < 0.01f) return;
+                Util.SalvarZoom(z);
+                AplicarZoom(z, false);
+            };
+            btTeste.Left = 790; btTeste.Width = 150;
+            btDestravarSel.Left = 790; btDestravarSel.Width = 150;
+            tp.Controls.AddRange(new Control[] { lblEstado, lblMotivo, btTeste, btDestravarSel, lz, cbZoom, l1, lvSituacao, lblNav, lblAvisos, l2, lvContas, l3, lbEventos });
             btTeste.BringToFront();
             btDestravarSel.BringToFront();
+            AnchorStyles tlr = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            AnchorStyles tr_ = AnchorStyles.Top | AnchorStyles.Right;
+            AnchorStyles todos = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom;
+            Ancorar(btTeste, tr_); Ancorar(btDestravarSel, tr_); Ancorar(lz, tr_); Ancorar(cbZoom, tr_);
+            Ancorar(lblMotivo, tlr); Ancorar(lvSituacao, tlr); Ancorar(lblNav, tlr); Ancorar(lblAvisos, tlr);
+            Ancorar(lvContas, tlr); Ancorar(lbEventos, todos);
 
             // ================= Regras =================
             TabPage tr = new TabPage("  Regras por conta e ativo  ");
@@ -2385,6 +2506,10 @@ namespace SPCentral
             btDuplicar.Click += delegate { DuplicarSelecionada(); };
             btExcluir.Click += delegate { ExcluirSelecionada(); };
             tr.Controls.AddRange(new Control[] { lblEdicaoRegras, ex, lvRegras, btNova, btEditar, btDuplicar, btExcluir });
+            AnchorStyles bl = AnchorStyles.Bottom | AnchorStyles.Left;
+            Ancorar(lvRegras, AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom);
+            Ancorar(ex, AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right);
+            Ancorar(btNova, bl); Ancorar(btEditar, bl); Ancorar(btDuplicar, bl); Ancorar(btExcluir, bl);
 
             // ================= Geral =================
             TabPage tg = new TabPage("  Geral  ");
