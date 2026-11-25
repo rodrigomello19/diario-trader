@@ -26,6 +26,8 @@
   --warning-bg: #fffbeb;
   --success: #16a34a;
   --success-bg: #f0fdf4;
+  --mytrade: #9333ea;
+  --mytrade-bg: #f3e8ff;
   --shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(15, 23, 42, 0.04);
   --radius: 12px;
   --radius-sm: 8px;
@@ -33,6 +35,8 @@
 }
 
 [data-theme="dark"] {
+  --mytrade: #c084fc;
+  --mytrade-bg: #2e1065;
   --bg: #0f172a;
   --bg-card: #1e293b;
   --bg-input: #0f172a;
@@ -1179,76 +1183,658 @@ body {
 
 .maestria-chart-empty.hidden { display: none; }
 
-.minute-log {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.minute-log-row {
-  display: grid;
-  grid-template-columns: 58px 84px 1fr;
-  gap: 10px;
-  align-items: stretch;
-}
-
-.minute-log-time {
+/* ── Análise · janela minuto a minuto ── */
+.card-head-row {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  min-height: 42px;
-  padding: 0 8px;
-  font-size: 0.82rem;
-  font-weight: 700;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.card-head-row h2 { margin-bottom: 0; }
+.card-head-row + .card-hint,
+.card-head-row + .chart-view { margin-top: 8px; }
+.card-head-row .hidden { display: none; }
+
+.mc-count {
+  font-size: 0.8rem;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  cursor: pointer;
-  text-align: left;
-  line-height: 1.2;
-  transition: color 0.15s, background 0.15s, border-color 0.15s;
 }
 
-.minute-log-time:hover {
-  border-color: var(--border-strong);
-}
-
-.minute-log-time--trade {
-  color: var(--success);
-  background: var(--success-bg);
-  border-color: var(--success);
-}
-
-.minute-log-time--trade::after {
-  content: ' ✓';
-}
-
-.minute-log-row textarea {
-  min-height: 42px;
-  resize: vertical;
-}
-
-.minute-log-estrategia {
-  min-height: 42px;
-  padding: 0 6px !important;
-  text-align: center;
-  text-transform: uppercase;
-  font-weight: 700;
-  font-size: 0.8rem;
-  letter-spacing: 0.02em;
+.mc-tape {
+  position: relative;
+  margin: 12px 0 6px;
+  padding: 30px 18px 26px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+.mc-tape-axis {
+  position: relative;
+  height: 2px;
+  background: var(--border-strong);
+}
+
+.mc-tape-tick {
+  position: absolute;
+  top: 8px;
+  transform: translateX(-50%);
+  font-size: 0.68rem;
+  color: var(--text-subtle);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.minute-log-estrategia::placeholder {
-  text-transform: none;
-  font-weight: 400;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.mc-tape-tick::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -9px;
+  width: 1px;
+  height: 6px;
+  background: var(--border-strong);
 }
+
+.mc-tape-mark {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid var(--bg-input);
+  background: var(--text-muted);
+  color: var(--bg-card);
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.12s;
+  z-index: 1;
+}
+
+.mc-tape-mark:hover { transform: translate(-50%, -50%) scale(1.18); z-index: 2; }
+.mc-tape-mark--compra { background: var(--success); }
+.mc-tape-mark--venda { background: var(--danger); }
+.mc-tape-mark--trade { box-shadow: 0 0 0 2px var(--warning); }
+
+.mc-tape-mark--meutrade {
+  width: auto;
+  min-width: 26px;
+  padding: 0 5px;
+  border-radius: 6px;
+  background: var(--mytrade);
+  color: #fff;
+  box-shadow: 0 0 0 2px var(--mytrade-bg);
+}
+
+.mc-seq .mc-mine { color: var(--mytrade); font-weight: 700; }
+
+.mc-item--meutrade {
+  border-color: var(--mytrade);
+  border-left-color: var(--mytrade);
+  background: var(--mytrade-bg);
+}
+
+.mc-mine-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--mytrade);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.mc-mine-field {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.mc-mine-field--muted { color: var(--text-muted); font-weight: 500; }
+.mc-mine-field.mc-up { color: var(--success); }
+.mc-mine-field.mc-down { color: var(--danger); }
+
+.mc-mine-link {
+  margin-left: auto;
+  border: none;
+  background: none;
+  color: var(--mytrade);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+
+.mc-mine-link:hover { text-decoration: underline; }
+
+.mc-mine-pending {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: -8px 0 14px;
+}
+
+.mc-mine-pending[hidden] { display: none; }
+
+.mc-mine-pending button {
+  border: none;
+  background: none;
+  color: var(--mytrade);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.mc-tape-empty {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 6px;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--text-subtle);
+}
+
+.mc-seq {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0 0 14px;
+  min-height: 1em;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.mc-seq b { color: var(--text); font-weight: 600; }
+.mc-seq .mc-up { color: var(--success); }
+.mc-seq .mc-down { color: var(--danger); }
+
+.mc-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  margin-bottom: 14px;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.mc-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.mc-time {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 100%;
+}
+
+.mc-step {
+  min-width: 34px;
+  padding: 6px 8px;
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+input[type="time"] {
+  padding: 8px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color-scheme: light dark;
+}
+
+input[type="time"]:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.mc-dir {
+  display: inline-flex;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  flex: none;
+}
+
+.mc-dir button {
+  padding: 7px 11px;
+  border: none;
+  background: var(--bg-input);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.mc-dir button + button { border-left: 1px solid var(--border); }
+.mc-dir button:hover { color: var(--text); }
+.mc-dir button.selected[data-dir="compra"] { background: var(--success-bg); color: var(--success); font-weight: 700; }
+.mc-dir button.selected[data-dir="venda"] { background: var(--danger-bg); color: var(--danger); font-weight: 700; }
+
+select.mc-select {
+  width: auto;
+  min-width: 130px;
+  max-width: 220px;
+  padding: 8px 10px;
+}
+
+.mc-trade {
+  padding: 7px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.mc-trade[aria-pressed="true"] {
+  border-color: var(--warning);
+  background: var(--warning-bg);
+  color: var(--warning);
+  font-weight: 700;
+}
+
+.mc-trade[aria-pressed="true"]::before { content: '● '; }
+
+
+input[type="text"].mc-nota {
+  flex: 1 1 240px;
+  width: auto;
+  min-width: 0;
+}
+
+.mc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mc-empty {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-style: italic;
+  padding: 4px 2px;
+}
+
+.mc-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--text-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+}
+
+.mc-item--compra { border-left-color: var(--success); }
+.mc-item--venda { border-left-color: var(--danger); }
+.mc-item--flash { animation: mcFlash 1.4s ease; }
+
+@keyframes mcFlash {
+  0% { box-shadow: 0 0 0 3px var(--primary); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+.mc-item input[type="time"] { padding: 5px 6px; font-size: 0.85rem; }
+.mc-item select { width: auto; padding: 6px 8px; font-size: 0.84rem; }
+.mc-item select.mc-item-est { min-width: 92px; max-width: 120px; }
+.mc-item .mc-dir button { padding: 5px 9px; }
+.mc-item .mc-trade { padding: 5px 10px; }
+
+.mc-item input[type="text"] {
+  flex: 1 1 120px;
+  width: auto;
+  min-width: 0;
+  padding: 6px 8px;
+  font-size: 0.85rem;
+}
+
+.mc-del {
+  margin-left: auto;
+  border: none;
+  background: none;
+  color: var(--text-subtle);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.mc-del:hover { color: var(--danger); background: var(--danger-bg); }
+
+/* Seletor rápido de horário */
+input.qt-input::-webkit-calendar-picker-indicator { display: none !important; }
+
+.qt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-left: -2px;
+  padding: 0;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-muted);
+  cursor: pointer;
+  flex: none;
+}
+
+.qt-btn:hover { color: var(--primary); border-color: var(--primary); }
+
+.qt-pop {
+  position: fixed;
+  z-index: 1300;
+  width: 292px;
+  padding: 10px;
+  background: var(--bg-card);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+}
+
+.qt-pop[hidden] { display: none; }
+
+.qt-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin: 2px 0 6px;
+}
+
+.qt-label small { text-transform: none; letter-spacing: 0; color: var(--text-subtle); }
+.qt-label + .qt-grid + .qt-label { margin-top: 10px; }
+
+.qt-grid { display: grid; gap: 3px; }
+.qt-hours { grid-template-columns: repeat(8, 1fr); }
+.qt-minutes { grid-template-columns: repeat(10, 1fr); }
+
+.qt-grid button {
+  padding: 5px 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: var(--bg-input);
+  color: var(--text);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.qt-grid button:hover { border-color: var(--primary); color: var(--primary); }
+.qt-grid button.selected { background: var(--primary); color: #fff; font-weight: 700; }
+
+/* ── Histórico › Análise · padrões da janela ── */
+.history-patterns {
+  margin: 0 24px 20px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.history-patterns.hidden { display: none; }
+
+.hp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.hp-head h4 { font-size: 0.95rem; font-weight: 600; }
+.hp-head small { color: var(--text-muted); font-weight: 400; margin-left: 6px; }
+
+.hp-gran {
+  display: inline-flex;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.hp-gran button {
+  border: none;
+  background: var(--bg-input);
+  color: var(--text-muted);
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.hp-gran button + button { border-left: 1px solid var(--border); }
+.hp-gran button.selected { background: var(--primary-light); color: var(--primary); font-weight: 700; }
+
+.hp-subtitle {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 12px 0 6px;
+}
+
+.hp-top {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.hp-top li {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-card);
+  font-size: 0.82rem;
+}
+
+.hp-top li b { font-variant-numeric: tabular-nums; }
+.hp-top li .hp-days { color: var(--text-muted); margin-left: 4px; }
+.hp-none { font-size: 0.84rem; color: var(--text-muted); font-style: italic; }
+
+.hp-heat { overflow-x: auto; padding-bottom: 4px; }
+
+.hp-heat table {
+  border-collapse: separate;
+  border-spacing: 3px;
+  font-size: 0.72rem;
+}
+
+.hp-heat th {
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.hp-heat tbody th {
+  text-align: left;
+  padding-right: 8px;
+  position: sticky;
+  left: 0;
+  background: var(--bg);
+}
+
+.hp-heat thead th {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  padding: 2px 0;
+  height: 44px;
+  text-align: left;
+}
+
+.hp-cell {
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  text-align: center;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: var(--bg-input);
+  color: var(--text);
+}
+
+.hp-legend {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+/* ── Histórico › Análise Gráfica · alta resolução ── */
+.history-gallery-track--charts .history-chart-card { cursor: default; }
+
+.history-gallery-track--charts .history-chart-card .history-chart-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.history-chart-card-actions { display: inline-flex; gap: 6px; }
+
+.history-gallery-track--charts .history-chart-card .history-day-chart { cursor: zoom-in; }
+
+.history-gallery-track--charts .history-chart-card .history-card-img {
+  object-fit: contain;
+  image-rendering: auto;
+}
+
+@media (min-width: 701px) {
+  .history-gallery-track--charts .history-chart-card .history-day-chart {
+    height: 440px;
+    min-height: 440px;
+    max-height: 440px;
+  }
+}
+
+.history-card-img--loading { filter: blur(1px); opacity: 0.85; }
+
+.chart-preview-frame--zoomable { cursor: zoom-in !important; }
+
+/* Visualizador em tela cheia */
+.chart-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  background: rgba(2, 6, 23, 0.94);
+  color: #f1f5f9;
+}
+
+.chart-viewer[hidden] { display: none !important; }
+
+.chart-viewer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.chart-viewer-info { display: flex; align-items: baseline; gap: 10px; }
+.chart-viewer-res { font-size: 0.78rem; color: #94a3b8; font-variant-numeric: tabular-nums; }
+
+.chart-viewer-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.chart-viewer-tools .btn { color: #e2e8f0; border-color: rgba(148, 163, 184, 0.35); }
+.chart-viewer-tools .btn:hover { background: rgba(148, 163, 184, 0.15); }
+.chart-viewer-tools .btn:disabled { opacity: 0.35; cursor: default; }
+.chart-viewer-sep { width: 1px; height: 20px; background: rgba(148, 163, 184, 0.3); margin: 0 6px; }
+
+.chart-viewer-zoom {
+  min-width: 58px;
+  text-align: center;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  color: #cbd5e1;
+}
+
+.chart-viewer-stage {
+  position: relative;
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  cursor: grab;
+}
+
+.chart-viewer-stage.is-dragging { cursor: grabbing; }
+
+.chart-viewer-stage img {
+  margin: auto;
+  display: block;
+  user-select: none;
+  image-rendering: auto;
+}
+
+.chart-viewer-stage.is-fit img {
+  max-width: calc(100% - 24px);
+  max-height: calc(100% - 24px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.chart-viewer-loading {
+  position: absolute;
+  right: 16px;
+  bottom: 12px;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  background: rgba(15, 23, 42, 0.8);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.chart-viewer-loading.hidden { display: none; }
 
 /* Chart upload */
 .chart-upload {
@@ -1666,9 +2252,6 @@ textarea { resize: vertical; min-height: 80px; }
   #comentarioPreTrade,
   #intencaoDoDia,
   #comentarioGeral,
-  #maestriaAnalise,
-  #maestriaDestaques,
-  #analiseMercadoContexto,
   #analiseMercadoGeral {
     font-family: var(--font);
     font-size: 1.1rem;
@@ -2854,10 +3437,6 @@ body.modal-open { overflow: hidden; }
             </div>
             <p class="intencao-reminder-body" id="intencaoReminderBody"></p>
           </div>
-          <div id="maestriaFocoReminder" class="maestria-foco-reminder maestria-foco-reminder--sidebar hidden" aria-live="polite">
-            <h3 class="maestria-foco-reminder-title">Foco de hoje</h3>
-            <p class="maestria-foco-reminder-body" id="maestriaFocoReminderBody"></p>
-          </div>
         </div>
       </aside>
 
@@ -2871,8 +3450,7 @@ body.modal-open { overflow: hidden; }
         <nav class="tabs" role="tablist">
           <button type="button" class="tab active" data-tab="pre" role="tab">Pré-trade</button>
           <button type="button" class="tab" data-tab="pos" role="tab">Pós-trade</button>
-          <button type="button" class="tab" data-tab="maestria" role="tab">Análise Maestria</button>
-          <button type="button" class="tab" data-tab="analise" role="tab">Minha análise</button>
+          <button type="button" class="tab" data-tab="analise" role="tab">Análise</button>
         </nav>
 
         <main>
@@ -2963,74 +3541,13 @@ body.modal-open { overflow: hidden; }
             </div>
           </section>
 
-          <!-- ANÁLISE MAESTRIA -->
-          <section id="tab-maestria" class="tab-panel">
-            <div class="card">
-              <h2>Gráfico do dia</h2>
-              <div class="chart-view chart-view--readonly" id="maestriaChartView">
-                <p class="maestria-chart-empty" id="maestriaChartEmpty">Adicione o print na aba Pós-trade para analisar aqui.</p>
-                <div class="chart-preview-frame hidden" id="maestriaChartPreviewFrame">
-                  <img id="maestriaChartPreview" class="chart-preview" alt="Gráfico do dia">
-                </div>
-              </div>
-              <div class="chart-zoom-row hidden" id="maestriaChartZoomRow">
-                <label for="maestriaChartZoomRange">Ampliação</label>
-                <input type="range" id="maestriaChartZoomRange" min="50" max="500" step="5" value="100">
-                <span class="chart-zoom-value" id="maestriaChartZoomValue">100%</span>
-                <label for="maestriaChartStretchXRange">Esticar horizontal</label>
-                <input type="range" id="maestriaChartStretchXRange" min="50" max="300" step="5" value="100">
-                <span class="chart-zoom-value" id="maestriaChartStretchXValue">100%</span>
-              </div>
-            </div>
-
-            <div class="card">
-              <h2>Contexto do mercado</h2>
-              <div class="field maestria-tendencia-field">
-                <span class="maestria-tendencia-label">Contexto macro</span>
-                <div class="option-group-trio" id="maestriaContextoMacroGroup" data-maestria-trend="contextoMacro" role="group" aria-label="Tendência do contexto macro">
-                  <button type="button" class="option-btn" data-trend="baixa">Baixa</button>
-                  <button type="button" class="option-btn" data-trend="lateral">Lateral</button>
-                  <button type="button" class="option-btn" data-trend="alta">Alta</button>
-                </div>
-                <textarea id="maestriaContextoMacroNota" class="disposicao-nota" rows="2"
-                  placeholder="Observação (opcional)..."></textarea>
-              </div>
-              <div class="field maestria-tendencia-field">
-                <span class="maestria-tendencia-label">Micro ciclo</span>
-                <div class="option-group-trio" id="maestriaMicroCicloGroup" data-maestria-trend="microCiclo" role="group" aria-label="Tendência do micro ciclo">
-                  <button type="button" class="option-btn" data-trend="baixa">Baixa</button>
-                  <button type="button" class="option-btn" data-trend="lateral">Lateral</button>
-                  <button type="button" class="option-btn" data-trend="alta">Alta</button>
-                </div>
-                <textarea id="maestriaMicroCicloNota" class="disposicao-nota" rows="2"
-                  placeholder="Observação (opcional)..."></textarea>
-              </div>
-            </div>
-
-            <div class="card">
-              <h2>Análise</h2>
-              <p class="card-hint">Registre a análise da janela</p>
-              <textarea id="maestriaAnalise" rows="8"
-                placeholder="Leitura da janela..."></textarea>
-            </div>
-
-            <div class="card">
-              <h2>Destaques</h2>
-              <p class="card-hint">Pontos principais a lembrar desta análise.</p>
-              <textarea id="maestriaDestaques" rows="5"
-                placeholder="Lições e foco para os próximos dias..."></textarea>
-            </div>
-
-            <div class="save-bar">
-              <span class="save-status" id="saveStatusMaestria">Pronto</span>
-              <button type="button" class="btn btn-primary" id="btnSaveMaestria">Salvar análise</button>
-            </div>
-          </section>
-
-          <!-- MINHA ANÁLISE -->
+          <!-- ANÁLISE -->
           <section id="tab-analise" class="tab-panel">
             <div class="card">
-              <h2>Gráfico do dia</h2>
+              <div class="card-head-row">
+                <h2>Gráfico do dia</h2>
+                <button type="button" class="btn btn-ghost btn-sm hidden" id="btnAnaliseChartExpand" title="Ver o gráfico em alta resolução">⤢ Ampliar</button>
+              </div>
               <div class="chart-view chart-view--readonly" id="analiseMercadoChartView">
                 <p class="maestria-chart-empty" id="analiseMercadoChartEmpty">Adicione o print na aba Pós-trade para analisar aqui.</p>
                 <div class="chart-preview-frame hidden" id="analiseMercadoChartPreviewFrame">
@@ -3048,22 +3565,42 @@ body.modal-open { overflow: hidden; }
             </div>
 
             <div class="card">
-              <h2>Contexto do mercado</h2>
-              <p class="card-hint">Cenário, notícias, viés e o que você está observando antes e durante a janela.</p>
-              <textarea id="analiseMercadoContexto" rows="4"
-                placeholder="Ex.: gap de abertura, fluxo, noticiário, viés do dia..."></textarea>
+              <div class="card-head-row">
+                <h2>Janela · minuto a minuto</h2>
+                <span class="mc-count" id="mcCount"></span>
+              </div>
+              <p class="card-hint">Marque apenas os momentos relevantes da janela: horário, lado da operação e estratégia. A fita mostra a sequência e o Histórico › Análise cruza as marcações entre os dias para revelar padrões recorrentes.</p>
+
+              <div class="mc-tape" id="mcTape" aria-label="Fita da janela"></div>
+              <p class="mc-seq" id="mcSeq"></p>
+              <p class="mc-mine-pending" id="mcMinePending" hidden></p>
+
+              <div class="mc-composer" id="mcComposer">
+                <div class="mc-row">
+                  <div class="mc-time">
+                    <button type="button" class="btn btn-ghost mc-step" id="mcTimeMinus" aria-label="Minuto anterior">−</button>
+                    <input type="time" id="mcHora" step="60" aria-label="Horário da marcação">
+                    <button type="button" class="btn btn-ghost mc-step" id="mcTimePlus" aria-label="Próximo minuto">+</button>
+                  </div>
+                  <div class="mc-dir" id="mcDir" role="group" aria-label="Lado da operação"></div>
+                  <select id="mcEstrategia" class="mc-select" aria-label="Estratégia ofertada"></select>
+                  <button type="button" class="mc-trade" id="mcTrade" aria-pressed="false" title="Marque se você operou neste momento">Trade</button>
+                </div>
+                <div class="mc-row">
+                  <input type="text" id="mcNota" class="mc-nota" maxlength="240" autocomplete="off"
+                    placeholder="Nota curta (opcional) — Enter adiciona">
+                  <button type="button" class="btn btn-primary" id="mcAdd">+ Adicionar marcação</button>
+                </div>
+              </div>
+
+              <ol class="mc-list" id="mcList"></ol>
             </div>
 
             <div class="card">
-              <h2>Análise minuto a minuto</h2>
-              <div class="minute-log" id="analiseMercadoMinutos"></div>
-            </div>
-
-            <div class="card">
-              <h2>Análise geral / comentários</h2>
-              <p class="card-hint">Síntese da janela, o que funcionou, o que não funcionou e o que levar para o próximo dia.</p>
-              <textarea id="analiseMercadoGeral" rows="6"
-                placeholder="Comentário geral da análise..."></textarea>
+              <h2>Análise / Comentários</h2>
+              <p class="card-hint">Síntese da janela, leitura do micro ciclo, o que funcionou, o que não funcionou e o que levar para o próximo dia.</p>
+              <textarea id="analiseMercadoGeral" rows="8"
+                placeholder="Sua análise do dia..."></textarea>
             </div>
 
             <div class="save-bar">
@@ -3084,7 +3621,7 @@ body.modal-open { overflow: hidden; }
         </div>
         <div class="history-view-tabs" role="tablist" aria-label="Tipo de histórico">
           <button type="button" class="tab active" data-history-view="trading" role="tab" aria-selected="true">Trading</button>
-          <button type="button" class="tab" data-history-view="maestria" role="tab" aria-selected="false">Maestria</button>
+          <button type="button" class="tab" data-history-view="analise" role="tab" aria-selected="false">Análise</button>
           <button type="button" class="tab" data-history-view="grafica" role="tab" aria-selected="false">Análise Gráfica</button>
         </div>
         <div class="history-toolbar">
@@ -3106,8 +3643,36 @@ body.modal-open { overflow: hidden; }
         </div>
         <p class="history-period-label" id="historyPeriodLabel"></p>
         <div class="stats-grid stats-grid--history" id="statsGrid"></div>
+        <div class="history-patterns hidden" id="historyPatterns"></div>
         <h3 class="history-gallery-title" id="historyGalleryTitle">Dias do período</h3>
         <div class="history-gallery-wrap" id="historyGallery"></div>
+      </div>
+    </div>
+
+    <!-- Visualizador de gráfico em alta resolução -->
+    <div id="chartViewer" class="chart-viewer" hidden role="dialog" aria-modal="true" aria-labelledby="chartViewerTitle">
+      <div class="chart-viewer-bar">
+        <div class="chart-viewer-info">
+          <strong id="chartViewerTitle"></strong>
+          <span class="chart-viewer-res" id="chartViewerRes"></span>
+        </div>
+        <div class="chart-viewer-tools">
+          <button type="button" class="btn btn-ghost btn-sm" id="cvPrev" title="Anterior (←)">‹</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="cvNext" title="Próximo (→)">›</button>
+          <span class="chart-viewer-sep"></span>
+          <button type="button" class="btn btn-ghost btn-sm" id="cvZoomOut" title="Reduzir (−)">−</button>
+          <span class="chart-viewer-zoom" id="cvZoomLabel">Ajustar</span>
+          <button type="button" class="btn btn-ghost btn-sm" id="cvZoomIn" title="Ampliar (+)">+</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="cvFit" title="Ajustar à tela (0)">Ajustar</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="cv100" title="Tamanho real (1)">100%</button>
+          <span class="chart-viewer-sep"></span>
+          <button type="button" class="btn btn-ghost btn-sm" id="cvOpenDay">Abrir dia</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="cvClose" aria-label="Fechar">✕</button>
+        </div>
+      </div>
+      <div class="chart-viewer-stage" id="chartViewerStage">
+        <img id="chartViewerImg" alt="Gráfico em alta resolução" draggable="false">
+        <p class="chart-viewer-loading hidden" id="chartViewerLoading">Carregando alta resolução…</p>
       </div>
     </div>
 
@@ -4226,7 +4791,7 @@ function diarioHasContent(d) {
     (d.planoEstrategias && d.planoEstrategias.length) ||
     prontidaoHasAnswers(d.prontidao) ||
     maestriaHasContent(d.maestria) ||
-    analiseMercadoHasContent(d.analiseMercado) ||
+    analiseMercadoHasContent(getAnaliseDoDia(d)) ||
     (d.trades || []).some(isTradeFilled)
   );
 }
@@ -4427,6 +4992,7 @@ function maestriaHasContent(maestria) {
   );
 }
 
+// Janela legada (formato antigo minuto a minuto 10:30–10:59) — usada só para migração/importação.
 const ANALISE_MERCADO_MINUTOS = Array.from({ length: 30 }, (_, i) => {
   const minute = 30 + i;
   return `10:${String(minute).padStart(2, '0')}`;
@@ -4444,79 +5010,190 @@ function emptyAnaliseMercadoEstrategias() {
   return Object.fromEntries(ANALISE_MERCADO_MINUTOS.map((hora) => [hora, '']));
 }
 
-function emptyAnaliseMercado() {
-  return {
-    contexto: '',
-    minutos: emptyAnaliseMercadoMinutos(),
-    trades: emptyAnaliseMercadoTrades(),
-    estrategias: emptyAnaliseMercadoEstrategias(),
-    geral: ''
-  };
+// ── Análise (v2): comentários + marcações do micro ciclo ──
+// Lado da operação
+const MICRO_DIRS = [
+  { id: 'compra', label: 'Compra', icon: '▲' },
+  { id: 'venda',  label: 'Venda',  icon: '▼' }
+];
+
+// Valores antigos (direção) convertidos para o lado da operação
+const MICRO_DIR_LEGACY = { alta: 'compra', baixa: 'venda' };
+
+function normalizeMicroDir(value) {
+  const v = String(value || '').trim().toLowerCase();
+  const mapped = MICRO_DIR_LEGACY[v] || v;
+  return MICRO_DIRS.some((d) => d.id === mapped) ? mapped : '';
+}
+
+function microDirInfo(id) {
+  return MICRO_DIRS.find((d) => d.id === id) || null;
+}
+
+function normalizeMicroHora(value) {
+  const match = /^(\d{1,2}):(\d{2})/.exec(String(value || '').trim());
+  if (!match) return '';
+  const h = Number(match[1]);
+  const m = Number(match[2]);
+  if (h > 23 || m > 59) return '';
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function microHoraToMin(hora) {
+  const h = normalizeMicroHora(hora);
+  if (!h) return null;
+  const [hh, mm] = h.split(':').map(Number);
+  return hh * 60 + mm;
+}
+
+function microMinToHora(total) {
+  const n = ((Math.round(total) % 1440) + 1440) % 1440;
+  return `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
+}
+
+let microEventoSeq = 0;
+function newMicroEventoId() {
+  microEventoSeq += 1;
+  return `ev${Date.now().toString(36)}${microEventoSeq.toString(36)}`;
 }
 
 function normalizeAnaliseMercadoEstrategia(value) {
   return String(value || '').trim().toUpperCase().slice(0, 8);
 }
 
-function normalizeAnaliseMercado(raw) {
-  const empty = emptyAnaliseMercado();
-  if (!raw || typeof raw !== 'object') return empty;
-  const minutos = emptyAnaliseMercadoMinutos();
-  const trades = emptyAnaliseMercadoTrades();
-  const estrategias = emptyAnaliseMercadoEstrategias();
-  const sourceMinutos = raw.minutos && typeof raw.minutos === 'object' ? raw.minutos : {};
-  const sourceTrades = raw.trades && typeof raw.trades === 'object' ? raw.trades : {};
-  const sourceEstrategias = raw.estrategias && typeof raw.estrategias === 'object' ? raw.estrategias : {};
-  ANALISE_MERCADO_MINUTOS.forEach((hora) => {
-    minutos[hora] = String(sourceMinutos[hora] || '');
-    trades[hora] = sourceTrades[hora] === true || sourceTrades[hora] === 'true' || sourceTrades[hora] === '1';
-    estrategias[hora] = normalizeAnaliseMercadoEstrategia(sourceEstrategias[hora]);
-  });
+function normalizeMicroEvento(raw) {
+  const e = raw && typeof raw === 'object' ? raw : {};
+  const dir = normalizeMicroDir(e.dir);
   return {
-    contexto: String(raw.contexto || ''),
-    minutos,
-    trades,
-    estrategias,
-    geral: String(raw.geral || '')
+    id: e.id ? String(e.id) : newMicroEventoId(),
+    hora: normalizeMicroHora(e.hora),
+    dir,
+    est: normalizeAnaliseMercadoEstrategia(e.est),
+    trade: e.trade === true || e.trade === 'true' || e.trade === '1',
+    nota: String(e.nota || '')
   };
 }
 
-function analiseMercadoFilledMinutes(analise) {
-  const m = normalizeAnaliseMercado(analise);
-  return ANALISE_MERCADO_MINUTOS.filter((hora) => m.minutos[hora].trim());
+function sortMicroEventos(eventos) {
+  return eventos
+    .map((e, i) => ({ e, i }))
+    .sort((a, b) => {
+      const diff = (microHoraToMin(a.e.hora) ?? 9999) - (microHoraToMin(b.e.hora) ?? 9999);
+      return diff !== 0 ? diff : a.i - b.i;
+    })
+    .map(({ e }) => e);
 }
 
-function analiseMercadoTradeMinutes(analise) {
-  const m = normalizeAnaliseMercado(analise);
-  return ANALISE_MERCADO_MINUTOS.filter((hora) => m.trades[hora]);
+function legacyEventosFromRaw(raw) {
+  const minutos = raw.minutos && typeof raw.minutos === 'object' ? raw.minutos : {};
+  const trades = raw.trades && typeof raw.trades === 'object' ? raw.trades : {};
+  const estrategias = raw.estrategias && typeof raw.estrategias === 'object' ? raw.estrategias : {};
+  const eventos = [];
+  ANALISE_MERCADO_MINUTOS.forEach((hora) => {
+    const nota = String(minutos[hora] || '').trim();
+    const trade = trades[hora] === true || trades[hora] === 'true' || trades[hora] === '1';
+    const est = normalizeAnaliseMercadoEstrategia(estrategias[hora]);
+    if (nota || trade || est) {
+      eventos.push(normalizeMicroEvento({ id: `lg${hora.replace(':', '')}`, hora, nota, trade, est }));
+    }
+  });
+  return eventos;
 }
 
-function analiseMercadoEstrategiaMinutes(analise) {
-  const m = normalizeAnaliseMercado(analise);
-  return ANALISE_MERCADO_MINUTOS.filter((hora) => m.estrategias[hora]);
+// Junta os textos das antigas abas "Análise Maestria" e "Minha análise" no novo campo Análise/Comentários.
+function composeLegacyAnaliseText(raw, maestria) {
+  const m = normalizeMaestria(maestria);
+  const parts = [];
+  const push = (label, text) => {
+    const t = String(text || '').trim();
+    if (t) parts.push({ label, text: t });
+  };
+  push('Contexto macro', formatMaestriaTrendDisplay(m.contextoMacro, m.contextoMacroNota));
+  push('Micro ciclo', formatMaestriaTrendDisplay(m.microCiclo, m.microCicloNota));
+  push('Análise', m.analise);
+  push('Destaques', m.destaques);
+  push('Contexto do mercado', raw.contexto);
+  push('Análise geral', raw.geral);
+  if (!parts.length) return '';
+  if (parts.length === 1 && ['Análise', 'Análise geral'].includes(parts[0].label)) return parts[0].text;
+  return parts.map((p) => `${p.label}:\n${p.text}`).join('\n\n');
+}
+
+function emptyAnaliseMercado() {
+  return { v: 2, geral: '', eventos: [] };
+}
+
+function normalizeAnaliseMercado(raw, legacyMaestria) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const isV2 = source.v === 2 || Array.isArray(source.eventos);
+  const eventos = Array.isArray(source.eventos)
+    ? source.eventos.map(normalizeMicroEvento).filter((e) => e.hora)
+    : legacyEventosFromRaw(source);
+  const geral = isV2 ? String(source.geral || '') : composeLegacyAnaliseText(source, legacyMaestria);
+  return { v: 2, geral, eventos: sortMicroEventos(eventos) };
+}
+
+function getAnaliseDoDia(d) {
+  return normalizeAnaliseMercado(d?.analiseMercado, d?.maestria);
 }
 
 function analiseMercadoHasContent(analise) {
-  const m = normalizeAnaliseMercado(analise);
-  return !!(
-    m.contexto.trim() ||
-    m.geral.trim() ||
-    analiseMercadoFilledMinutes(m).length ||
-    analiseMercadoTradeMinutes(m).length ||
-    analiseMercadoEstrategiaMinutes(m).length
-  );
+  const a = normalizeAnaliseMercado(analise);
+  return !!(a.geral.trim() || a.eventos.length);
 }
 
-function findLastMaestriaDestaquesSession(allDiarios, beforeDateId) {
-  let best = null;
-  for (const d of allDiarios) {
-    const date = getDiarioDate(d);
-    if (!date || date >= beforeDateId) continue;
-    const destaques = normalizeMaestria(d.maestria).destaques.trim();
-    if (!destaques) continue;
-    if (!best || date > best.date) best = { date, destaques };
+function formatMicroEventoLabel(e) {
+  const parts = [];
+  const dir = microDirInfo(e.dir);
+  if (dir) parts.push(`${dir.icon} ${dir.label}`);
+  if (e.est) parts.push(`[${e.est}]`);
+  if (e.trade) parts.push('● trade');
+  return parts.join(' ');
+}
+
+// Trades registrados na aba Pós-trade, vistos como marcações da janela (somente leitura).
+function getMeusTradesJanela(d) {
+  return (d?.trades || [])
+    .map((raw, index) => {
+      if (!raw || !isTradeFilled(raw)) return null;
+      const t = { ...raw };
+      normalizeTradeHora(t);
+      normalizeTradeLado(t);
+      return {
+        id: `mt${index}`,
+        mine: true,
+        index,
+        numero: t.numero || index + 1,
+        hora: t.horaAtiva ? normalizeMicroHora(t.hora) : '',
+        dir: t.lado || '',
+        est: normalizeAnaliseMercadoEstrategia(t.estrategia),
+        pontos: t.pontos,
+        grade: t.nota || '',
+        trade: true,
+        nota: ''
+      };
+    })
+    .filter(Boolean);
+}
+
+function getJanelaItensDoDia(d) {
+  const eventos = getAnaliseDoDia(d).eventos;
+  const meus = getMeusTradesJanela(d).filter((t) => t.hora);
+  return sortMicroEventos([...eventos, ...meus]);
+}
+
+function formatMicroEventoLine(e) {
+  if (e.mine) {
+    const dir = microDirInfo(e.dir);
+    const parts = [`${e.hora} ★ T${e.numero}`];
+    if (dir) parts.push(`${dir.icon} ${dir.label}`);
+    if (e.est) parts.push(`[${e.est}]`);
+    if (e.pontos !== null && e.pontos !== undefined && e.pontos !== '') parts.push(`${e.pontos} pts`);
+    return parts.join(' ');
   }
-  return best;
+  const label = formatMicroEventoLabel(e);
+  const nota = e.nota.trim();
+  return `${e.hora}${label ? ` ${label}` : ''}${nota ? ` — ${nota}` : ''}`;
 }
 
 function getMaestriaFieldDisplayText(fieldId, maestria) {
@@ -4794,10 +5471,27 @@ function prontidaoHasAnswers(prontidao) {
   return getAllDisposicaoQuestions().some((q) => getProntidaoValor(prontidao, q.id) !== null);
 }
 
-function parseAnaliseMercadoFromCsv(contexto, minutosRaw, geral, tradesRaw, estrategiasRaw) {
-  const analise = emptyAnaliseMercado();
-  analise.contexto = String(contexto || '');
-  analise.geral = String(geral || '');
+function parseAnaliseMercadoFromCsv(contexto, minutosRaw, geral, tradesRaw, estrategiasRaw, eventosRaw) {
+  const eventosText = String(eventosRaw || '').trim();
+  if (eventosText) {
+    let eventos = [];
+    try {
+      const parsed = JSON.parse(eventosText);
+      if (Array.isArray(parsed)) eventos = parsed;
+    } catch (err) {
+      console.warn('Coluna analise_eventos inválida no CSV:', err);
+    }
+    return normalizeAnaliseMercado({ v: 2, geral: String(geral || ''), eventos });
+  }
+
+  // Formato legado (antes da aba única "Análise")
+  const analise = {
+    contexto: String(contexto || ''),
+    minutos: emptyAnaliseMercadoMinutos(),
+    trades: emptyAnaliseMercadoTrades(),
+    estrategias: emptyAnaliseMercadoEstrategias(),
+    geral: String(geral || '')
+  };
   String(minutosRaw || '').split('|').forEach((part) => {
     const text = part.trim();
     if (!text) return;
@@ -4833,7 +5527,7 @@ function parseAnaliseMercadoFromCsv(contexto, minutosRaw, geral, tradesRaw, estr
     'maestria_micro_ciclo', 'maestria_micro_ciclo_nota',
     'maestria_analise', 'maestria_destaques',
     'analise_mercado_contexto', 'analise_mercado_minutos', 'analise_mercado_trades',
-    'analise_mercado_estrategias', 'analise_mercado_geral',
+    'analise_mercado_estrategias', 'analise_mercado_geral', 'analise_eventos',
     ...dispHeaders,
     'trade_num', 'estrategia', 'pontos', 'nota', 'lado', 'hora_trade', 'falha', 'conducao',
     'aspecto_positivo', 'comentario_trade'
@@ -4847,10 +5541,10 @@ function diariosToDataRows(diarios, headers = getCsvHeaders()) {
   for (const d of diarios) {
     normalizeDiarioFechado(d);
     const maestria = normalizeMaestria(d.maestria);
-    const analiseMercado = normalizeAnaliseMercado(d.analiseMercado);
-    const filledMinutes = analiseMercadoFilledMinutes(analiseMercado).map((hora) => `${hora} ${analiseMercado.minutos[hora].trim()}`);
-    const tradeMinutes = analiseMercadoTradeMinutes(analiseMercado);
-    const estrategiaMinutes = analiseMercadoEstrategiaMinutes(analiseMercado).map((hora) => `${hora} ${analiseMercado.estrategias[hora]}`);
+    const analiseMercado = getAnaliseDoDia(d);
+    const eventosCsv = JSON.stringify(analiseMercado.eventos.map(({ hora, dir, est, trade, nota }) => (
+      { hora, dir, est, trade, nota }
+    )));
     const base = [
       d.data,
       d.diaFechado ? '1' : '0',
@@ -4867,11 +5561,12 @@ function diariosToDataRows(diarios, headers = getCsvHeaders()) {
       maestria.microCicloNota,
       maestria.analise,
       maestria.destaques,
-      analiseMercado.contexto,
-      filledMinutes.join(' | '),
-      tradeMinutes.join('|'),
-      estrategiaMinutes.join(' | '),
-      analiseMercado.geral
+      '',
+      analiseMercado.eventos.map(formatMicroEventoLine).join(' | '),
+      analiseMercado.eventos.filter((e) => e.trade).map((e) => e.hora).join('|'),
+      analiseMercado.eventos.filter((e) => e.est).map((e) => `${e.hora} ${e.est}`).join(' | '),
+      analiseMercado.geral,
+      eventosCsv
     ];
 
     const pront = dispIds.flatMap((id) => {
@@ -5459,7 +6154,8 @@ function csvRowsToDiarios(parsed) {
         get(row, 'analise_mercado_minutos'),
         get(row, 'analise_mercado_geral'),
         get(row, 'analise_mercado_trades'),
-        get(row, 'analise_mercado_estrategias')
+        get(row, 'analise_mercado_estrategias'),
+        get(row, 'analise_eventos')
       );
       diario.trades = [];
       byDate.set(dateId, diario);
@@ -6091,65 +6787,25 @@ async function buildDayPdf(diario) {
     pdf.addLine(diario.comentarioGeral.trim());
   }
 
-  const maestria = normalizeMaestria(diario.maestria);
-  if (maestriaHasContent(maestria)) {
-    pdf.addHeading('Análise Maestria');
-    if (maestria.contextoMacro || maestria.contextoMacroNota.trim()) {
-      pdf.addLine('Contexto macro', 8);
-      pdf.addLine(formatMaestriaTrendDisplay(maestria.contextoMacro, maestria.contextoMacroNota), 12);
-      pdf.addSpacer(4);
-    }
-    if (maestria.microCiclo || maestria.microCicloNota.trim()) {
-      pdf.addLine('Micro ciclo', 8);
-      pdf.addLine(formatMaestriaTrendDisplay(maestria.microCiclo, maestria.microCicloNota), 12);
-      pdf.addSpacer(4);
-    }
-    if (maestria.analise.trim()) {
-      pdf.addLine('Análise', 8);
-      pdf.addLine(maestria.analise.trim(), 12);
-      pdf.addSpacer(4);
-    }
-    if (maestria.destaques.trim()) {
-      pdf.addLine('Destaques', 8);
-      pdf.addLine(maestria.destaques.trim(), 12);
-    }
-  }
-
-  const analiseMercado = normalizeAnaliseMercado(diario.analiseMercado);
-  if (analiseMercadoHasContent(analiseMercado)) {
-    pdf.addHeading('Minha análise');
-    if (analiseMercado.contexto.trim()) {
-      pdf.addLine('Contexto do mercado', 8);
-      pdf.addLine(analiseMercado.contexto.trim(), 12);
-      pdf.addSpacer(4);
-    }
-    const tradeMinutos = analiseMercadoTradeMinutes(analiseMercado);
-    if (tradeMinutos.length) {
-      pdf.addLine('Trades marcados', 8);
-      pdf.addLine(tradeMinutos.join(', '), 12);
-      pdf.addSpacer(4);
-    }
-    const estrategiaMinutos = analiseMercadoEstrategiaMinutes(analiseMercado);
-    if (estrategiaMinutos.length) {
-      pdf.addLine('Estratégias marcadas', 8);
-      pdf.addLine(estrategiaMinutos.map((hora) => `${hora} ${analiseMercado.estrategias[hora]}`).join(', '), 12);
-      pdf.addSpacer(4);
-    }
-    const minutosRelevantes = ANALISE_MERCADO_MINUTOS.filter((hora) =>
-      analiseMercado.minutos[hora].trim() || analiseMercado.trades[hora] || analiseMercado.estrategias[hora]
-    );
-    if (minutosRelevantes.length) {
-      pdf.addLine('Análise minuto a minuto', 8);
-      minutosRelevantes.forEach((hora) => {
-        const marker = analiseMercado.trades[hora] ? ' [TRADE]' : '';
-        const estrategia = analiseMercado.estrategias[hora] ? ` [${analiseMercado.estrategias[hora]}]` : '';
-        pdf.addLine(`${hora}${marker}${estrategia} ${analiseMercado.minutos[hora].trim()}`, 12);
+  const analiseDia = getAnaliseDoDia(diario);
+  if (analiseMercadoHasContent(analiseDia)) {
+    pdf.addHeading('Análise');
+    if (analiseDia.eventos.length) {
+      pdf.addLine('Janela · minuto a minuto', 8);
+      analiseDia.eventos.forEach((e) => {
+        const dir = microDirInfo(e.dir);
+        const parts = [e.hora];
+        if (dir) parts.push(dir.label);
+        if (e.est) parts.push(`[${e.est}]`);
+        if (e.trade) parts.push('[TRADE]');
+        const nota = e.nota.trim();
+        pdf.addLine(`${parts.join(' ')}${nota ? ` - ${nota}` : ''}`, 12);
       });
       pdf.addSpacer(4);
     }
-    if (analiseMercado.geral.trim()) {
-      pdf.addLine('Análise geral', 8);
-      pdf.addLine(analiseMercado.geral.trim(), 12);
+    if (analiseDia.geral.trim()) {
+      pdf.addLine('Análise / Comentários', 8);
+      pdf.addLine(analiseDia.geral.trim(), 12);
     }
   }
 
@@ -6236,6 +6892,10 @@ function initModals() {
 
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
+    if (typeof isChartViewerOpen === 'function' && isChartViewerOpen()) {
+      closeChartViewer();
+      return;
+    }
     const intencaoOverlay = document.getElementById('intencaoOverlay');
     if (intencaoOverlay && !intencaoOverlay.hidden) {
       closeIntencaoOverlay();
@@ -6323,7 +6983,7 @@ async function loadDay(dateId) {
 
   populateForm(diario);
   refreshIntencaoReminder();
-  await refreshMaestriaFocoReminder();
+  updateSidebarRemindersVisibility();
   updateEditingBanner();
   renderCalendar();
   setSaveStatus('Pronto');
@@ -6446,11 +7106,11 @@ function getLastTradingSessionRange(allDiarios) {
   return { from: lastDate, to: lastDate };
 }
 
-function getLastMaestriaSessionRange(allDiarios) {
-  const withMaestria = allDiarios.filter(diarioHasMaestriaRecord);
-  if (!withMaestria.length) return { from: null, to: null };
+function getLastAnaliseSessionRange(allDiarios) {
+  const withAnalise = allDiarios.filter(diarioHasAnaliseRecord);
+  if (!withAnalise.length) return { from: null, to: null };
 
-  const lastDate = withMaestria
+  const lastDate = withAnalise
     .map((d) => getDiarioDate(d))
     .filter(Boolean)
     .sort()
@@ -6459,8 +7119,8 @@ function getLastMaestriaSessionRange(allDiarios) {
   return { from: lastDate, to: lastDate };
 }
 
-function diarioHasMaestriaRecord(d) {
-  return !!(d && maestriaHasContent(d.maestria));
+function diarioHasAnaliseRecord(d) {
+  return !!(d && analiseMercadoHasContent(getAnaliseDoDia(d)));
 }
 
 function diarioHasGraficoRecord(d) {
@@ -6486,7 +7146,7 @@ function getLastGraficaSessionRange(allDiarios) {
 }
 
 function historyDayQualifies(d, viewMode = 'trading') {
-  if (viewMode === 'maestria') return diarioHasMaestriaRecord(d);
+  if (viewMode === 'analise') return diarioHasAnaliseRecord(d);
   if (viewMode === 'grafica') return diarioHasGraficoRecord(d);
   return diarioHasTradingHistoryRecord(d);
 }
@@ -6500,8 +7160,8 @@ const HISTORY_PRESET_LABELS = {
     'last-month': 'Últimos 30 dias',
     custom: 'Período personalizado'
   },
-  maestria: {
-    'last-session': 'Última análise maestria',
+  analise: {
+    'last-session': 'Última análise',
     'last-week': 'Últimos 7 dias',
     'last-2-weeks': 'Últimas 2 semanas',
     'last-3-weeks': 'Últimas 3 semanas',
@@ -6520,7 +7180,7 @@ const HISTORY_PRESET_LABELS = {
 
 function getHistoryViewMode() {
   const active = document.querySelector('.history-view-tabs .tab.active');
-  if (active?.dataset.historyView === 'maestria') return 'maestria';
+  if (active?.dataset.historyView === 'analise') return 'analise';
   if (active?.dataset.historyView === 'grafica') return 'grafica';
   return 'trading';
 }
@@ -6548,7 +7208,7 @@ function getPeriodRange(preset, allDiarios, customFrom, customTo, viewMode = 'tr
 
   switch (preset) {
     case 'last-session':
-      if (viewMode === 'maestria') return getLastMaestriaSessionRange(allDiarios);
+      if (viewMode === 'analise') return getLastAnaliseSessionRange(allDiarios);
       if (viewMode === 'grafica') return getLastGraficaSessionRange(allDiarios);
       return getLastTradingSessionRange(allDiarios);
     case 'last-week':
@@ -6566,7 +7226,7 @@ function getPeriodRange(preset, allDiarios, customFrom, customTo, viewMode = 'tr
       return normalizeDateRange(customFrom, customTo);
     }
     default:
-      if (viewMode === 'maestria') return getLastMaestriaSessionRange(allDiarios);
+      if (viewMode === 'analise') return getLastAnaliseSessionRange(allDiarios);
       if (viewMode === 'grafica') return getLastGraficaSessionRange(allDiarios);
       return getLastTradingSessionRange(allDiarios);
   }
@@ -6609,7 +7269,7 @@ function buildHistoryDayList(allInRange, from, to, preset, viewMode = 'trading')
       cursor = addDaysToDateId(cursor, 1);
     }
 
-    if (viewMode === 'maestria' || viewMode === 'grafica') {
+    if (viewMode === 'analise' || viewMode === 'grafica') {
       days = days.filter(({ diario }) => qualifies(diario));
     }
   }
@@ -6627,12 +7287,24 @@ function getHistoryStatsDiarios(allInRange, from, to, preset, viewMode = 'tradin
     .filter((d) => historyDayQualifies(d, viewMode));
 }
 
-const MAESTRIA_HISTORY_FIELDS = [
-  { id: 'contextoMacro', label: 'Contexto macro', scrollId: 'maestriaContextoMacroGroup' },
-  { id: 'microCiclo', label: 'Micro ciclo', scrollId: 'maestriaMicroCicloGroup' },
-  { id: 'analise', label: 'Análise', scrollId: 'maestriaAnalise' },
-  { id: 'destaques', label: 'Destaques', scrollId: 'maestriaDestaques' }
+const ANALISE_HISTORY_FIELDS = [
+  { id: 'geral', label: 'Análise', scrollId: 'analiseMercadoGeral' },
+  { id: 'eventos', label: 'Janela', scrollId: 'mcTape' }
 ];
+
+function getAnaliseFieldDisplayText(fieldId, analise, itens = analise.eventos) {
+  if (fieldId === 'geral') return analise.geral.trim();
+  if (fieldId === 'eventos') {
+    if (!itens.length) return '';
+    return itens.map((e) => {
+      const dir = microDirInfo(e.dir);
+      if (e.mine) return `${e.hora} ★T${e.numero}${dir ? ` ${dir.icon}` : ''}${e.est ? ` ${e.est}` : ''}`;
+      const label = [dir ? `${dir.icon} ${dir.label}` : '', e.est, e.nota.trim()].filter(Boolean).join(' ');
+      return `${e.hora} ${label || '•'}`;
+    }).join(' → ');
+  }
+  return '';
+}
 
 function activateAppTab(tabName) {
   document.querySelectorAll('nav.tabs .tab').forEach((tab) => {
@@ -6658,8 +7330,8 @@ async function openDayFromHistory(dateId, options = {}) {
       }
     }
 
-    if (options.maestriaField) {
-      const field = MAESTRIA_HISTORY_FIELDS.find((item) => item.id === options.maestriaField);
+    if (options.analiseField) {
+      const field = ANALISE_HISTORY_FIELDS.find((item) => item.id === options.analiseField);
       const el = field ? document.getElementById(field.scrollId) : null;
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
@@ -6818,20 +7490,22 @@ function buildTradingExpandableContent(d) {
   return hasContent ? panel : null;
 }
 
-function buildMaestriaExpandableContent(d) {
+function buildAnaliseExpandableContent(d) {
   const panel = document.createElement('div');
   panel.className = 'history-day-expandable';
   panel.hidden = true;
   let hasContent = false;
 
-  const maestria = normalizeMaestria(d.maestria);
-  MAESTRIA_HISTORY_FIELDS.forEach((field) => {
-    if (field.id === 'destaques') return;
-    const text = getMaestriaFieldDisplayText(field.id, maestria);
-    if (!text) return;
-    appendExpandableLine(panel, field.label, text);
+  const analise = getAnaliseDoDia(d);
+  const itens = getJanelaItensDoDia(d);
+  if (itens.length) {
+    appendExpandableLine(panel, 'Janela', itens.map(formatMicroEventoLine).join('\n'));
     hasContent = true;
-  });
+  }
+  if (analise.geral.trim()) {
+    appendExpandableLine(panel, 'Análise / Comentários', analise.geral.trim());
+    hasContent = true;
+  }
 
   return hasContent ? panel : null;
 }
@@ -6884,12 +7558,12 @@ function createDiaFechadoDayCard(d, dateId) {
   return article;
 }
 
-function createMaestriaDayCard(d, dateId) {
+function createAnaliseDayCard(d, dateId) {
   if (isDiarioFechado(d)) return createDiaFechadoDayCard(d, dateId);
 
   const article = document.createElement('article');
-  const hasMaestria = diarioHasMaestriaRecord(d);
-  article.className = hasMaestria
+  const hasAnalise = diarioHasAnaliseRecord(d);
+  article.className = hasAnalise
     ? 'history-day-card'
     : 'history-day-card history-day-card--empty';
 
@@ -6901,33 +7575,34 @@ function createMaestriaDayCard(d, dateId) {
   const content = document.createElement('div');
   content.className = 'history-day-content';
 
-  if (hasMaestria) {
-    const maestria = normalizeMaestria(d.maestria);
+  if (hasAnalise) {
+    const analise = getAnaliseDoDia(d);
+    const itens = getJanelaItensDoDia(d);
 
     const head = document.createElement('div');
     head.className = 'history-day-head';
     head.innerHTML = `<h3>${formatDateShort(getDiarioDate(d))}</h3>`;
     content.appendChild(head);
 
-    const maestriaUl = document.createElement('ul');
-    maestriaUl.className = 'history-day-maestria';
-    MAESTRIA_HISTORY_FIELDS.forEach((field) => {
-      if (field.id === 'destaques') return;
-      const display = getMaestriaFieldDisplayText(field.id, maestria);
+    const analiseUl = document.createElement('ul');
+    analiseUl.className = 'history-day-maestria';
+    ANALISE_HISTORY_FIELDS.forEach((field) => {
+      const display = getAnaliseFieldDisplayText(field.id, analise, itens);
       if (!display) return;
       const li = document.createElement('li');
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'history-day-selectable history-open-maestria';
+      btn.className = 'history-day-selectable history-open-analise';
       btn.dataset.id = getDiarioDate(d) || dateId;
-      btn.dataset.maestriaField = field.id;
+      btn.dataset.analiseField = field.id;
       const preview = display.replace(/\s+/g, ' ');
       const shortPreview = preview.length > 72 ? `${preview.slice(0, 72)}…` : preview;
-      btn.innerHTML = `<strong>${field.label}</strong> ${escapeHtml(shortPreview)}`;
+      const count = field.id === 'eventos' ? ` <small>(${itens.length})</small>` : '';
+      btn.innerHTML = `<strong>${field.label}${count}</strong> ${escapeHtml(shortPreview)}`;
       li.appendChild(btn);
-      maestriaUl.appendChild(li);
+      analiseUl.appendChild(li);
     });
-    if (maestriaUl.children.length) content.appendChild(maestriaUl);
+    if (analiseUl.children.length) content.appendChild(analiseUl);
   } else {
     const h3 = document.createElement('h3');
     h3.textContent = formatDateShort(dateId);
@@ -6935,22 +7610,14 @@ function createMaestriaDayCard(d, dateId) {
 
     const p = document.createElement('p');
     p.className = 'history-day-line';
-    p.textContent = 'Nenhuma análise Maestria neste dia.';
+    p.textContent = 'Nenhuma análise neste dia.';
     content.appendChild(p);
   }
 
   let expandableContent = null;
-  if (hasMaestria) {
-    expandableContent = buildMaestriaExpandableContent(d);
+  if (hasAnalise) {
+    expandableContent = buildAnaliseExpandableContent(d);
     if (expandableContent) content.appendChild(expandableContent);
-
-    const destaquesText = normalizeMaestria(d.maestria).destaques.trim();
-    if (destaquesText) {
-      const comment = document.createElement('p');
-      comment.className = 'history-day-comment history-day-comment--destaques';
-      comment.innerHTML = `<strong>Destaques:</strong> ${escapeHtml(destaquesText)}`;
-      content.appendChild(comment);
-    }
   }
 
   body.appendChild(content);
@@ -6962,11 +7629,11 @@ function createMaestriaDayCard(d, dateId) {
   btn.type = 'button';
   btn.className = 'btn btn-ghost btn-sm history-open-day';
   btn.dataset.id = getDiarioDate(d) || dateId;
-  btn.dataset.openTab = 'maestria';
-  btn.textContent = hasMaestria ? 'Abrir análise' : 'Criar análise';
+  btn.dataset.openTab = 'analise';
+  btn.textContent = hasAnalise ? 'Abrir análise' : 'Criar análise';
   actions.appendChild(btn);
 
-  if (hasMaestria && expandableContent) {
+  if (hasAnalise && expandableContent) {
     const expandBtn = document.createElement('button');
     expandBtn.type = 'button';
     expandBtn.className = 'btn btn-ghost btn-sm history-expand-day';
@@ -6988,57 +7655,265 @@ function createMaestriaDayCard(d, dateId) {
 }
 
 function createGraficaDayCard(d, dateId) {
+  const id = getDiarioDate(d) || dateId;
   const article = document.createElement('article');
-  article.className = 'history-chart-card history-open-day';
-  article.dataset.id = getDiarioDate(d) || dateId;
-  article.dataset.openTab = 'pos';
+  article.className = 'history-chart-card';
+  article.dataset.id = id;
 
   const header = document.createElement('div');
   header.className = 'history-chart-card-header';
-  header.innerHTML = `<h3>${formatDateShort(getDiarioDate(d) || dateId)}</h3>`;
+  header.innerHTML = `
+    <h3>${formatDateShort(id)}</h3>
+    <span class="history-chart-card-actions">
+      <button type="button" class="btn btn-ghost btn-sm history-chart-expand" data-id="${id}" title="Ver em alta resolução">⤢ Ampliar</button>
+      <button type="button" class="btn btn-ghost btn-sm history-open-day" data-id="${id}" data-open-tab="pos">Abrir dia</button>
+    </span>
+  `;
   article.appendChild(header);
 
-  article.appendChild(createChartElement(d, dateId));
+  const chart = createChartElement(d, dateId);
+  chart.classList.add('history-chart-expand');
+  chart.dataset.id = id;
+  chart.title = 'Clique para ver em alta resolução';
+  const img = chart.querySelector('.history-card-img');
+  if (img) {
+    img.dataset.hiresId = id;
+    img.loading = 'eager';
+    if (d?.graficoDia) {
+      img.src = d.graficoDia;
+      img.dataset.hiresLoaded = '1';
+    } else {
+      img.classList.add('history-card-img--loading');
+    }
+  }
+  article.appendChild(chart);
   return article;
 }
 
-function buildAnaliseMercadoExpandableContent(d) {
-  const panel = document.createElement('div');
-  panel.className = 'history-day-expandable';
-  panel.hidden = true;
-  let hasContent = false;
-  const analise = normalizeAnaliseMercado(d.analiseMercado);
+// ── Gráficos em alta resolução (histórico + visualizador) ──
+const hiresChartCache = new Map();
 
-  if (analise.contexto.trim()) {
-    appendExpandableLine(panel, 'Contexto do mercado', analise.contexto.trim());
-    hasContent = true;
-  }
-  const tradeMinutos = analiseMercadoTradeMinutes(analise);
-  if (tradeMinutos.length) {
-    appendExpandableLine(panel, 'Trades marcados', tradeMinutos.join(', '));
-    hasContent = true;
-  }
-  const estrategiaMinutos = analiseMercadoEstrategiaMinutes(analise);
-  if (estrategiaMinutos.length) {
-    appendExpandableLine(panel, 'Estratégias marcadas', estrategiaMinutos.map((hora) => `${hora} ${analise.estrategias[hora]}`).join(', '));
-    hasContent = true;
-  }
-  const relevantMinutes = new Set([...analiseMercadoFilledMinutes(analise), ...tradeMinutos, ...estrategiaMinutos]);
-  ANALISE_MERCADO_MINUTOS.filter((hora) => relevantMinutes.has(hora)).forEach((hora) => {
-    const estrategia = analise.estrategias[hora] ? ` [${analise.estrategias[hora]}]` : '';
-    const label = analise.trades[hora] ? `${hora} 🟢 trade${estrategia}` : `${hora}${estrategia}`;
-    appendExpandableLine(panel, label, analise.minutos[hora].trim());
-    hasContent = true;
+async function getFullChartDataUrl(dateId) {
+  if (!dateId) return null;
+  if (hiresChartCache.has(dateId)) return hiresChartCache.get(dateId);
+  const promise = (async () => {
+    if (currentDiario && getDiarioDate(currentDiario) === dateId && currentDiario.graficoDia) {
+      return currentDiario.graficoDia;
+    }
+    const full = await getCachedFullDiario(dateId) || await fetchDiarioPayload(dateId);
+    return full?.graficoDia || null;
+  })().catch((err) => {
+    console.warn('Não foi possível carregar o gráfico em alta resolução:', err);
+    hiresChartCache.delete(dateId);
+    return null;
   });
-  if (analise.geral.trim()) {
-    appendExpandableLine(panel, 'Análise geral', analise.geral.trim());
-    hasContent = true;
+  hiresChartCache.set(dateId, promise);
+  return promise;
+}
+
+let hiresObserver = null;
+
+function observeHiresCharts(root) {
+  const imgs = [...root.querySelectorAll('img[data-hires-id]:not([data-hires-loaded])')];
+  if (!imgs.length) return;
+  const load = async (img) => {
+    img.dataset.hiresLoaded = '1';
+    const src = await getFullChartDataUrl(img.dataset.hiresId);
+    if (src && img.isConnected) img.src = src;
+    img.classList.remove('history-card-img--loading');
+  };
+  if (!('IntersectionObserver' in window)) {
+    imgs.forEach(load);
+    return;
   }
-  return hasContent ? panel : null;
+  if (hiresObserver) hiresObserver.disconnect();
+  hiresObserver = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      hiresObserver.unobserve(entry.target);
+      load(entry.target);
+    });
+  }, { root: document.querySelector('.modal-history') || null, rootMargin: '400px 0px' });
+  imgs.forEach((img) => hiresObserver.observe(img));
+}
+
+const chartViewer = { items: [], index: 0, zoom: null, token: 0 };
+
+function chartViewerEls() {
+  return {
+    root: document.getElementById('chartViewer'),
+    stage: document.getElementById('chartViewerStage'),
+    img: document.getElementById('chartViewerImg'),
+    title: document.getElementById('chartViewerTitle'),
+    res: document.getElementById('chartViewerRes'),
+    zoomLabel: document.getElementById('cvZoomLabel'),
+    loading: document.getElementById('chartViewerLoading')
+  };
+}
+
+function isChartViewerOpen() {
+  const root = document.getElementById('chartViewer');
+  return !!root && !root.hidden;
+}
+
+function applyChartViewerZoom() {
+  const { stage, img, zoomLabel } = chartViewerEls();
+  const fit = chartViewer.zoom === null;
+  stage.classList.toggle('is-fit', fit);
+  if (fit) {
+    img.style.width = '';
+    img.style.maxWidth = '';
+    img.style.maxHeight = '';
+    zoomLabel.textContent = 'Ajustar';
+  } else {
+    const w = Math.round((img.naturalWidth || 1280) * chartViewer.zoom);
+    img.style.width = `${w}px`;
+    img.style.maxWidth = 'none';
+    img.style.maxHeight = 'none';
+    zoomLabel.textContent = `${Math.round(chartViewer.zoom * 100)}%`;
+  }
+}
+
+function currentChartViewerScale() {
+  const { img } = chartViewerEls();
+  if (chartViewer.zoom !== null) return chartViewer.zoom;
+  return img.naturalWidth ? img.clientWidth / img.naturalWidth : 1;
+}
+
+function setChartViewerZoom(next, anchor) {
+  const { stage } = chartViewerEls();
+  const prev = currentChartViewerScale();
+  const z = next === null ? null : Math.min(6, Math.max(0.1, next));
+  const rect = stage.getBoundingClientRect();
+  const ax = anchor ? anchor.x - rect.left : rect.width / 2;
+  const ay = anchor ? anchor.y - rect.top : rect.height / 2;
+  const cx = stage.scrollLeft + ax;
+  const cy = stage.scrollTop + ay;
+  chartViewer.zoom = z;
+  applyChartViewerZoom();
+  if (z !== null && prev) {
+    const ratio = z / prev;
+    stage.scrollLeft = cx * ratio - ax;
+    stage.scrollTop = cy * ratio - ay;
+  }
+}
+
+async function showChartViewerItem() {
+  const els = chartViewerEls();
+  const item = chartViewer.items[chartViewer.index];
+  if (!item) return;
+  const token = ++chartViewer.token;
+  els.title.textContent = formatDateShort(item.dateId);
+  els.res.textContent = '';
+  document.getElementById('cvPrev').disabled = chartViewer.index <= 0;
+  document.getElementById('cvNext').disabled = chartViewer.index >= chartViewer.items.length - 1;
+  document.getElementById('cvOpenDay').hidden = !item.canOpenDay;
+
+  const updateRes = () => {
+    if (token !== chartViewer.token) return;
+    if (els.img.naturalWidth) els.res.textContent = `${els.img.naturalWidth} × ${els.img.naturalHeight}px`;
+    applyChartViewerZoom();
+  };
+  els.img.onload = updateRes;
+
+  if (item.src) els.img.src = item.src;
+  els.loading.classList.remove('hidden');
+  const full = item.fullSrc || await getFullChartDataUrl(item.dateId);
+  if (token !== chartViewer.token) return;
+  els.loading.classList.add('hidden');
+  if (full) {
+    item.fullSrc = full;
+    if (els.img.src !== full) els.img.src = full;
+  }
+  if (els.img.complete) updateRes();
+}
+
+function openChartViewer(items, index = 0) {
+  if (!items?.length) return;
+  chartViewer.items = items;
+  chartViewer.index = Math.max(0, Math.min(index, items.length - 1));
+  chartViewer.zoom = null;
+  const { root } = chartViewerEls();
+  root.hidden = false;
+  document.body.classList.add('modal-open');
+  applyChartViewerZoom();
+  showChartViewerItem();
+}
+
+function closeChartViewer() {
+  const { root, img } = chartViewerEls();
+  root.hidden = true;
+  chartViewer.token += 1;
+  img.removeAttribute('src');
+  const anyOpen = document.querySelector('.modal-overlay:not([hidden])');
+  if (!anyOpen) document.body.classList.remove('modal-open');
+}
+
+function stepChartViewer(delta) {
+  const next = chartViewer.index + delta;
+  if (next < 0 || next >= chartViewer.items.length) return;
+  chartViewer.index = next;
+  chartViewer.zoom = null;
+  applyChartViewerZoom();
+  showChartViewerItem();
+}
+
+function initChartViewer() {
+  const { stage } = chartViewerEls();
+  document.getElementById('cvClose').addEventListener('click', closeChartViewer);
+  document.getElementById('cvPrev').addEventListener('click', () => stepChartViewer(-1));
+  document.getElementById('cvNext').addEventListener('click', () => stepChartViewer(1));
+  document.getElementById('cvZoomIn').addEventListener('click', () => setChartViewerZoom(currentChartViewerScale() * 1.25));
+  document.getElementById('cvZoomOut').addEventListener('click', () => setChartViewerZoom(currentChartViewerScale() / 1.25));
+  document.getElementById('cvFit').addEventListener('click', () => setChartViewerZoom(null));
+  document.getElementById('cv100').addEventListener('click', () => setChartViewerZoom(1));
+  document.getElementById('cvOpenDay').addEventListener('click', async () => {
+    const item = chartViewer.items[chartViewer.index];
+    closeChartViewer();
+    if (item) await openDayFromHistory(item.dateId, { tab: 'pos' });
+  });
+
+  stage.addEventListener('wheel', (e) => {
+    if (!e.ctrlKey && !e.metaKey && chartViewer.zoom !== null) return;
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+    setChartViewerZoom(currentChartViewerScale() * factor, { x: e.clientX, y: e.clientY });
+  }, { passive: false });
+
+  stage.addEventListener('dblclick', (e) => {
+    if (chartViewer.zoom === null) setChartViewerZoom(Math.max(1, currentChartViewerScale() * 2), { x: e.clientX, y: e.clientY });
+    else setChartViewerZoom(null);
+  });
+
+  let drag = null;
+  stage.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    drag = { x: e.clientX, y: e.clientY, left: stage.scrollLeft, top: stage.scrollTop };
+    stage.classList.add('is-dragging');
+  });
+  window.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    stage.scrollLeft = drag.left - (e.clientX - drag.x);
+    stage.scrollTop = drag.top - (e.clientY - drag.y);
+  });
+  window.addEventListener('pointerup', () => {
+    drag = null;
+    stage.classList.remove('is-dragging');
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (!isChartViewerOpen()) return;
+    if (e.key === 'ArrowLeft') { e.preventDefault(); stepChartViewer(-1); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); stepChartViewer(1); }
+    else if (e.key === '+' || e.key === '=') setChartViewerZoom(currentChartViewerScale() * 1.25);
+    else if (e.key === '-') setChartViewerZoom(currentChartViewerScale() / 1.25);
+    else if (e.key === '0') setChartViewerZoom(null);
+    else if (e.key === '1') setChartViewerZoom(1);
+  });
 }
 
 function createDayCard(d, dateId, viewMode = 'trading') {
-  if (viewMode === 'maestria') return createMaestriaDayCard(d, dateId);
+  if (viewMode === 'analise') return createAnaliseDayCard(d, dateId);
   if (viewMode === 'grafica') return createGraficaDayCard(d, dateId);
   if (d && isDiarioFechado(d)) return createDiaFechadoDayCard(d, dateId);
 
@@ -7189,8 +8064,8 @@ function renderHistoryGallery(allInRange, from, to, preset = 'custom', viewMode 
   const daysInPeriod = buildHistoryDayList(allInRange, from, to, preset, viewMode);
 
   if (daysInPeriod.length === 0) {
-    gallery.innerHTML = viewMode === 'maestria'
-      ? '<p class="empty-msg">Nenhuma análise Maestria encontrada no período.</p>'
+    gallery.innerHTML = viewMode === 'analise'
+      ? '<p class="empty-msg">Nenhuma análise encontrada no período.</p>'
       : viewMode === 'grafica'
         ? '<p class="empty-msg">Nenhum gráfico salvo encontrado no período.</p>'
         : '<p class="empty-msg">Selecione um período válido.</p>';
@@ -7226,19 +8101,166 @@ function renderHistoryGallery(allInRange, from, to, preset = 'custom', viewMode 
     });
   });
 
-  gallery.querySelectorAll('.history-open-maestria').forEach((btn) => {
+  gallery.querySelectorAll('.history-open-analise').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       await openDayFromHistory(btn.dataset.id, {
-        tab: 'maestria',
-        maestriaField: btn.dataset.maestriaField
+        tab: 'analise',
+        analiseField: btn.dataset.analiseField
       });
     });
   });
+
+  if (viewMode === 'grafica') {
+    const viewerItems = daysInPeriod
+      .filter(({ diario }) => diario && diarioHasChart(diario) && !isDiarioFechado(diario))
+      .map(({ dateId, diario }) => ({
+        dateId: getDiarioDate(diario) || dateId,
+        src: diario.graficoDia || diario.graficoThumb || null,
+        canOpenDay: true
+      }));
+    gallery.querySelectorAll('.history-chart-expand').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const index = viewerItems.findIndex((item) => item.dateId === el.dataset.id);
+        if (index >= 0) openChartViewer(viewerItems, index);
+      });
+    });
+    observeHiresCharts(gallery);
+  }
 }
 
 function showHistoryEmpty(message) {
   document.getElementById('historyGallery').innerHTML = `<p class="empty-msg">${message}</p>`;
+}
+
+let historyPatternGran = 1;
+let historyPatternDiarios = [];
+
+function microBucketLabel(startMin, gran) {
+  if (gran <= 1) return microMinToHora(startMin);
+  return `${microMinToHora(startMin)}–${microMinToHora(startMin + gran - 1)}`;
+}
+
+function renderHistoryPatterns(diarios) {
+  const panel = document.getElementById('historyPatterns');
+  if (!panel) return;
+  historyPatternDiarios = diarios || [];
+  const gran = historyPatternGran;
+
+  const events = [];
+  historyPatternDiarios.forEach((d) => {
+    if (!d || isDiarioFechado(d)) return;
+    const date = getDiarioDate(d);
+    getAnaliseDoDia(d).eventos.forEach((e) => {
+      const min = microHoraToMin(e.hora);
+      if (min === null || (!e.dir && !e.est)) return;
+      events.push({ ...e, date, bucket: Math.floor(min / gran) * gran });
+    });
+    getMeusTradesJanela(d).forEach((t) => {
+      const min = microHoraToMin(t.hora);
+      if (min === null) return;
+      events.push({ ...t, date, bucket: Math.floor(min / gran) * gran });
+    });
+  });
+
+  if (!events.length) {
+    panel.classList.add('hidden');
+    panel.innerHTML = '';
+    return;
+  }
+
+  const totalDays = new Set(events.map((e) => e.date)).size;
+
+  // Combinações recorrentes (faixa de horário + lado + estratégia) em dias diferentes
+  const combos = new Map();
+  events.forEach((e) => {
+    if (e.mine) return;
+    const key = `${e.bucket}|${e.dir}|${e.est}`;
+    if (!combos.has(key)) combos.set(key, { bucket: e.bucket, dir: e.dir, est: e.est, dates: new Set(), trades: 0 });
+    const c = combos.get(key);
+    c.dates.add(e.date);
+    if (e.trade) c.trades += 1;
+  });
+  const top = [...combos.values()]
+    .filter((c) => c.dates.size >= 2)
+    .sort((a, b) => b.dates.size - a.dates.size || a.bucket - b.bucket)
+    .slice(0, 8);
+
+  // Mapa de calor: (lado / estratégia) × horário
+  const buckets = [...new Set(events.map((e) => e.bucket))].sort((a, b) => a - b);
+  const market = events.filter((e) => !e.mine);
+  const rows = [
+    ...MICRO_DIRS.filter((d) => market.some((e) => e.dir === d.id))
+      .map((d) => ({ key: `dir:${d.id}`, label: `${d.icon} ${d.label}`, match: (e) => !e.mine && e.dir === d.id })),
+    ...[...new Set(market.map((e) => e.est).filter(Boolean))].sort()
+      .map((est) => ({ key: `est:${est}`, label: est, match: (e) => !e.mine && e.est === est })),
+    ...(events.some((e) => e.mine)
+      ? [{ key: 'mine', label: '★ Meus trades', match: (e) => e.mine }]
+      : [])
+  ];
+  const cell = new Map();
+  events.forEach((e) => {
+    rows.forEach((row) => {
+      if (!row.match(e)) return;
+      const key = `${row.key}|${e.bucket}`;
+      if (!cell.has(key)) cell.set(key, { dates: new Set(), compra: 0, venda: 0 });
+      const c = cell.get(key);
+      c.dates.add(e.date);
+      if (e.dir) c[e.dir] += 1;
+    });
+  });
+  const maxCell = Math.max(1, ...[...cell.values()].map((c) => c.dates.size));
+
+  const topHtml = top.length
+    ? `<ul class="hp-top">${top.map((c) => {
+        const dir = microDirInfo(c.dir);
+        const pct = Math.round((c.dates.size / totalDays) * 100);
+        const trades = c.trades ? ` · ${c.trades} trade${c.trades > 1 ? 's' : ''}` : '';
+        return `<li><b>${microBucketLabel(c.bucket, gran)}</b> ${dir ? `${dir.icon} ${dir.label}` : ''}${c.est ? ` · ${escapeHtml(c.est)}` : ''}<span class="hp-days">${c.dates.size}/${totalDays} dias (${pct}%)${trades}</span></li>`;
+      }).join('')}</ul>`
+    : `<p class="hp-none">Nenhuma repetição ainda${gran === 1 ? ' no mesmo minuto — experimente agrupar por 5 min' : ''}. Continue marcando para os padrões aparecerem.</p>`;
+
+  const heatHtml = `
+    <div class="hp-heat">
+      <table>
+        <thead><tr><th></th>${buckets.map((b) => `<th scope="col">${microMinToHora(b)}</th>`).join('')}</tr></thead>
+        <tbody>
+          ${rows.map((row) => `<tr><th scope="row">${escapeHtml(row.label)}</th>${buckets.map((b) => {
+            const c = cell.get(`${row.key}|${b}`);
+            if (!c) return '<td class="hp-cell"></td>';
+            const n = c.dates.size;
+            const mix = 25 + Math.round((n / maxCell) * 65);
+            const color = c.compra > c.venda ? 'var(--success)' : c.venda > c.compra ? 'var(--danger)' : 'var(--primary)';
+            const title = `${microBucketLabel(b, gran)} · ${row.label}: ${n} dia(s) — ▲${c.compra} compra · ▼${c.venda} venda`;
+            return `<td class="hp-cell" title="${escapeHtml(title)}" style="background: color-mix(in srgb, ${color} ${mix}%, var(--bg-input));">${n}</td>`;
+          }).join('')}</tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+    <p class="hp-legend">Número = dias com marcação naquele horário. Cor: verde predominância de compra, vermelho de venda, azul misto/sem lado.</p>`;
+
+  panel.innerHTML = `
+    <div class="hp-head">
+      <h4>Padrões da janela<small>${events.length} marcações · ${totalDays} dia(s)</small></h4>
+      <div class="hp-gran" role="group" aria-label="Agrupar horários">
+        <button type="button" data-gran="1" class="${gran === 1 ? 'selected' : ''}">1 min</button>
+        <button type="button" data-gran="5" class="${gran === 5 ? 'selected' : ''}">5 min</button>
+        <button type="button" data-gran="15" class="${gran === 15 ? 'selected' : ''}">15 min</button>
+      </div>
+    </div>
+    <p class="hp-subtitle">Mais recorrentes</p>
+    ${topHtml}
+    <p class="hp-subtitle">Lado / estratégia × horário</p>
+    ${heatHtml}
+  `;
+  panel.classList.remove('hidden');
+  panel.querySelectorAll('[data-gran]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      historyPatternGran = Number(btn.dataset.gran) || 1;
+      renderHistoryPatterns(historyPatternDiarios);
+    });
+  });
 }
 
 async function renderHistory() {
@@ -7250,9 +8272,10 @@ async function renderHistory() {
   const showStats = viewMode === 'trading';
 
   setHistoryStatsVisible(showStats);
+  renderHistoryPatterns([]);
 
   document.getElementById('historyGalleryTitle').textContent =
-    viewMode === 'maestria'
+    viewMode === 'analise'
       ? 'Análises do período'
       : viewMode === 'grafica'
         ? 'Gráficos do período'
@@ -7287,8 +8310,8 @@ async function renderHistory() {
       });
     }
     showHistoryEmpty(
-      viewMode === 'maestria'
-        ? 'Nenhuma análise Maestria encontrada. Preencha a aba Análise Maestria para ver o histórico.'
+      viewMode === 'analise'
+        ? 'Nenhuma análise encontrada. Preencha a aba Análise para ver o histórico.'
         : viewMode === 'grafica'
           ? 'Nenhum gráfico encontrado. Adicione prints dos gráficos para ver o histórico.'
           : 'Nenhum registro encontrado. Preencha o diário para ver o histórico.'
@@ -7309,10 +8332,14 @@ async function renderHistory() {
 
   renderHistoryGallery(allInRange, from, to, preset, viewMode);
 
+  if (viewMode === 'analise') {
+    renderHistoryPatterns(getHistoryStatsDiarios(allInRange, from, to, preset, 'analise'));
+  }
+
   if (withContent.length === 0) {
     const label = document.getElementById('historyPeriodLabel');
-    label.textContent += viewMode === 'maestria'
-      ? ' · nenhuma análise Maestria no período'
+    label.textContent += viewMode === 'analise'
+      ? ' · nenhuma análise no período'
       : viewMode === 'grafica'
         ? ' · nenhum gráfico salvo no período'
         : ' · nenhum dia com registro no período';
@@ -7383,35 +8410,6 @@ function initHistory() {
   <script>let currentDiario = null;
 let saveTimer = null;
 
-async function refreshMaestriaFocoReminder() {
-  const wrap = document.getElementById('maestriaFocoReminder');
-  const body = document.getElementById('maestriaFocoReminderBody');
-  if (!wrap || !body) return;
-
-  wrap.classList.add('hidden');
-
-  if (selectedDateId !== todayId()) {
-    updateSidebarRemindersVisibility();
-    return;
-  }
-
-  if (currentDiario && isDiarioFechado(currentDiario)) {
-    updateSidebarRemindersVisibility();
-    return;
-  }
-
-  const all = await getAllDiariosMeta();
-  const session = findLastMaestriaDestaquesSession(all, todayId());
-  if (!session) {
-    updateSidebarRemindersVisibility();
-    return;
-  }
-
-  body.textContent = session.destaques;
-  wrap.classList.remove('hidden');
-  updateSidebarRemindersVisibility();
-}
-
 function refreshIntencaoReminder() {
   const wrap = document.getElementById('intencaoReminder');
   const body = document.getElementById('intencaoReminderBody');
@@ -7470,8 +8468,6 @@ function initIntencaoDoDia() {
   });
 }
 
-function initMaestriaFocoReminder() {
-}
 
 function renderDisposicao(prontidao = {}) {
   const container = document.getElementById('disposicaoContextos');
@@ -7648,6 +8644,8 @@ function bindTradeHoraInput(index, accordion) {
     trade.hora = input.value || TRADE_HORA_DEFAULT;
     scheduleSave();
   });
+
+  attachQuickTimePicker(input, { button: false });
 }
 
 function normalizeTradeSelections(trade) {
@@ -8194,7 +9192,7 @@ function applyChartViewState() {
   const z = zoom / 100;
   const sx = stretchX / 100;
 
-  ['chartPreview', 'maestriaChartPreview', 'analiseMercadoChartPreview'].forEach((id) => {
+  ['chartPreview', 'analiseMercadoChartPreview'].forEach((id) => {
     const preview = document.getElementById(id);
     if (!preview) return;
     if (!preview.src) {
@@ -8206,10 +9204,8 @@ function applyChartViewState() {
 
   [
     ['chartZoomRange', 'chartZoomValue', zoom],
-    ['maestriaChartZoomRange', 'maestriaChartZoomValue', zoom],
     ['analiseMercadoChartZoomRange', 'analiseMercadoChartZoomValue', zoom],
     ['chartStretchXRange', 'chartStretchXValue', stretchX],
-    ['maestriaChartStretchXRange', 'maestriaChartStretchXValue', stretchX],
     ['analiseMercadoChartStretchXRange', 'analiseMercadoChartStretchXValue', stretchX]
   ].forEach(([rangeId, valueId, val]) => {
     const range = document.getElementById(rangeId);
@@ -8249,31 +9245,7 @@ function renderGraficoDia(dataUrl, zoom) {
     dropzone.classList.remove('chart-dropzone--has-image');
   }
 
-  renderMaestriaGrafico(dataUrl, zoom);
   renderAnaliseMercadoGrafico(dataUrl, zoom);
-}
-
-function renderMaestriaGrafico(dataUrl, zoom) {
-  const frame = document.getElementById('maestriaChartPreviewFrame');
-  const preview = document.getElementById('maestriaChartPreview');
-  const empty = document.getElementById('maestriaChartEmpty');
-  const zoomRow = document.getElementById('maestriaChartZoomRow');
-
-  if (dataUrl) {
-    preview.onload = () => applyChartViewState();
-    preview.src = dataUrl;
-    frame.classList.remove('hidden');
-    empty.classList.add('hidden');
-    zoomRow.classList.remove('hidden');
-    applyChartViewState();
-  } else {
-    preview.onload = null;
-    preview.src = '';
-    preview.style.transform = '';
-    frame.classList.add('hidden');
-    empty.classList.remove('hidden');
-    zoomRow.classList.add('hidden');
-  }
 }
 
 function renderAnaliseMercadoGrafico(dataUrl, zoom) {
@@ -8281,7 +9253,10 @@ function renderAnaliseMercadoGrafico(dataUrl, zoom) {
   const preview = document.getElementById('analiseMercadoChartPreview');
   const empty = document.getElementById('analiseMercadoChartEmpty');
   const zoomRow = document.getElementById('analiseMercadoChartZoomRow');
+  const expandBtn = document.getElementById('btnAnaliseChartExpand');
   if (!frame || !preview || !empty || !zoomRow) return;
+  if (expandBtn) expandBtn.classList.toggle('hidden', !dataUrl);
+  frame.classList.toggle('chart-preview-frame--zoomable', !!dataUrl);
 
   if (dataUrl) {
     preview.onload = () => applyChartViewState();
@@ -8298,59 +9273,6 @@ function renderAnaliseMercadoGrafico(dataUrl, zoom) {
     empty.classList.remove('hidden');
     zoomRow.classList.add('hidden');
   }
-}
-
-function setMaestriaTrendGroup(groupId, trendId) {
-  document.querySelectorAll(`#${groupId} .option-btn`).forEach((btn) => {
-    btn.classList.toggle('selected', btn.dataset.trend === trendId);
-  });
-}
-
-function getMaestriaTrendFromGroup(groupId) {
-  const selected = document.querySelector(`#${groupId} .option-btn.selected`);
-  return selected?.dataset.trend || '';
-}
-
-function populateMaestriaForm(diario) {
-  const maestria = normalizeMaestria(diario.maestria);
-  currentDiario.maestria = maestria;
-  setMaestriaTrendGroup('maestriaContextoMacroGroup', maestria.contextoMacro);
-  document.getElementById('maestriaContextoMacroNota').value = maestria.contextoMacroNota;
-  setMaestriaTrendGroup('maestriaMicroCicloGroup', maestria.microCiclo);
-  document.getElementById('maestriaMicroCicloNota').value = maestria.microCicloNota;
-  document.getElementById('maestriaAnalise').value = maestria.analise;
-  document.getElementById('maestriaDestaques').value = maestria.destaques;
-  renderMaestriaGrafico(diario.graficoDia, currentDiario.graficoZoom);
-}
-
-function initMaestriaTendencia() {
-  document.querySelectorAll('[data-maestria-trend]').forEach((group) => {
-    group.querySelectorAll('.option-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const wasSelected = btn.classList.contains('selected');
-        group.querySelectorAll('.option-btn').forEach((b) => b.classList.remove('selected'));
-        if (!wasSelected) btn.classList.add('selected');
-
-        if (currentDiario?.maestria) {
-          const field = group.dataset.maestriaTrend;
-          currentDiario.maestria[field] = btn.classList.contains('selected') ? btn.dataset.trend : '';
-        }
-        scheduleSave();
-      });
-    });
-  });
-}
-
-function initMaestriaGrafico() {
-  document.getElementById('maestriaChartZoomRange').addEventListener('input', (e) => {
-    applyChartZoom(Number(e.target.value));
-    scheduleSave();
-  });
-
-  document.getElementById('maestriaChartStretchXRange').addEventListener('input', (e) => {
-    applyChartStretchX(Number(e.target.value));
-    scheduleSave();
-  });
 }
 
 function initAnaliseMercadoGrafico() {
@@ -8363,105 +9285,590 @@ function initAnaliseMercadoGrafico() {
     applyChartStretchX(Number(e.target.value));
     scheduleSave();
   });
+
+  const openCurrent = () => {
+    if (!currentDiario?.graficoDia) return;
+    openChartViewer([{
+      dateId: getDiarioDate(currentDiario) || selectedDateId,
+      src: currentDiario.graficoDia,
+      fullSrc: currentDiario.graficoDia,
+      canOpenDay: false
+    }], 0);
+  };
+  document.getElementById('btnAnaliseChartExpand')?.addEventListener('click', openCurrent);
+  document.getElementById('analiseMercadoChartPreviewFrame')?.addEventListener('click', openCurrent);
 }
 
-function analiseMercadoMinutoInputId(hora) {
-  return `analiseMercadoMinuto_${hora.replace(':', '')}`;
+// ── Seletor rápido de horário: escolhe a hora e, ao clicar no minuto, aplica e fecha ──
+const quickTimePicker = { el: null, input: null, hour: 10 };
+
+function buildQuickTimePicker() {
+  if (quickTimePicker.el) return quickTimePicker.el;
+  const el = document.createElement('div');
+  el.className = 'qt-pop';
+  el.hidden = true;
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-label', 'Selecionar horário');
+  const hours = Array.from({ length: 24 }, (_, h) => `<button type="button" data-h="${h}">${String(h).padStart(2, '0')}</button>`).join('');
+  const minutes = Array.from({ length: 60 }, (_, m) => `<button type="button" data-m="${m}">${String(m).padStart(2, '0')}</button>`).join('');
+  el.innerHTML = `
+    <p class="qt-label">Hora</p>
+    <div class="qt-grid qt-hours">${hours}</div>
+    <p class="qt-label">Minuto <small>— clique para aplicar</small></p>
+    <div class="qt-grid qt-minutes">${minutes}</div>`;
+  el.addEventListener('mousedown', (e) => e.preventDefault()); // mantém o foco no campo
+  el.addEventListener('click', (e) => {
+    const hBtn = e.target.closest('[data-h]');
+    const mBtn = e.target.closest('[data-m]');
+    if (hBtn) {
+      quickTimePicker.hour = Number(hBtn.dataset.h);
+      highlightQuickTimePicker();
+    } else if (mBtn) {
+      applyQuickTime(quickTimePicker.hour, Number(mBtn.dataset.m));
+    }
+  });
+  document.body.appendChild(el);
+  document.addEventListener('mousedown', (e) => {
+    if (el.hidden) return;
+    if (el.contains(e.target) || e.target.closest('.qt-btn') || e.target === quickTimePicker.input) return;
+    closeQuickTimePicker();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !el.hidden) {
+      e.stopImmediatePropagation();
+      closeQuickTimePicker();
+    }
+  }, true);
+  window.addEventListener('resize', closeQuickTimePicker);
+  document.addEventListener('scroll', (e) => {
+    if (!el.hidden && !el.contains(e.target)) positionQuickTimePicker();
+  }, true);
+  quickTimePicker.el = el;
+  return el;
 }
 
-function analiseMercadoTradeButtonId(hora) {
-  return `analiseMercadoTrade_${hora.replace(':', '')}`;
+function highlightQuickTimePicker() {
+  const el = quickTimePicker.el;
+  const current = normalizeMicroHora(quickTimePicker.input?.value);
+  const curMin = current ? Number(current.split(':')[1]) : null;
+  const curHour = current ? Number(current.split(':')[0]) : null;
+  el.querySelectorAll('[data-h]').forEach((b) => b.classList.toggle('selected', Number(b.dataset.h) === quickTimePicker.hour));
+  el.querySelectorAll('[data-m]').forEach((b) => b.classList.toggle('selected', curHour === quickTimePicker.hour && Number(b.dataset.m) === curMin));
 }
 
-function analiseMercadoEstrategiaInputId(hora) {
-  return `analiseMercadoEstrategia_${hora.replace(':', '')}`;
+function positionQuickTimePicker() {
+  const { el, input } = quickTimePicker;
+  if (!el || !input) return;
+  const r = input.getBoundingClientRect();
+  const w = el.offsetWidth;
+  const h = el.offsetHeight;
+  let left = Math.min(r.left, window.innerWidth - w - 8);
+  left = Math.max(8, left);
+  let top = r.bottom + 6;
+  if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
+  el.style.left = `${left}px`;
+  el.style.top = `${top}px`;
 }
 
-function setAnaliseMercadoTradeState(btn, active) {
-  btn.dataset.trade = active ? '1' : '';
-  btn.classList.toggle('minute-log-time--trade', active);
-  btn.setAttribute('aria-pressed', String(active));
+function openQuickTimePicker(input) {
+  const el = buildQuickTimePicker();
+  quickTimePicker.input = input;
+  const current = normalizeMicroHora(input.value);
+  quickTimePicker.hour = current ? Number(current.split(':')[0]) : 10;
+  el.hidden = false;
+  highlightQuickTimePicker();
+  positionQuickTimePicker();
 }
 
-function renderAnaliseMercadoMinutos() {
-  const container = document.getElementById('analiseMercadoMinutos');
-  if (!container || container.dataset.built) return;
+function closeQuickTimePicker() {
+  if (quickTimePicker.el) quickTimePicker.el.hidden = true;
+  quickTimePicker.input = null;
+}
 
-  ANALISE_MERCADO_MINUTOS.forEach((hora) => {
-    const row = document.createElement('div');
-    row.className = 'minute-log-row';
+function applyQuickTime(hour, minute) {
+  const input = quickTimePicker.input;
+  closeQuickTimePicker();
+  if (!input || !input.isConnected) return;
+  input.focus();
+  input.value = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+  input.blur();
+}
 
-    const time = document.createElement('button');
-    time.type = 'button';
-    time.id = analiseMercadoTradeButtonId(hora);
-    time.className = 'minute-log-time';
-    time.textContent = hora;
-    time.dataset.minuto = hora;
-    time.title = 'Marcar/desmarcar trade neste minuto';
-    setAnaliseMercadoTradeState(time, false);
-    time.addEventListener('click', () => {
-      const active = time.dataset.trade === '1';
-      setAnaliseMercadoTradeState(time, !active);
-      if (currentDiario?.analiseMercado?.trades) {
-        currentDiario.analiseMercado.trades[hora] = !active;
-      }
-      scheduleSave();
+function attachQuickTimePicker(input, { button = true } = {}) {
+  if (!input || input.dataset.quickTime) return;
+  input.dataset.quickTime = '1';
+  input.classList.add('qt-input');
+  if (!button) {
+    // Sem botão extra: o próprio campo abre o seletor ao ser clicado (digitar continua funcionando).
+    input.addEventListener('click', () => openQuickTimePicker(input));
+    return;
+  }
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'qt-btn';
+  btn.title = 'Escolher horário';
+  btn.setAttribute('aria-label', 'Escolher horário');
+  btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>';
+  btn.addEventListener('mousedown', (e) => e.preventDefault());
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (quickTimePicker.input === input && !quickTimePicker.el?.hidden) {
+      closeQuickTimePicker();
+    } else {
+      openQuickTimePicker(input);
+    }
+  });
+  input.insertAdjacentElement('afterend', btn);
+}
+
+// ── Janela · marcações minuto a minuto ──
+const MC_DEFAULT_START = '10:30';
+const MC_DEFAULT_END = '11:00';
+const mcDraft = { dir: '', trade: false };
+
+function getMcEventos() {
+  if (!currentDiario) return [];
+  if (!currentDiario.analiseMercado || !Array.isArray(currentDiario.analiseMercado.eventos)) {
+    currentDiario.analiseMercado = normalizeAnaliseMercado(currentDiario.analiseMercado, currentDiario.maestria);
+  }
+  return currentDiario.analiseMercado.eventos;
+}
+
+function setMcEventos(eventos) {
+  if (!currentDiario) return;
+  getMcEventos();
+  currentDiario.analiseMercado.eventos = sortMicroEventos(eventos);
+}
+
+function mcSuggestNextHora() {
+  const mins = getMcEventos().map((e) => microHoraToMin(e.hora)).filter((n) => n !== null);
+  if (!mins.length) return MC_DEFAULT_START;
+  return microMinToHora(Math.max(...mins) + 1);
+}
+
+function fillEstrategiaSelect(select, value, placeholder) {
+  select.innerHTML = '';
+  const empty = document.createElement('option');
+  empty.value = '';
+  empty.textContent = placeholder;
+  select.appendChild(empty);
+  CONFIG.estrategias.forEach((est) => {
+    const opt = document.createElement('option');
+    opt.value = est.id;
+    opt.textContent = `${est.label} — ${est.desc}`;
+    select.appendChild(opt);
+  });
+  if (value && !CONFIG.estrategias.some((est) => est.id === value)) {
+    const opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = value;
+    select.appendChild(opt);
+  }
+  select.value = value || '';
+}
+
+function buildDirGroup(container, value, onChange) {
+  container.innerHTML = '';
+  MICRO_DIRS.forEach((d) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.dataset.dir = d.id;
+    btn.textContent = `${d.icon} ${d.label}`;
+    btn.title = d.label;
+    btn.classList.toggle('selected', value === d.id);
+    btn.setAttribute('aria-pressed', String(value === d.id));
+    btn.addEventListener('click', () => {
+      const next = btn.classList.contains('selected') ? '' : d.id;
+      container.querySelectorAll('button').forEach((b) => {
+        const on = b.dataset.dir === next;
+        b.classList.toggle('selected', on);
+        b.setAttribute('aria-pressed', String(on));
+      });
+      onChange(next);
     });
+    container.appendChild(btn);
+  });
+}
 
-    const estrategia = document.createElement('input');
-    estrategia.type = 'text';
-    estrategia.id = analiseMercadoEstrategiaInputId(hora);
-    estrategia.className = 'minute-log-estrategia';
-    estrategia.dataset.minuto = hora;
-    estrategia.maxLength = 8;
-    estrategia.autocomplete = 'off';
-    estrategia.placeholder = 'Estratégia';
-    estrategia.title = 'Estratégia ofertada pelo mercado, ex.: PCR, FD, LK';
-    estrategia.addEventListener('input', () => {
-      const start = estrategia.selectionStart;
-      const end = estrategia.selectionEnd;
-      estrategia.value = estrategia.value.toUpperCase();
-      if (start !== null && end !== null) estrategia.setSelectionRange(start, end);
-      scheduleSave();
-    });
+function setTradeToggle(btn, active) {
+  btn.setAttribute('aria-pressed', String(!!active));
+}
 
-    const textarea = document.createElement('textarea');
-    textarea.id = analiseMercadoMinutoInputId(hora);
-    textarea.dataset.minuto = hora;
-    textarea.rows = 1;
-    textarea.placeholder = 'O que aconteceu neste minuto...';
-    textarea.addEventListener('input', scheduleSave);
+function renderMcComposer() {
+  buildDirGroup(document.getElementById('mcDir'), mcDraft.dir, (dir) => { mcDraft.dir = dir; });
+  fillEstrategiaSelect(document.getElementById('mcEstrategia'), '', 'Estratégia');
+  setTradeToggle(document.getElementById('mcTrade'), mcDraft.trade);
+}
 
-    row.appendChild(time);
-    row.appendChild(estrategia);
-    row.appendChild(textarea);
-    container.appendChild(row);
+function resetMcComposer({ keepHora = false } = {}) {
+  mcDraft.dir = '';
+  mcDraft.trade = false;
+  document.querySelectorAll('#mcDir button').forEach((b) => {
+    b.classList.remove('selected');
+    b.setAttribute('aria-pressed', 'false');
+  });
+  document.getElementById('mcEstrategia').value = '';
+  setTradeToggle(document.getElementById('mcTrade'), false);
+  document.getElementById('mcNota').value = '';
+  if (!keepHora) document.getElementById('mcHora').value = mcSuggestNextHora();
+}
+
+function flashMcItem(id, scroll = false) {
+  const li = document.querySelector(`#mcList .mc-item[data-id="${id}"]`);
+  if (!li) return;
+  li.classList.remove('mc-item--flash');
+  void li.offsetWidth;
+  li.classList.add('mc-item--flash');
+  if (scroll) li.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function mcAddEvento() {
+  if (!currentDiario) return;
+  const horaInput = document.getElementById('mcHora');
+  const notaInput = document.getElementById('mcNota');
+  const hora = normalizeMicroHora(horaInput.value);
+  const nota = notaInput.value.trim();
+  const est = document.getElementById('mcEstrategia').value;
+  if (!hora) {
+    horaInput.focus();
+    return;
+  }
+  if (!mcDraft.dir && !nota && !est && !mcDraft.trade) {
+    notaInput.focus();
+    notaInput.placeholder = 'Escolha o lado, a estratégia ou escreva uma nota';
+    return;
+  }
+  const evento = normalizeMicroEvento({ hora, dir: mcDraft.dir, est, trade: mcDraft.trade, nota });
+  setMcEventos([...getMcEventos(), evento]);
+  resetMcComposer({ keepHora: true });
+  horaInput.value = microMinToHora(microHoraToMin(hora) + 1);
+  notaInput.placeholder = 'Nota curta (opcional) — Enter adiciona';
+  renderMcAll();
+  flashMcItem(evento.id);
+  scheduleSave();
+}
+
+function updateMcItemClass(li, evento) {
+  li.className = `mc-item mc-item--${evento.dir || 'none'}`;
+}
+
+function buildMcItem(evento) {
+  const li = document.createElement('li');
+  li.dataset.id = evento.id;
+  updateMcItemClass(li, evento);
+
+  const hora = document.createElement('input');
+  hora.type = 'time';
+  hora.step = 60;
+  hora.value = evento.hora;
+  hora.setAttribute('aria-label', 'Horário');
+  let committedHora = evento.hora;
+  // Enquanto digita: só atualiza o valor (redesenhar a lista aqui interrompia a digitação).
+  hora.addEventListener('change', () => {
+    const value = normalizeMicroHora(hora.value);
+    if (!value) return;
+    evento.hora = value;
+    renderMcTape();
+    scheduleSave();
+  });
+  const commitHora = () => {
+    const value = normalizeMicroHora(hora.value);
+    if (!value) {
+      hora.value = evento.hora;
+      return;
+    }
+    evento.hora = value;
+    if (value === committedHora) return;
+    committedHora = value;
+    setMcEventos(getMcEventos());
+    const list = document.getElementById('mcList');
+    const domOrder = [...list.querySelectorAll('.mc-item[data-id]')].map((el) => el.dataset.id).join('|');
+    const newOrder = getMcEventos().map((e) => e.id).join('|');
+    if (domOrder !== newOrder) {
+      renderMcList();
+      flashMcItem(evento.id);
+    }
+    renderMcTape();
+    scheduleSave();
+  };
+  hora.addEventListener('blur', commitHora);
+  hora.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      hora.blur();
+    }
   });
 
-  container.dataset.built = '1';
+  const dir = document.createElement('div');
+  dir.className = 'mc-dir';
+  dir.setAttribute('role', 'group');
+  dir.setAttribute('aria-label', 'Lado da operação');
+  buildDirGroup(dir, evento.dir, (value) => {
+    evento.dir = value;
+    updateMcItemClass(li, evento);
+    renderMcTape();
+    scheduleSave();
+  });
+  dir.querySelectorAll('button').forEach((b) => {
+    const info = microDirInfo(b.dataset.dir);
+    b.textContent = `${info.icon} ${info.label}`;
+  });
+
+  const est = document.createElement('select');
+  est.className = 'mc-item-est';
+  est.setAttribute('aria-label', 'Estratégia');
+  fillEstrategiaSelect(est, evento.est, 'Estratégia');
+  [...est.options].forEach((opt) => { if (opt.value) opt.textContent = opt.value; });
+  est.addEventListener('change', () => {
+    evento.est = normalizeAnaliseMercadoEstrategia(est.value);
+    renderMcTape();
+    scheduleSave();
+  });
+
+  const trade = document.createElement('button');
+  trade.type = 'button';
+  trade.className = 'mc-trade';
+  trade.textContent = 'Trade';
+  setTradeToggle(trade, evento.trade);
+  trade.addEventListener('click', () => {
+    evento.trade = !evento.trade;
+    setTradeToggle(trade, evento.trade);
+    renderMcTape();
+    scheduleSave();
+  });
+
+  const nota = document.createElement('input');
+  nota.type = 'text';
+  nota.maxLength = 240;
+  nota.value = evento.nota;
+  nota.placeholder = 'Nota...';
+  nota.setAttribute('aria-label', 'Nota');
+  nota.addEventListener('input', () => {
+    evento.nota = nota.value;
+    scheduleSave();
+  });
+  nota.addEventListener('change', renderMcTape);
+
+  const del = document.createElement('button');
+  del.type = 'button';
+  del.className = 'mc-del';
+  del.textContent = '✕';
+  del.title = 'Remover marcação';
+  del.setAttribute('aria-label', 'Remover marcação');
+  del.addEventListener('click', () => {
+    setMcEventos(getMcEventos().filter((e) => e.id !== evento.id));
+    renderMcAll();
+    document.getElementById('mcHora').value = mcSuggestNextHora();
+    scheduleSave();
+  });
+
+  li.append(hora, dir, est, trade, nota, del);
+  attachQuickTimePicker(hora);
+  return li;
+}
+
+function getMcMeusTrades() {
+  return currentDiario ? getMeusTradesJanela(currentDiario) : [];
+}
+
+function getMcItens() {
+  const meus = getMcMeusTrades().filter((t) => t.hora);
+  return sortMicroEventos([...getMcEventos(), ...meus]);
+}
+
+function goToPosTrade(index) {
+  activateAppTab('pos');
+  requestAnimationFrame(() => {
+    const accordion = document.querySelector(`[data-trade="${index}"].trade-accordion`);
+    if (accordion) {
+      accordion.open = true;
+      accordion.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+}
+
+function renderMcList() {
+  const list = document.getElementById('mcList');
+  const eventos = getMcEventos();
+  const meus = getMcMeusTrades();
+  list.innerHTML = '';
+  const count = document.getElementById('mcCount');
+  const parts = [];
+  if (eventos.length) parts.push(`${eventos.length} ${eventos.length === 1 ? 'marcação' : 'marcações'}`);
+  if (meus.length) parts.push(`${meus.length} ${meus.length === 1 ? 'trade meu' : 'trades meus'}`);
+  count.textContent = parts.join(' · ');
+
+  if (!eventos.length) {
+    const li = document.createElement('li');
+    li.className = 'mc-empty';
+    li.textContent = 'Nenhuma marcação ainda. Escolha o horário, o lado da operação e a estratégia acima e clique em “Adicionar marcação”.';
+    list.appendChild(li);
+  } else {
+    eventos.forEach((e) => list.appendChild(buildMcItem(e)));
+  }
+
+  // Trades do Pós-trade sem horário não aparecem na fita: avisa abaixo dela.
+  const pending = document.getElementById('mcMinePending');
+  const semHora = meus.filter((t) => !t.hora);
+  pending.innerHTML = '';
+  pending.hidden = !semHora.length;
+  if (semHora.length) {
+    pending.append(`★ ${semHora.map((t) => `T${t.numero}`).join(', ')} sem horário — informe a hora `);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = 'na aba Pós-trade';
+    btn.addEventListener('click', () => goToPosTrade(semHora[0].index));
+    pending.append(btn, ' para aparecer na fita.');
+  }
+}
+
+function renderMcTape() {
+  const tape = document.getElementById('mcTape');
+  const seq = document.getElementById('mcSeq');
+  const eventos = getMcItens().filter((e) => microHoraToMin(e.hora) !== null);
+  tape.innerHTML = '';
+
+  let start = microHoraToMin(MC_DEFAULT_START);
+  let end = microHoraToMin(MC_DEFAULT_END);
+  if (eventos.length) {
+    const mins = eventos.map((e) => microHoraToMin(e.hora));
+    start = Math.min(...mins);
+    end = Math.max(...mins);
+    const pad = Math.max(1, Math.round((end - start) * 0.04));
+    start -= pad;
+    end += pad;
+    if (end - start < 10) {
+      const mid = (start + end) / 2;
+      start = Math.floor(mid - 5);
+      end = start + 10;
+    }
+  }
+  const span = end - start;
+
+  const axis = document.createElement('div');
+  axis.className = 'mc-tape-axis';
+  tape.appendChild(axis);
+
+  const tapeWidth = tape.clientWidth || 700;
+  const maxTicks = Math.max(3, Math.floor(tapeWidth / 52));
+  const step = [1, 2, 5, 10, 15, 30, 60, 120].find((s) => span / s <= maxTicks) || 120;
+  for (let t = Math.ceil(start / step) * step; t <= end; t += step) {
+    const tick = document.createElement('span');
+    tick.className = 'mc-tape-tick';
+    tick.style.left = `${((t - start) / span) * 100}%`;
+    tick.textContent = microMinToHora(t);
+    axis.appendChild(tick);
+  }
+
+  if (!eventos.length) {
+    const empty = document.createElement('span');
+    empty.className = 'mc-tape-empty';
+    empty.textContent = 'As marcações aparecem aqui, na ordem em que a janela se desenrolou.';
+    tape.appendChild(empty);
+    tape.style.paddingTop = '';
+    seq.textContent = '';
+    return;
+  }
+
+  const stacks = new Map();
+  let maxStack = 1;
+  eventos.forEach((e) => {
+    const m = microHoraToMin(e.hora);
+    const level = stacks.get(m) || 0;
+    stacks.set(m, level + 1);
+    maxStack = Math.max(maxStack, level + 1);
+
+    const dir = microDirInfo(e.dir);
+    const mark = document.createElement('button');
+    mark.type = 'button';
+    mark.className = e.mine
+      ? 'mc-tape-mark mc-tape-mark--meutrade'
+      : `mc-tape-mark${e.dir ? ` mc-tape-mark--${e.dir}` : ''}${e.trade ? ' mc-tape-mark--trade' : ''}`;
+    mark.style.left = `${((m - start) / span) * 100}%`;
+    mark.style.top = `${-level * 26}px`;
+    mark.textContent = e.mine ? `★T${e.numero}` : (dir ? dir.icon : '•');
+    const titleParts = e.mine
+      ? [e.hora, `★ T${e.numero}`, dir?.label, e.est]
+      : [e.hora, dir?.label, e.est, e.trade ? 'TRADE' : ''];
+    mark.title = `${titleParts.filter(Boolean).join(' · ')}${e.nota.trim() ? ` — ${e.nota.trim()}` : ''}`;
+    mark.setAttribute('aria-label', mark.title);
+    mark.addEventListener('click', () => (e.mine ? goToPosTrade(e.index) : flashMcItem(e.id, true)));
+    axis.appendChild(mark);
+  });
+  tape.style.paddingTop = `${30 + (maxStack - 1) * 26}px`;
+
+  const seqEventos = eventos.filter((e) => !e.mine);
+  seq.innerHTML = !seqEventos.length ? '' : '<b>Sequência:</b> ' + seqEventos.map((e) => {
+    const dir = microDirInfo(e.dir);
+    if (e.mine) {
+      return `<span class="mc-mine">${e.hora} ★ T${e.numero}${dir ? ` ${dir.icon} ${dir.label}` : ''}${e.est ? ` ${escapeHtml(e.est)}` : ''}</span>`;
+    }
+    const cls = e.dir === 'compra' ? 'mc-up' : e.dir === 'venda' ? 'mc-down' : '';
+    const parts = [dir ? `${dir.icon} ${dir.label}` : '', e.est ? escapeHtml(e.est) : ''].filter(Boolean);
+    const label = parts.length ? parts.join(' ') : (e.nota.trim() ? escapeHtml(e.nota.trim().slice(0, 24)) : '•');
+    return `<span class="${cls}">${e.hora} ${label}${e.trade ? ' ●' : ''}</span>`;
+  }).join(' → ');
+}
+
+function renderMcAll() {
+  renderMcList();
+  renderMcTape();
+}
+
+function initMicroCiclo() {
+  renderMcComposer();
+  const horaInput = document.getElementById('mcHora');
+  const stepHora = (delta) => {
+    const current = microHoraToMin(horaInput.value) ?? microHoraToMin(mcSuggestNextHora());
+    horaInput.value = microMinToHora(current + delta);
+  };
+  document.getElementById('mcTimeMinus').addEventListener('click', () => stepHora(-1));
+  document.getElementById('mcTimePlus').addEventListener('click', () => stepHora(1));
+  document.getElementById('mcTrade').addEventListener('click', (e) => {
+    mcDraft.trade = !mcDraft.trade;
+    setTradeToggle(e.currentTarget, mcDraft.trade);
+  });
+  document.getElementById('mcAdd').addEventListener('click', mcAddEvento);
+  document.querySelector('nav.tabs .tab[data-tab="analise"]')?.addEventListener('click', () => {
+    requestAnimationFrame(renderMcAll);
+  });
+  let mcResizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(mcResizeTimer);
+    mcResizeTimer = setTimeout(() => { if (currentDiario) renderMcTape(); }, 150);
+  });
+  attachQuickTimePicker(horaInput);
+  horaInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      mcAddEvento();
+    }
+  });
+  document.getElementById('mcNota').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      mcAddEvento();
+    }
+  });
 }
 
 function populateAnaliseMercadoForm(diario) {
-  const analise = normalizeAnaliseMercado(diario.analiseMercado);
+  const analise = normalizeAnaliseMercado(diario.analiseMercado, diario.maestria);
   currentDiario.analiseMercado = analise;
-  document.getElementById('analiseMercadoContexto').value = analise.contexto;
   document.getElementById('analiseMercadoGeral').value = analise.geral;
-  ANALISE_MERCADO_MINUTOS.forEach((hora) => {
-    const el = document.getElementById(analiseMercadoMinutoInputId(hora));
-    if (el) el.value = analise.minutos[hora] || '';
-    const tradeBtn = document.getElementById(analiseMercadoTradeButtonId(hora));
-    if (tradeBtn) setAnaliseMercadoTradeState(tradeBtn, !!analise.trades[hora]);
-    const estrategiaEl = document.getElementById(analiseMercadoEstrategiaInputId(hora));
-    if (estrategiaEl) estrategiaEl.value = analise.estrategias[hora] || '';
-  });
+  resetMcComposer();
+  renderMcAll();
   renderAnaliseMercadoGrafico(diario.graficoDia, currentDiario.graficoZoom);
 }
 
-const CHART_MAX_WIDTH = 1280;
-const CHART_JPEG_QUALITY = 0.7;
+const CHART_MAX_WIDTH = 1920;
+const CHART_JPEG_QUALITY = 0.85;
 const CHART_THUMB_WIDTH = 480;
 const CHART_THUMB_QUALITY = 0.52;
-const CHART_RECOMPRESS_CHARS = 280000;
+const CHART_RECOMPRESS_CHARS = 1200000;
 
 function loadImageFromDataUrl(dataUrl) {
   return new Promise((resolve, reject) => {
@@ -8690,7 +10097,6 @@ function toggleDiaFechado() {
 
   updateDiaFechadoUI();
   refreshIntencaoReminder();
-  void refreshMaestriaFocoReminder();
 
   if (currentDiario.diaFechado) {
     closedDates.add(dateId);
@@ -8745,7 +10151,7 @@ function populateForm(diario) {
   renderTrades(diario.trades);
   renderGraficoDia(diario.graficoDia, currentDiario.graficoZoom);
   updateSemaforo();
-  populateMaestriaForm(diario);
+  currentDiario.maestria = normalizeMaestria(diario.maestria);
   populateAnaliseMercadoForm(diario);
 
   document.getElementById('comentarioPreTrade').value = diario.comentarioPreTrade || '';
@@ -8763,31 +10169,10 @@ function collectFormData() {
   currentDiario.comentarioPreTrade = document.getElementById('comentarioPreTrade').value;
   currentDiario.intencaoDoDia = document.getElementById('intencaoDoDia').value;
   currentDiario.comentarioGeral = document.getElementById('comentarioGeral').value;
-  currentDiario.maestria = {
-    contextoMacro: getMaestriaTrendFromGroup('maestriaContextoMacroGroup'),
-    contextoMacroNota: document.getElementById('maestriaContextoMacroNota').value,
-    microCiclo: getMaestriaTrendFromGroup('maestriaMicroCicloGroup'),
-    microCicloNota: document.getElementById('maestriaMicroCicloNota').value,
-    analise: document.getElementById('maestriaAnalise').value,
-    destaques: document.getElementById('maestriaDestaques').value
-  };
-  const analiseMercadoMinutos = {};
-  const analiseMercadoTrades = {};
-  const analiseMercadoEstrategias = {};
-  ANALISE_MERCADO_MINUTOS.forEach((hora) => {
-    const el = document.getElementById(analiseMercadoMinutoInputId(hora));
-    analiseMercadoMinutos[hora] = el ? el.value : '';
-    const tradeBtn = document.getElementById(analiseMercadoTradeButtonId(hora));
-    analiseMercadoTrades[hora] = !!(tradeBtn && tradeBtn.dataset.trade === '1');
-    const estrategiaEl = document.getElementById(analiseMercadoEstrategiaInputId(hora));
-    analiseMercadoEstrategias[hora] = normalizeAnaliseMercadoEstrategia(estrategiaEl ? estrategiaEl.value : '');
-  });
   currentDiario.analiseMercado = {
-    contexto: document.getElementById('analiseMercadoContexto').value,
-    minutos: analiseMercadoMinutos,
-    trades: analiseMercadoTrades,
-    estrategias: analiseMercadoEstrategias,
-    geral: document.getElementById('analiseMercadoGeral').value
+    v: 2,
+    geral: document.getElementById('analiseMercadoGeral').value,
+    eventos: sortMicroEventos(getMcEventos().map(normalizeMicroEvento).filter((e) => e.hora))
   };
   if (currentDiario.graficoDia) {
     currentDiario.graficoZoom = Number(document.getElementById('chartZoomRange').value) || 100;
@@ -8823,7 +10208,7 @@ async function saveCurrent() {
 }
 
 function setSaveStatus(msg) {
-  ['saveStatus', 'saveStatusMaestria', 'saveStatusAnalise'].forEach((id) => {
+  ['saveStatus', 'saveStatusAnalise'].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.textContent = msg;
   });
@@ -8835,13 +10220,11 @@ function setSaveStatus(msg) {
   initTabs();
   initModals();
   initGraficoDia();
-  initMaestriaGrafico();
-  initMaestriaTendencia();
-  renderAnaliseMercadoMinutos();
   initAnaliseMercadoGrafico();
+  initMicroCiclo();
+  initChartViewer();
   initCalendar();
   initDiaFechado();
-  initMaestriaFocoReminder();
   initIntencaoDoDia();
   initNotes();
   initHistory();
@@ -8854,16 +10237,10 @@ function setSaveStatus(msg) {
   await loadDay(todayId());
 
   document.getElementById('btnSave').addEventListener('click', saveCurrent);
-  document.getElementById('btnSaveMaestria').addEventListener('click', saveCurrent);
   document.getElementById('btnSaveAnalise').addEventListener('click', saveCurrent);
   document.getElementById('comentarioPreTrade').addEventListener('input', scheduleSave);
   document.getElementById('comentarioGeral').addEventListener('input', scheduleSave);
-  ['maestriaContextoMacroNota', 'maestriaMicroCicloNota', 'maestriaAnalise', 'maestriaDestaques'].forEach((id) => {
-    document.getElementById(id).addEventListener('input', scheduleSave);
-  });
-  ['analiseMercadoContexto', 'analiseMercadoGeral'].forEach((id) => {
-    document.getElementById(id).addEventListener('input', scheduleSave);
-  });
+  document.getElementById('analiseMercadoGeral').addEventListener('input', scheduleSave);
 
   document.getElementById('btnTheme').addEventListener('click', toggleTheme);
 
